@@ -4,12 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
+import uuid
+import zipfile
 from typing import Any
 
 
@@ -66,7 +70,195 @@ def request_json(base: str, path: str, timeout: float) -> dict[str, Any]:
         return {"ok": False, "url": url, "error": str(exc)}
 
 
-def check_translation_readiness(api_base: str, timeout: float, required_dicts: list[str]) -> dict[str, Any]:
+def post_json(base: str, path: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
+    url = f"{base.rstrip('/')}{path}"
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            return {
+                "ok": 200 <= resp.status < 300,
+                "url": url,
+                "status": resp.status,
+                "json": json.loads(raw) if raw else None,
+            }
+    except urllib.error.HTTPError as exc:
+        raw = exc.read(1000).decode("utf-8", errors="replace")
+        return {"ok": False, "url": url, "status": exc.code, "error": str(exc), "body": raw}
+    except Exception as exc:
+        return {"ok": False, "url": url, "error": str(exc)}
+
+
+def delete_json(base: str, path: str, timeout: float) -> dict[str, Any]:
+    url = f"{base.rstrip('/')}{path}"
+    req = urllib.request.Request(url, method="DELETE")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            return {
+                "ok": 200 <= resp.status < 300,
+                "url": url,
+                "status": resp.status,
+                "json": json.loads(raw) if raw else None,
+            }
+    except urllib.error.HTTPError as exc:
+        raw = exc.read(1000).decode("utf-8", errors="replace")
+        return {"ok": False, "url": url, "status": exc.code, "error": str(exc), "body": raw}
+    except Exception as exc:
+        return {"ok": False, "url": url, "error": str(exc)}
+
+
+def minimal_xlsx_bytes() -> bytes:
+    """Build a tiny valid XLSX in-memory for platform smoke tests."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "[Content_Types].xml",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>""",
+        )
+        zf.writestr(
+            "_rels/.rels",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>""",
+        )
+        zf.writestr(
+            "xl/workbook.xml",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Smoke" sheetId="1" r:id="rId1"/></sheets>
+</workbook>""",
+        )
+        zf.writestr(
+            "xl/_rels/workbook.xml.rels",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>""",
+        )
+        zf.writestr(
+            "xl/worksheets/sheet1.xml",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+    <row r="1"><c r="A1" t="inlineStr"><is><t>cn_name</t></is></c></row>
+    <row r="2"><c r="A2" t="inlineStr"><is><t>测试</t></is></c></row>
+  </sheetData>
+</worksheet>""",
+        )
+    return out.getvalue()
+
+
+def multipart_create_project(base: str, project_name: str, timeout: float) -> dict[str, Any]:
+    boundary = f"----rule-resolve-{uuid.uuid4().hex}"
+    fields = {
+        "name": project_name,
+        "target_lang": "EN",
+        "source_type": "xlsx",
+        "workflow": "translate",
+        "source_col": "0",
+    }
+    chunks: list[bytes] = []
+    for key, value in fields.items():
+        chunks.extend(
+            [
+                f"--{boundary}\r\n".encode("utf-8"),
+                f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8"),
+                str(value).encode("utf-8"),
+                b"\r\n",
+            ]
+        )
+    chunks.extend(
+        [
+            f"--{boundary}\r\n".encode("utf-8"),
+            b'Content-Disposition: form-data; name="file"; filename="rule-resolve-smoke.xlsx"\r\n',
+            b"Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n",
+            minimal_xlsx_bytes(),
+            b"\r\n",
+            f"--{boundary}--\r\n".encode("utf-8"),
+        ]
+    )
+    body = b"".join(chunks)
+    url = f"{base.rstrip('/')}/api/project/"
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "Content-Length": str(len(body))},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            return {
+                "ok": 200 <= resp.status < 300,
+                "url": url,
+                "status": resp.status,
+                "json": json.loads(raw) if raw else None,
+            }
+    except urllib.error.HTTPError as exc:
+        raw = exc.read(1000).decode("utf-8", errors="replace")
+        return {"ok": False, "url": url, "status": exc.code, "error": str(exc), "body": raw}
+    except Exception as exc:
+        return {"ok": False, "url": url, "error": str(exc)}
+
+
+def google_translate_smoke(api_base: str, timeout: float) -> dict[str, Any]:
+    """Create, translate, and delete a one-row project to verify provider egress."""
+    base = api_base.rstrip("/")
+    project_name = f"rule-resolve-smoke-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+    project_id = None
+    result: dict[str, Any] = {"ok": False, "project_name": project_name}
+    create_result = multipart_create_project(base, project_name, timeout)
+
+    try:
+        if not create_result.get("ok") or not isinstance(create_result.get("json"), dict):
+            result.update({"create": create_result})
+            return result
+
+        project_id = create_result["json"].get("id")
+        if not project_id:
+            result.update({"create": create_result})
+            return result
+
+        translate_result = post_json(base, f"/api/translate/{project_id}/translate-all", {}, timeout)
+        translated = 0
+        errors = []
+        if isinstance(translate_result.get("json"), dict):
+            translated = int(translate_result["json"].get("translated") or 0)
+            errors = translate_result["json"].get("errors") or []
+        ok = bool(translate_result.get("ok") and translated > 0 and not errors)
+        result.update({
+            "ok": ok,
+            "project_id": project_id,
+            "create_status": create_result.get("status"),
+            "translate": translate_result,
+        })
+        return result
+    finally:
+        if project_id:
+            result["delete"] = delete_json(base, f"/api/project/{project_id}", min(timeout, 10))
+
+
+def check_translation_readiness(
+    api_base: str,
+    timeout: float,
+    required_dicts: list[str],
+    google_smoke: bool = False,
+) -> dict[str, Any]:
     base = api_base.rstrip("/")
     model_result = request_json(base, "/api/settings/model", timeout)
     dict_result = request_json(base, "/api/dict/", timeout)
@@ -88,7 +280,12 @@ def check_translation_readiness(api_base: str, timeout: float, required_dicts: l
     missing_dicts = [name for name in required_dicts if name not in dict_names]
 
     active_google = bool(active_config and active_config.get("provider") == "google_translate")
-    ok = bool(model_result.get("ok") and dict_result.get("ok") and google_configs and active_google and not missing_dicts)
+    smoke_result = None
+    config_ready = bool(model_result.get("ok") and dict_result.get("ok") and google_configs and active_google and not missing_dicts)
+    if google_smoke and config_ready:
+        smoke_result = google_translate_smoke(base, max(timeout, 30))
+
+    ok = bool(config_ready and (not google_smoke or (smoke_result and smoke_result.get("ok"))))
     return {
         "ok": ok,
         "api_base": base,
@@ -99,6 +296,9 @@ def check_translation_readiness(api_base: str, timeout: float, required_dicts: l
         "active_provider": active_config.get("provider") if active_config else "",
         "required_dicts": required_dicts,
         "missing_dicts": missing_dicts,
+        "google_smoke_required": google_smoke,
+        "google_smoke_ok": bool(smoke_result and smoke_result.get("ok")) if google_smoke else None,
+        "google_smoke_check": smoke_result,
         "model_check": model_result if not model_result.get("ok") else {"url": model_result.get("url"), "status": model_result.get("status")},
         "dict_check": dict_result if not dict_result.get("ok") else {"url": dict_result.get("url"), "status": dict_result.get("status")},
     }
@@ -126,6 +326,11 @@ def main() -> int:
     parser.add_argument("--api-base", action="append", default=[], help="AI Translation Studio API base URL; can be repeated.")
     parser.add_argument("--require-translation-api", action="store_true", help="Fail if no AI Translation Studio API responds.")
     parser.add_argument(
+        "--google-smoke",
+        action="store_true",
+        help="For Google Translate workflows, create/delete a one-row temporary project to verify real provider connectivity.",
+    )
+    parser.add_argument(
         "--required-dict",
         action="append",
         default=[],
@@ -137,7 +342,7 @@ def main() -> int:
     host_result = ping_host(args.host, args.ping_timeout_ms)
     api_results = [check_api_base(base, args.api_timeout) for base in candidate_api_bases(args.api_base)]
     readiness_results = [
-        check_translation_readiness(item["api_base"], args.api_timeout, args.required_dict)
+        check_translation_readiness(item["api_base"], args.api_timeout, args.required_dict, args.google_smoke)
         if item.get("ok") else None
         for item in api_results
     ]

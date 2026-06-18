@@ -21,8 +21,10 @@ Use this skill when the user wants to translate a detection workbook through the
    - `/api/settings/model` responds
    - a `google_translate` model config exists and is already the active platform model
    - required dictionaries exist: `专业名称翻译`, `software翻译`, `基础字符校对`, `detection校对`
+   - `rule-resolve` preflight with `--google-smoke` passes, proving the 10.89 server can actually reach Google Translate/OAuth
 
    `/api/health` alone is not enough. A healthy Flask service can still have broken Google Translate credentials or dictionaries.
+   Model and dictionary readiness alone is also not enough; if Google egress is blocked, platform UI translation will hang or fail even though config checks pass.
    Do not change the platform-global active model silently. If Google Translate is not active, stop and ask the user to switch it in the platform, or use `--activate-google` only after explicit confirmation.
 
 3. Use the bundled script for the end-to-end flow:

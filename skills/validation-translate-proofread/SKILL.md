@@ -60,7 +60,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 
 ## Workflow
 1. Confirm platform translation readiness before creating any project.
-   Check `/api/health`, `/api/settings/model`, active Google Translate model config, and required dictionaries (`专业名称翻译`, `software翻译`, `基础字符校对`, `validation校对`, `validation note replacement`). `/api/health` alone is not enough because the backend can be alive while Google Translate credentials or dictionaries are unusable.
+   Check `/api/health`, `/api/settings/model`, active Google Translate model config, required dictionaries (`专业名称翻译`, `software翻译`, `基础字符校对`, `validation校对`, `validation note replacement`), and `rule-resolve` preflight with `--google-smoke`. `/api/health` alone is not enough because the backend can be alive while Google Translate credentials, dictionaries, or server-side Google egress are unusable.
 
 2. Confirm Google Translate is the active provider.
    Query model settings. If another provider is active, stop and ask the user to switch it in the platform. Do not call the model activation API silently, because that changes global platform behavior and affects manual UI translation.

@@ -51,15 +51,17 @@ python3 ~/.codex/skills/rule-resolve/scripts/preflight.py
 For any translation or proofreading task that touches AI Translation Studio, require API health too:
 
 ```bash
-python3 ~/.codex/skills/rule-resolve/scripts/preflight.py --require-translation-api
+python3 ~/.codex/skills/rule-resolve/scripts/preflight.py --require-translation-api --google-smoke
 ```
 
-For translation tasks, pass the route-specific dictionaries so preflight checks more than `/api/health`:
+For translation tasks, pass the route-specific dictionaries so preflight checks more than `/api/health`.
+`--google-smoke` creates a one-row temporary project, runs a real translation request, and deletes the project in a `finally` path. This is required because `/api/health`, model config, and dictionary checks can all pass while the 10.89 server still cannot reach Google:
 
 ```bash
 # detection translation
 python3 ~/.codex/skills/rule-resolve/scripts/preflight.py \
   --require-translation-api \
+  --google-smoke \
   --required-dict 专业名称翻译 \
   --required-dict software翻译 \
   --required-dict 基础字符校对 \
@@ -68,6 +70,7 @@ python3 ~/.codex/skills/rule-resolve/scripts/preflight.py \
 # validation translation
 python3 ~/.codex/skills/rule-resolve/scripts/preflight.py \
   --require-translation-api \
+  --google-smoke \
   --required-dict 专业名称翻译 \
   --required-dict software翻译 \
   --required-dict 基础字符校对 \
@@ -78,7 +81,7 @@ python3 ~/.codex/skills/rule-resolve/scripts/preflight.py \
 Interpretation:
 - Default `10.89` host is `192.168.10.89`.
 - If `host_reachable` is false, stop before platform-dependent work. Tell the user that `192.168.10.89` is unreachable from this environment and ask them to confirm the translation-platform address.
-- If `host_reachable` is true but `translation_api_ready` is false for a translation/proofreading request, tell the user that `10.89` is reachable but AI Translation Studio translation readiness was not confirmed. Include whether `/api/health`, `/api/settings/model`, active Google Translate config, and required dictionaries passed, then ask for the correct API base URL or platform-side fix.
+- If `host_reachable` is true but `translation_api_ready` is false for a translation/proofreading request, tell the user that `10.89` is reachable but AI Translation Studio translation readiness was not confirmed. Include whether `/api/health`, `/api/settings/model`, active Google Translate config, required dictionaries, and `google_smoke_check` passed, then ask for the correct API base URL or platform-side fix.
 - If the user has already supplied an API address, pass it with `--api-base`.
 
 Do not silently fall back to an unknown platform address.
