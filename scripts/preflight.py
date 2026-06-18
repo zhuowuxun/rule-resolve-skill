@@ -87,13 +87,15 @@ def check_translation_readiness(api_base: str, timeout: float, required_dicts: l
         dict_names = [str(item.get("name", "")) for item in dictionaries if isinstance(item, dict)]
     missing_dicts = [name for name in required_dicts if name not in dict_names]
 
-    ok = bool(model_result.get("ok") and dict_result.get("ok") and google_configs and not missing_dicts)
+    active_google = bool(active_config and active_config.get("provider") == "google_translate")
+    ok = bool(model_result.get("ok") and dict_result.get("ok") and google_configs and active_google and not missing_dicts)
     return {
         "ok": ok,
         "api_base": base,
         "model_endpoint_ok": bool(model_result.get("ok")),
         "dict_endpoint_ok": bool(dict_result.get("ok")),
         "google_config_available": bool(google_configs),
+        "active_google": active_google,
         "active_provider": active_config.get("provider") if active_config else "",
         "required_dicts": required_dicts,
         "missing_dicts": missing_dicts,

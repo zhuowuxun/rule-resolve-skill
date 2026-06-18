@@ -19,10 +19,11 @@ Use this skill when the user wants to translate a detection workbook through the
 2. Before creating any project, verify translation readiness:
    - `/api/health` responds
    - `/api/settings/model` responds
-   - a `google_translate` model config exists
+   - a `google_translate` model config exists and is already the active platform model
    - required dictionaries exist: `专业名称翻译`, `software翻译`, `基础字符校对`, `detection校对`
 
    `/api/health` alone is not enough. A healthy Flask service can still have broken Google Translate credentials or dictionaries.
+   Do not change the platform-global active model silently. If Google Translate is not active, stop and ask the user to switch it in the platform, or use `--activate-google` only after explicit confirmation.
 
 3. Use the bundled script for the end-to-end flow:
    - activate the Google Translate model config
@@ -73,11 +74,13 @@ Useful options:
 - `--api-base http://127.0.0.1:5002` only when the user confirms a local backend
 - `--repo-root ~/Documents/翻译软件`
 - `--keep-failed-project` only when the failed draft project should be preserved for debugging
+- `--activate-google` only after explicit user confirmation because it changes platform-global model settings
 - `--manual-review-limit 20`
 - `--skip-export`
 
 ## Guardrails
 - Resolve the active Google Translate config by provider name, not by hard-coded config ID.
+- Do not auto-activate Google Translate. Platform model activation is global and affects manual UI translation too.
 - Resolve dictionary IDs by dictionary names, not by hard-coded IDs.
 - For software and product names, exact dictionary matches outrank manual language judgment.
 - If a Chinese software name has no exact approved dictionary entry, do not normalize it to a more “natural” English product name. Keep it for manual review or dictionary completion instead.

@@ -16,6 +16,7 @@ Validation should feel like two user-facing workflows only:
 ## Core Rules
 - Work in `~/Documents/翻译软件` unless the user explicitly points to another AI Translation Studio checkout.
 - Default API is `http://192.168.10.89`. If `192.168.10.89` is unreachable or AI Translation Studio readiness is not confirmed, stop and ask the user to confirm the platform API base URL. Do not silently fall back to `127.0.0.1`.
+- Do not change the platform-global active model silently. Google Translate must already be active before translation starts, or `--activate-google` may be used only after explicit user confirmation.
 - Do not overwrite the user's original workbook. Export a new `_DELIVERABLE.xlsx` plus a `_report.json`.
 - Use the active database at `backend/instance/translator.db` unless the running app clearly points elsewhere.
 - Back up the database before repair passes or manual SQL changes under `output/env-backup/`.
@@ -59,10 +60,10 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 
 ## Workflow
 1. Confirm platform translation readiness before creating any project.
-   Check `/api/health`, `/api/settings/model`, Google Translate model config availability, and required dictionaries (`专业名称翻译`, `software翻译`, `基础字符校对`, `validation校对`, `validation note replacement`). `/api/health` alone is not enough because the backend can be alive while Google Translate credentials or dictionaries are unusable.
+   Check `/api/health`, `/api/settings/model`, active Google Translate model config, and required dictionaries (`专业名称翻译`, `software翻译`, `基础字符校对`, `validation校对`, `validation note replacement`). `/api/health` alone is not enough because the backend can be alive while Google Translate credentials or dictionaries are unusable.
 
 2. Confirm Google Translate is the active provider.
-   Query model settings; if another provider is active, ask only if switching would be risky. Otherwise use the active configuration if the user explicitly requested Google Translate and it is already active.
+   Query model settings. If another provider is active, stop and ask the user to switch it in the platform. Do not call the model activation API silently, because that changes global platform behavior and affects manual UI translation.
 
 3. Start the backend if needed.
    Use `./backend/venv/bin/python backend/app.py` from the repo and keep track of the session so it can be stopped.

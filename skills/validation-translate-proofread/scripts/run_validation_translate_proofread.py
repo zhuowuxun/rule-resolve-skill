@@ -58,6 +58,11 @@ def parse_args():
         help="Keep the platform project if translation fails before replacement/export.",
     )
     parser.add_argument(
+        "--activate-google",
+        action="store_true",
+        help="Explicitly activate the Google Translate config. This changes platform-global model settings.",
+    )
+    parser.add_argument(
         "--manual-review-limit",
         type=int,
         default=20,
@@ -195,7 +200,7 @@ def detect_stable_column(sheet_headers, header_name, limit_sheets=None):
     return next(iter(indexes)), found_sheets
 
 
-def activate_google_translate(session, api_base):
+def resolve_google_translate_config(session, api_base, activate=False):
     settings = get_json(session, f"{api_base}/api/settings/model", "Fetch model configs")
     configs = settings.get("configs", [])
     google_configs = [cfg for cfg in configs if cfg.get("provider") == "google_translate"]
@@ -204,15 +209,24 @@ def activate_google_translate(session, api_base):
 
     active_id = settings.get("active_id")
     active = next((cfg for cfg in configs if cfg.get("id") == active_id), None)
-    selected = next((cfg for cfg in google_configs if cfg.get("is_active")), None) or google_configs[0]
+    if active and active.get("provider") == "google_translate":
+        return active
 
-    if not active or active.get("provider") != "google_translate" or active.get("id") != selected.get("id"):
-        post_json(
-            session,
-            f"{api_base}/api/settings/model/{selected['id']}/activate",
-            {},
-            "Activate Google Translate config",
+    selected = google_configs[0]
+    if not activate:
+        active_desc = f"{active.get('name')} ({active.get('provider')})" if active else "none"
+        raise RuntimeError(
+            "Active platform model is not Google Translate "
+            f"(current: {active_desc}). Refusing to change global model settings silently. "
+            "Activate Google Translate in the platform first, or rerun with --activate-google after user confirmation."
         )
+
+    post_json(
+        session,
+        f"{api_base}/api/settings/model/{selected['id']}/activate",
+        {},
+        "Activate Google Translate config",
+    )
     return selected
 
 
@@ -383,7 +397,7 @@ def main():
     if health.get("status") != "ok":
         raise RuntimeError(f"Backend is not healthy: {health}")
 
-    google_cfg = activate_google_translate(session, args.api_base)
+    google_cfg = resolve_google_translate_config(session, args.api_base, activate=args.activate_google)
     translation_ids = resolve_dictionary_ids(session, args.api_base, args.translation_dicts)
     replacement_dict_names = list(dict.fromkeys(args.main_replacement_dicts + args.note_replacement_dicts))
     replacement_ids = resolve_dictionary_ids(session, args.api_base, replacement_dict_names)

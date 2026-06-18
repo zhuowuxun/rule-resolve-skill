@@ -78,11 +78,12 @@ python3 ~/.codex/skills/rule-resolve/scripts/preflight.py \
 Interpretation:
 - Default `10.89` host is `192.168.10.89`.
 - If `host_reachable` is false, stop before platform-dependent work. Tell the user that `192.168.10.89` is unreachable from this environment and ask them to confirm the translation-platform address.
-- If `host_reachable` is true but `translation_api_ready` is false for a translation/proofreading request, tell the user that `10.89` is reachable but AI Translation Studio translation readiness was not confirmed. Include whether `/api/health`, `/api/settings/model`, Google Translate config, and required dictionaries passed, then ask for the correct API base URL or platform-side fix.
+- If `host_reachable` is true but `translation_api_ready` is false for a translation/proofreading request, tell the user that `10.89` is reachable but AI Translation Studio translation readiness was not confirmed. Include whether `/api/health`, `/api/settings/model`, active Google Translate config, and required dictionaries passed, then ask for the correct API base URL or platform-side fix.
 - If the user has already supplied an API address, pass it with `--api-base`.
 
 Do not silently fall back to an unknown platform address.
 Do not create translation projects when readiness is not confirmed. `/api/health` alone only means the Flask service is alive; it does not prove Google Translate credentials, model config, dictionaries, or the translate queue can run.
+Do not silently change the platform-global active model. If the active model is not Google Translate, stop and ask the user to switch it in AI Translation Studio; only use a script option that activates Google after explicit user confirmation.
 
 ## Routing
 After preflight, inspect the workbook/project shape and load exactly the child skill(s) needed.
