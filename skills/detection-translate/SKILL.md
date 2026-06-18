@@ -28,7 +28,6 @@ Use this skill when the user wants to translate a detection workbook through the
    Do not change the platform-global active model silently. If Google Translate is not active, stop and ask the user to switch it in the platform, or use `--activate-google` only after explicit confirmation.
 
 3. Use the bundled script for the end-to-end flow:
-   - activate the Google Translate model config
    - inspect the workbook and detect the detection source columns
    - create a real platform project
    - attach the standard detection dictionaries
@@ -41,6 +40,8 @@ Use this skill when the user wants to translate a detection workbook through the
    - verify the proofreading script reports zero issues
    - export a bilingual `.xlsx`
    - generate a small warning report for manual review
+
+   When `--api-base` points to a non-local platform such as `http://192.168.10.89`, all database-side operations must run on that platform, not on the user's local `~/Documents/翻译软件` database. Pass `--platform-ssh` so DB backup and `tools/detection/check_and_fix.py` execute on the remote platform. If `--platform-ssh` is missing for a non-local API, the script must stop instead of repairing a local project with the same numeric ID.
 
 4. After the script finishes, manually review the warning report.
    Focus on `name.1`, `desc`, and `notes`.
@@ -75,6 +76,9 @@ Useful options:
 - `--api-base http://192.168.10.89`
 - `--api-base http://127.0.0.1:5002` only when the user confirms a local backend
 - `--repo-root ~/Documents/翻译软件`
+- `--platform-ssh dx@192.168.10.89` when using the 10.89 platform API
+- `--platform-root /opt/Aitrans`
+- `--ssh-command "sshpass -e ssh -o StrictHostKeyChecking=no"` when a password-based SSH wrapper is explicitly configured in the shell
 - `--keep-failed-project` only when the failed draft project should be preserved for debugging
 - `--activate-google` only after explicit user confirmation because it changes platform-global model settings
 - `--manual-review-limit 20`
@@ -90,6 +94,7 @@ Useful options:
 - Do not run replacement/proofreading/export if translation produced zero chunks, partial chunks, or any `errors`.
 - Do not leave failed draft projects behind by default. If translation fails before replacement/export, delete the just-created project unless the user explicitly asks to keep it.
 - Always back up `backend/instance/translator.db` before running detection proofreading repair.
+- For remote platform API bases, back up the remote platform DB and run the remote platform `check_and_fix.py`; never run local DB tools against a remote project ID.
 - Never overwrite source columns in the final Excel; export bilingually unless the user explicitly asks for single-language overwrite.
 - Keep URLs exact.
 - Keep Chinese and English semantically aligned. Do not inject scope or platform qualifiers that are absent from the Chinese source.

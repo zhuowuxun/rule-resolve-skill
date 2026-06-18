@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from openpyxl import load_workbook
@@ -31,6 +34,21 @@ def parse_args():
     parser.add_argument("--report", help="JSON summary report path.")
     parser.add_argument("--api-base", default=DEFAULT_API_BASE, help="AI Translation Studio backend URL.")
     parser.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT), help="Repo root path.")
+    parser.add_argument(
+        "--platform-ssh",
+        default=os.environ.get("AI_TRANSLATION_PLATFORM_SSH", ""),
+        help="SSH target for non-local platform DB operations, for example dx@192.168.10.89.",
+    )
+    parser.add_argument(
+        "--platform-root",
+        default=os.environ.get("AI_TRANSLATION_PLATFORM_ROOT", "/opt/Aitrans"),
+        help="Remote AI Translation Studio root used with --platform-ssh.",
+    )
+    parser.add_argument(
+        "--ssh-command",
+        default=os.environ.get("AI_TRANSLATION_SSH_COMMAND", "ssh"),
+        help="SSH command prefix. Example: 'sshpass -e ssh -o StrictHostKeyChecking=no'.",
+    )
     parser.add_argument(
         "--source-headers",
         nargs="+",
@@ -86,6 +104,22 @@ def perform_request(session, method, url, context, **kwargs):
             f"{context} failed: could not reach {url}. Confirm the AI Translation Studio API base URL first."
         ) from exc
     return ensure_ok(resp, context)
+
+
+def is_local_api(api_base):
+    host = (urlparse(api_base).hostname or "").lower()
+    return host in {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+
+
+def run_remote(platform_ssh, ssh_command, remote_command, context):
+    if not platform_ssh:
+        raise RuntimeError(
+            f"{context} requires remote platform access because api-base is not local. "
+            "Pass --platform-ssh, for example --platform-ssh dx@192.168.10.89. "
+            "Refusing to run local DB tools against a remote platform project."
+        )
+    cmd = shlex.split(ssh_command) + [platform_ssh, remote_command]
+    return subprocess.run(cmd, capture_output=True, text=True, check=True)
 
 
 def sanitize_project_name(name):
@@ -250,19 +284,56 @@ def create_project(session, api_base, input_path, project_name, source_cols, tra
     return resp.json()
 
 
-def backup_database(repo_root, project_name):
+def backup_database(repo_root, project_name, api_base, platform_ssh, platform_root, ssh_command):
+    stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    backup_name = f"translator_before_{project_name}_detection_translate_{stamp}.db"
+
+    if not is_local_api(api_base):
+        root = shlex.quote(platform_root.rstrip("/"))
+        backup_name_q = shlex.quote(backup_name)
+        remote_command = (
+            f"set -e; cd {root}; mkdir -p output/env-backup; "
+            f"cp backend/instance/translator.db output/env-backup/{backup_name_q}; "
+            f"printf '%s' output/env-backup/{backup_name_q}"
+        )
+        result = run_remote(platform_ssh, ssh_command, remote_command, "Remote database backup")
+        return f"{platform_ssh}:{platform_root.rstrip('/')}/{result.stdout.strip()}"
+
     db_path = repo_root / "backend/instance/translator.db"
     if not db_path.exists():
         raise RuntimeError(f"Translator DB not found: {db_path}")
     backup_dir = repo_root / "output/env-backup"
     backup_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    backup_path = backup_dir / f"translator_before_{project_name}_detection_translate_{stamp}.db"
+    backup_path = backup_dir / backup_name
     shutil.copy2(db_path, backup_path)
     return backup_path
 
 
-def run_detection_proofread(repo_root, project_id):
+def run_detection_proofread(repo_root, project_id, api_base, platform_ssh, platform_root, ssh_command):
+    if not is_local_api(api_base):
+        root = shlex.quote(platform_root.rstrip("/"))
+        project_id_q = shlex.quote(str(project_id))
+        remote_py = "./backend/venv/bin/python3"
+        remote_script = "tools/detection/check_and_fix.py"
+        repair = run_remote(
+            platform_ssh,
+            ssh_command,
+            f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q} --repair",
+            "Remote detection proofreading repair",
+        )
+        verify = run_remote(
+            platform_ssh,
+            ssh_command,
+            f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q}",
+            "Remote detection proofreading verify",
+        )
+        return {
+            "repair_stdout": repair.stdout,
+            "verify_stdout": verify.stdout,
+            "verify_clean": "没有发现任何问题" in verify.stdout,
+            "target": f"{platform_ssh}:{platform_root.rstrip('/')}",
+        }
+
     proofread_py = repo_root / "backend/venv/bin/python"
     proofread_script = repo_root / "tools/detection/check_and_fix.py"
     if not proofread_py.exists():
@@ -286,6 +357,7 @@ def run_detection_proofread(repo_root, project_id):
         "repair_stdout": repair.stdout,
         "verify_stdout": verify.stdout,
         "verify_clean": "没有发现任何问题" in verify.stdout,
+        "target": str(repo_root),
     }
 
 
@@ -360,6 +432,12 @@ def main():
     health = get_json(session, f"{args.api_base}/api/health", "Check backend health")
     if health.get("status") != "ok":
         raise RuntimeError(f"Backend is not healthy: {health}")
+    if not is_local_api(args.api_base) and not args.platform_ssh:
+        raise RuntimeError(
+            "Remote platform API selected but --platform-ssh is missing. "
+            "Pass --platform-ssh so DB backup and check_and_fix.py run on the same platform, "
+            "or use an explicitly confirmed local API base."
+        )
 
     google_cfg = resolve_google_translate_config(session, args.api_base, activate=args.activate_google)
     translation_ids = resolve_dictionary_ids(session, args.api_base, args.translation_dicts)
@@ -397,8 +475,22 @@ def main():
         "Run batch replacement",
     )
 
-    backup_path = backup_database(repo_root, project_name)
-    proofread_result = run_detection_proofread(repo_root, project_id)
+    backup_path = backup_database(
+        repo_root,
+        project_name,
+        args.api_base,
+        args.platform_ssh,
+        args.platform_root,
+        args.ssh_command,
+    )
+    proofread_result = run_detection_proofread(
+        repo_root,
+        project_id,
+        args.api_base,
+        args.platform_ssh,
+        args.platform_root,
+        args.ssh_command,
+    )
     put_json(
         session,
         f"{args.api_base}/api/project/{project_id}/status",
@@ -419,6 +511,7 @@ def main():
         "output": None if args.skip_export else str(output_path),
         "repo_root": str(repo_root),
         "api_base": args.api_base,
+        "db_tools_target": proofread_result.get("target"),
         "google_config": {
             "id": google_cfg.get("id"),
             "name": google_cfg.get("name"),

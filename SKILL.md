@@ -87,6 +87,7 @@ Interpretation:
 Do not silently fall back to an unknown platform address.
 Do not create translation projects when readiness is not confirmed. `/api/health` alone only means the Flask service is alive; it does not prove Google Translate credentials, model config, dictionaries, or the translate queue can run.
 Do not silently change the platform-global active model. If the active model is not Google Translate, stop and ask the user to switch it in AI Translation Studio; only use a script option that activates Google after explicit user confirmation.
+Do not mix platform API and local database tooling. If the API base is non-local, such as `http://192.168.10.89`, DB backups and `check_and_fix.py` proofreading must run on that same platform via SSH (`--platform-ssh` or `AI_TRANSLATION_PLATFORM_SSH`). Refuse to run local `~/Documents/翻译软件` DB tools against a remote platform project ID.
 
 ## Routing
 After preflight, inspect the workbook/project shape and load exactly the child skill(s) needed.

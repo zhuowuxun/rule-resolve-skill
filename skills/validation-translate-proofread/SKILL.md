@@ -20,6 +20,7 @@ Validation should feel like two user-facing workflows only:
 - Do not overwrite the user's original workbook. Export a new `_DELIVERABLE.xlsx` plus a `_report.json`.
 - Use the active database at `backend/instance/translator.db` unless the running app clearly points elsewhere.
 - Back up the database before repair passes or manual SQL changes under `output/env-backup/`.
+- When `--api-base` points to a non-local platform such as `http://192.168.10.89`, DB backup, note-only replacement scope checks, and `tools/validation/check_and_fix.py` must run on that remote platform via `--platform-ssh`; never run local DB tools against a remote project ID.
 - Treat project dictionaries as authoritative.
 - If the workbook has not been standardized yet, run `standardize-validation-rules` first unless the user explicitly wants a raw translation pass.
 - `validation note replacement` is note-only. It may apply only to chunks whose Excel header is `cn_notes` and must not touch `cn_name` or `cn_desc`.
@@ -85,7 +86,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    If service scoping is unavailable, run replacement in narrower code that excludes the note-only dictionary for non-note chunks.
 
 8. Run validation proofreading.
-   Use the existing skill/script:
+   Use the existing skill/script on the same backend that owns the project. For 10.89, pass `--platform-ssh dx@192.168.10.89 --platform-root /opt/Aitrans` or set `AI_TRANSLATION_PLATFORM_SSH`; if password-based SSH is required, configure the shell wrapper explicitly, for example `AI_TRANSLATION_SSH_COMMAND='sshpass -e ssh -o StrictHostKeyChecking=no'`.
    ```bash
    ./backend/venv/bin/python -m py_compile tools/validation/check_and_fix.py
    ./backend/venv/bin/python tools/validation/check_and_fix.py <project_id> --repair
