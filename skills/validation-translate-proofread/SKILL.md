@@ -15,7 +15,7 @@ Validation should feel like two user-facing workflows only:
 
 ## Core Rules
 - Work in `~/Documents/翻译软件` unless the user explicitly points to another AI Translation Studio checkout.
-- Default API is `http://192.168.10.89:5002`. If `192.168.10.89` is unreachable or AI Translation Studio readiness is not confirmed, stop and ask the user to confirm the platform API base URL. Do not silently fall back to `127.0.0.1`.
+- Default API is `http://192.168.10.89`. If `192.168.10.89` is unreachable or AI Translation Studio readiness is not confirmed, stop and ask the user to confirm the platform API base URL. Do not silently fall back to `127.0.0.1`.
 - Do not overwrite the user's original workbook. Export a new `_DELIVERABLE.xlsx` plus a `_report.json`.
 - Use the active database at `backend/instance/translator.db` unless the running app clearly points elsewhere.
 - Back up the database before repair passes or manual SQL changes under `output/env-backup/`.
@@ -77,6 +77,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 6. Translate all chunks.
    Call `/api/translate/<project_id>/translate-all` with `{"force": false}`. If a Google batch hits a transient auth error but fallback finishes with `errors: []`, continue.
    If `translate-all` returns `502`, times out, reports any `errors`, translates `0` chunks, or translates fewer chunks than the project created, stop immediately. Report the project ID(s) and do not run replacement, proofreading, or export.
+   Delete the newly created platform project on translation failure unless `--keep-failed-project` is explicitly used for debugging.
 
 7. Apply replacement dictionaries.
    Preferred path: ensure `backend/services/check_flow.py` skips `validation note replacement` unless header is `cn_notes`, then call `/api/proofread/<project_id>/batch-replace-all`.

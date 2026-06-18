@@ -12,7 +12,7 @@ Use this skill when the user wants to translate a detection workbook through the
    Default repo root:
    `~/Documents/翻译软件`
    Default API:
-   `http://192.168.10.89:5002`
+   `http://192.168.10.89`
 
    If the environment cannot access `192.168.10.89`, stop and ask the user to confirm the AI Translation Studio API base URL. Do not silently fall back to `127.0.0.1`.
 
@@ -31,6 +31,7 @@ Use this skill when the user wants to translate a detection workbook through the
    - attach the standard detection dictionaries
    - run translate-all
    - stop immediately if `translate-all` returns `502`, times out, reports errors, or translates fewer chunks than the project created
+   - delete the newly created platform project on translation failure unless `--keep-failed-project` is explicitly used
    - run batch replacement
    - back up the live database
    - run the detection proofreading script with repair
@@ -68,9 +69,10 @@ Run the bundled script with the backend venv Python:
 ```
 
 Useful options:
-- `--api-base http://192.168.10.89:5002`
+- `--api-base http://192.168.10.89`
 - `--api-base http://127.0.0.1:5002` only when the user confirms a local backend
 - `--repo-root ~/Documents/翻译软件`
+- `--keep-failed-project` only when the failed draft project should be preserved for debugging
 - `--manual-review-limit 20`
 - `--skip-export`
 
@@ -81,6 +83,7 @@ Useful options:
 - If a Chinese software name has no exact approved dictionary entry, do not normalize it to a more “natural” English product name. Keep it for manual review or dictionary completion instead.
 - Do not skip the replacement flow before proofreading.
 - Do not run replacement/proofreading/export if translation produced zero chunks, partial chunks, or any `errors`.
+- Do not leave failed draft projects behind by default. If translation fails before replacement/export, delete the just-created project unless the user explicitly asks to keep it.
 - Always back up `backend/instance/translator.db` before running detection proofreading repair.
 - Never overwrite source columns in the final Excel; export bilingually unless the user explicitly asks for single-language overwrite.
 - Keep URLs exact.

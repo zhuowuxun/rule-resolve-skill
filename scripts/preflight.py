@@ -15,8 +15,7 @@ from typing import Any
 
 DEFAULT_HOST = "192.168.10.89"
 DEFAULT_API_BASES = (
-    "http://127.0.0.1:5002",
-    "http://192.168.10.89:5002",
+    "http://192.168.10.89",
 )
 
 

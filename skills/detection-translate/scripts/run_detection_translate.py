@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 
 
 DEFAULT_REPO_ROOT = Path.home() / "Documents/翻译软件"
-DEFAULT_API_BASE = "http://192.168.10.89:5002"
+DEFAULT_API_BASE = "http://192.168.10.89"
 DEFAULT_TRANSLATION_DICTS = ["专业名称翻译", "software翻译"]
 DEFAULT_REPLACEMENT_DICTS = ["基础字符校对", "detection校对"]
 DEFAULT_SOURCE_HEADERS = ["name.1", "desc", "notes"]
@@ -50,6 +50,11 @@ def parse_args():
         help="Replacement dictionary names.",
     )
     parser.add_argument("--skip-export", action="store_true", help="Skip bilingual Excel export.")
+    parser.add_argument(
+        "--keep-failed-project",
+        action="store_true",
+        help="Keep the platform project if translation fails before replacement/export.",
+    )
     parser.add_argument(
         "--manual-review-limit",
         type=int,
@@ -132,6 +137,20 @@ def post_json(session, url, payload, context):
 def put_json(session, url, payload, context):
     resp = perform_request(session, "PUT", url, context, json=payload, timeout=120)
     return resp.json()
+
+
+def delete_project(session, api_base, project_id):
+    try:
+        perform_request(
+            session,
+            "DELETE",
+            f"{api_base}/api/project/{project_id}",
+            "Delete failed project",
+            timeout=60,
+        )
+        return True
+    except Exception:
+        return False
 
 
 def count_project_chunks(project):
@@ -346,13 +365,18 @@ def main():
     initial_project = get_json(session, f"{args.api_base}/api/project/{project_id}", "Fetch created project")
     expected_chunks = count_project_chunks(initial_project)
 
-    translate_result = post_json(
-        session,
-        f"{args.api_base}/api/translate/{project_id}/translate-all",
-        {},
-        "Translate all chunks",
-    )
-    ensure_translation_completed(translate_result, expected_chunks, "Translate all chunks")
+    try:
+        translate_result = post_json(
+            session,
+            f"{args.api_base}/api/translate/{project_id}/translate-all",
+            {},
+            "Translate all chunks",
+        )
+        ensure_translation_completed(translate_result, expected_chunks, "Translate all chunks")
+    except Exception:
+        if not args.keep_failed_project:
+            delete_project(session, args.api_base, project_id)
+        raise
     replace_result = post_json(
         session,
         f"{args.api_base}/api/proofread/{project_id}/batch-replace-all",
