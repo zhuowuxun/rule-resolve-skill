@@ -5,16 +5,17 @@ description: Use when translating detection Excel workbooks through AI Translati
 
 # Detection Translate
 
-Use this skill when the user wants to translate a detection workbook through the local AI Translation Studio workflow, not by ad hoc sheet editing.
+Use this skill when the user wants to translate a detection workbook through AI Translation Studio, not by ad hoc sheet editing.
 
 ## Default Workflow
-1. Confirm the local AI Translation Studio backend is the target environment.
+1. Confirm the AI Translation Studio backend that will own the project.
    Default repo root:
    `~/Documents/翻译软件`
    Default API:
    `http://192.168.10.89`
 
    If the environment cannot access `192.168.10.89`, stop and ask the user to confirm the AI Translation Studio API base URL. Do not silently fall back to `127.0.0.1`.
+   Keep the same owner backend for translation, replacement, proofreading, DB backup, `check_and_fix.py`, status changes, and export. Use local backend/DB tooling only for local API projects or when the user explicitly says to use the local backend.
 
 2. Before creating any project, verify translation readiness:
    - `/api/health` responds

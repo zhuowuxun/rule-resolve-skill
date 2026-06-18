@@ -14,11 +14,12 @@ Validation should feel like two user-facing workflows only:
 `validation-proofread` still exists, but only as a project-only helper for already-created `va*` projects. It is not a third peer entry point.
 
 ## Core Rules
-- Work in `~/Documents/翻译软件` unless the user explicitly points to another AI Translation Studio checkout.
+- Work in `~/Documents/翻译软件` for local scripts unless the user explicitly points to another AI Translation Studio checkout.
 - Default API is `http://192.168.10.89`. If `192.168.10.89` is unreachable or AI Translation Studio readiness is not confirmed, stop and ask the user to confirm the platform API base URL. Do not silently fall back to `127.0.0.1`.
 - Do not change the platform-global active model silently. Google Translate must already be active before translation starts, or `--activate-google` may be used only after explicit user confirmation.
 - Do not overwrite the user's original workbook. Export a new `_DELIVERABLE.xlsx` plus a `_report.json`.
-- Use the active database at `backend/instance/translator.db` unless the running app clearly points elsewhere.
+- Bind the project to the API base that creates or owns it. If the project is on `http://192.168.10.89`, keep translation, replacement, proofreading, DB backup, `check_and_fix.py`, status changes, and export on 10.89. Do not use a local backend/DB to proofread or repair that remote project ID.
+- Use the local active database at `backend/instance/translator.db` only for local API projects or when the user explicitly says to use the local backend.
 - Back up the database before repair passes or manual SQL changes under `output/env-backup/`.
 - When `--api-base` points to a non-local platform such as `http://192.168.10.89`, DB backup, note-only replacement scope checks, and `tools/validation/check_and_fix.py` must run on that remote platform via `--platform-ssh`; never run local DB tools against a remote project ID.
 - Treat project dictionaries as authoritative.
@@ -67,7 +68,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    Query model settings. If another provider is active, stop and ask the user to switch it in the platform. Do not call the model activation API silently, because that changes global platform behavior and affects manual UI translation.
 
 3. Start the backend if needed.
-   Use `./backend/venv/bin/python backend/app.py` from the repo and keep track of the session so it can be stopped.
+   Start a local backend only for local API projects. For `http://192.168.10.89`, use the running remote backend and SSH for remote DB/script work; do not start a local backend as a proofreading fallback.
 
 4. Back up the database.
    Example: `output/env-backup/translator_before_<project>_translate_validation_<date>.db`.

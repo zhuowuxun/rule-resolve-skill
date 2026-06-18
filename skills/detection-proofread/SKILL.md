@@ -6,15 +6,17 @@ description: Use when proofreading detection translation projects in the AI Tran
 # Detection Proofread
 
 ## Workflow
-1. Confirm the target project and inspect its dictionaries before changing anything.
-   Use the active project DB at `~/Documents/翻译软件/backend/instance/translator.db` unless the running backend is clearly pointing elsewhere.
+1. Confirm the target project, owner API base, and dictionaries before changing anything.
+   Bind the proofreading run to the platform that owns the project. If the project is on `http://192.168.10.89`, use the 10.89 backend/database for dictionary inspection, DB backup, `tools/detection/check_and_fix.py`, manual SQL fixes, and export. Do not start or use a local backend/DB for that remote project ID.
+   Use the local active project DB at `~/Documents/翻译软件/backend/instance/translator.db` only when the selected API base is local or the user explicitly says to use the local backend for this project.
    Check project dictionaries first; translation dictionaries outrank personal language preference.
 
 2. Back up the live database before any repair pass or manual SQL change.
-   Write backups under `~/Documents/翻译软件/output/env-backup/`.
+   For local projects, write backups under `~/Documents/翻译软件/output/env-backup/`. For remote projects, create the backup on the remote platform via SSH, for example with `--platform-ssh dx@192.168.10.89 --platform-root /opt/Aitrans`.
    Use descriptive names such as `translator_before_<project>_<reason>_<date>.db`.
 
 3. Run the detection proofreading script first.
+   For remote projects, run this command on the remote platform; if SSH or remote script access is unavailable, stop and report the blocker instead of falling back to local DB tools.
    Command:
    ```bash
    ./backend/venv/bin/python ~/Documents/翻译软件/tools/detection/check_and_fix.py <project_id> --repair
@@ -36,6 +38,7 @@ description: Use when proofreading detection translation projects in the AI Tran
 
 ## Priority Rules
 - Obey project dictionaries first.
+- Keep project ownership fixed: remote API projects must be proofread, repaired, backed up, and exported on the remote backend/database that owns them; never use local DB tools against a remote project ID.
 - For software and product names, exact dictionary matches outrank manual language judgment.
 - If a Chinese software name has no exact approved dictionary entry, do not normalize it to a more “natural” English product name. Flag it for review instead.
 - Never replace a user-confirmed term with a more “natural” alternative.
