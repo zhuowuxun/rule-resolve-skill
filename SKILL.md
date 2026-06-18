@@ -7,6 +7,8 @@ description: Meta workflow for rule deliverables. Use when the user asks to reso
 
 This is the top-level router for rule Excel work. It packages the three standardization skills and four translation/proofreading skills without merging their logic.
 
+Bundled child skills live under `skills/` in this package. Prefer those bundled copies first so a downloaded `rule-resolve-skill` release is self-contained. Fall back to sibling installed skills only when a bundled child skill is missing.
+
 ## Start Message
 After this skill is triggered and the route is chosen, send one short user-facing status line before substantial work:
 
@@ -43,13 +45,13 @@ Do not run destructive actions in response to `help` / `帮助`; only explain us
 Before doing any rule work, run the bundled preflight:
 
 ```bash
-python3 /Users/carmenz/.codex/skills/rule-resolve/scripts/preflight.py
+python3 ~/.codex/skills/rule-resolve/scripts/preflight.py
 ```
 
 For any translation or proofreading task that touches AI Translation Studio, require API health too:
 
 ```bash
-python3 /Users/carmenz/.codex/skills/rule-resolve/scripts/preflight.py --require-translation-api
+python3 ~/.codex/skills/rule-resolve/scripts/preflight.py --require-translation-api
 ```
 
 Interpretation:
@@ -63,15 +65,22 @@ Do not silently fall back to an unknown platform address.
 ## Routing
 After preflight, inspect the workbook/project shape and load exactly the child skill(s) needed.
 
+Child skill resolution order:
+1. bundled child skill: `~/.codex/skills/rule-resolve/skills/<child-skill>/SKILL.md`
+2. sibling installed skill: `~/.codex/skills/<child-skill>/SKILL.md`
+3. if neither exists, stop and report the missing child skill
+
+When the bundled child skill contains scripts, resolve relative script paths from that bundled child skill directory, not from the sibling installed skill.
+
 | User Intent / File Shape | Route To |
 | --- | --- |
-| Detection Chinese standardization; `name.1`, `desc`, `notes`; files like `detection_rule_*.xlsx` | `/Users/carmenz/.codex/skills/standardize-detection-rules/SKILL.md` |
-| Validation main-rule Chinese standardization; `Actions`, `Sequences`, optional `Email`; files like `*_t_1.xlsx` | `/Users/carmenz/.codex/skills/standardize-validation-rules/SKILL.md` |
-| Validation mitigation standardization; mitigation/remediation columns like `cn_notes`, `en_notes`, `cve`; files like `*_mit_1.xlsx` | `/Users/carmenz/.codex/skills/standardize-validation-mitigation/SKILL.md` |
-| Detection workbook translation through AI Translation Studio | `/Users/carmenz/.codex/skills/detection-translate/SKILL.md` |
-| Detection existing project proofreading; `de*` project already exists | `/Users/carmenz/.codex/skills/detection-proofread/SKILL.md` |
-| Validation workbook translation + proofread through AI Translation Studio | `/Users/carmenz/.codex/skills/validation-translate-proofread/SKILL.md` |
-| Validation existing project proofreading; `va*` project already exists | `/Users/carmenz/.codex/skills/validation-proofread/SKILL.md` |
+| Detection Chinese standardization; `name.1`, `desc`, `notes`; files like `detection_rule_*.xlsx` | `standardize-detection-rules` |
+| Validation main-rule Chinese standardization; `Actions`, `Sequences`, optional `Email`; files like `*_t_1.xlsx` | `standardize-validation-rules` |
+| Validation mitigation standardization; mitigation/remediation columns like `cn_notes`, `en_notes`, `cve`; files like `*_mit_1.xlsx` | `standardize-validation-mitigation` |
+| Detection workbook translation through AI Translation Studio | `detection-translate` |
+| Detection existing project proofreading; `de*` project already exists | `detection-proofread` |
+| Validation workbook translation + proofread through AI Translation Studio | `validation-translate-proofread` |
+| Validation existing project proofreading; `va*` project already exists | `validation-proofread` |
 
 If the user asks for a full workflow, chain the appropriate standardization skill before translation:
 - Detection full workflow: `standardize-detection-rules` then `detection-translate`.
@@ -99,7 +108,7 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 ## How To Work
 1. Run the mandatory preflight.
 2. Inspect input workbook/project and choose the route.
-3. Read the routed child skill's `SKILL.md`.
+3. Read the routed child skill's bundled `SKILL.md` from `skills/<child-skill>/` when present.
 4. Use that child skill's bundled script when available.
 5. Manually sample high-risk rows after script output.
 6. Run Excel/platform QA gates from the child skill.

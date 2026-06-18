@@ -1,0 +1,4 @@
+interface:
+  display_name: "Standardize Detection Rules"
+  short_description: "Standardize detection Excel name.1, desc, and notes fields."
+  default_prompt: "Standardize a detection Excel sheet by rewriting name.1, desc, and notes with the approved naming and description conventions."

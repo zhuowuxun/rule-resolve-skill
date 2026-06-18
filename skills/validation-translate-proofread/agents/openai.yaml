@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validation Translate + Proofread"
+  short_description: "Primary validation delivery workflow: translate, QA, and export."
+  default_prompt: "Use $validation-translate-proofread for the validation 翻译+校对 workflow and produce a QA-passed bilingual deliverable."

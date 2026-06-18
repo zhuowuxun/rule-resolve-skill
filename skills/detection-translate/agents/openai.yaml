@@ -1,0 +1,4 @@
+interface:
+  display_name: "Detection Translate"
+  short_description: "创建 detection 翻译项目并跑 Google 翻译、替换、校对和导出"
+  default_prompt: "Use $detection-translate to translate a detection Excel workbook through AI Translation Studio with Google Translate, detection dictionaries, replacement flow, and detection proofreading."

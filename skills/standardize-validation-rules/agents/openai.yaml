@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validation Standardization"
+  short_description: "Primary validation preprocessing workflow for Chinese rule standardization."
+  default_prompt: "Use $standardize-validation-rules for the validation 标准化 workflow before later running $validation-translate-proofread."

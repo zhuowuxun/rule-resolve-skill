@@ -1,0 +1,4 @@
+interface:
+  display_name: "Standardize Validation Mitigation"
+  short_description: "Standardize validation mitigation Excel notes, CVE appendices, and diff checks."
+  default_prompt: "Standardize a validation mitigation workbook by preserving or filling remediation text correctly, rebuilding CVE description and reference blocks, and optionally comparing against a manual mitigation workbook."

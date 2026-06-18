@@ -1,0 +1,4 @@
+interface:
+  display_name: "Detection Proofread"
+  short_description: "校对 detection 项目、修术语并持续完善规则"
+  default_prompt: "Use $detection-proofread to proofread a detection translation project in this repo."

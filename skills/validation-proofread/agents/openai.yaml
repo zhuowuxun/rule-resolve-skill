@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validation Proofread (Existing Project)"
+  short_description: "Helper skill for existing va* project cleanup and rule tightening."
+  default_prompt: "Use $validation-proofread only when a validation va* project already exists and needs proofreading cleanup."
