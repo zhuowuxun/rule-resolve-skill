@@ -5,7 +5,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -113,6 +112,31 @@ def ensure_translation_completed(result, expected_count, context):
         raise RuntimeError(
             f"{context} incomplete: translated {translated}/{expected_count}; errors={error_preview}. "
             "Stop here and check AI Translation Studio / Google Translate server configuration before replacement/export."
+        )
+
+
+def verify_note_replacement_scope(repo_root, replacement_dict_names):
+    note_dict_requested = any(name.strip().lower() == "validation note replacement" for name in replacement_dict_names)
+    if not note_dict_requested:
+        return
+
+    check_flow_path = repo_root / "backend/services/check_flow.py"
+    if not check_flow_path.exists():
+        raise RuntimeError(
+            f"Cannot verify note-only replacement scoping because check_flow.py is missing: {check_flow_path}"
+        )
+
+    source = check_flow_path.read_text(encoding="utf-8", errors="replace")
+    has_scope_guard = (
+        "validation note replacement" in source
+        and "NOTE_ONLY_DICTIONARY_NAMES" in source
+        and "cn_notes" in source
+        and "continue" in source
+    )
+    if not has_scope_guard:
+        raise RuntimeError(
+            "AI Translation Studio backend does not appear to enforce validation note replacement as cn_notes-only. "
+            "Update backend/services/check_flow.py before running validation translation; do not split the workbook into multiple platform projects."
         )
 
 
@@ -251,17 +275,6 @@ def run_validation_proofread(repo_root, project_id):
     }
 
 
-def make_sheet_subset_copy(src, sheets_to_keep):
-    wb = load_workbook(src)
-    for sheet in list(wb.sheetnames):
-        if sheet not in sheets_to_keep:
-            wb.remove(wb[sheet])
-    tmpdir = Path(tempfile.mkdtemp(prefix="validation_translate_proofread_"))
-    dst = tmpdir / f"{src.stem}_subset.xlsx"
-    wb.save(dst)
-    return dst
-
-
 def export_bilingual(session, api_base, project_id, output_path):
     resp = perform_request(
         session,
@@ -272,34 +285,6 @@ def export_bilingual(session, api_base, project_id, output_path):
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(resp.content)
-
-
-def find_col(ws, header):
-    for c_idx in range(1, ws.max_column + 1):
-        if str(ws.cell(row=1, column=c_idx).value or "").strip() == header:
-            return c_idx
-    return None
-
-
-def merge_note_exports(main_export, note_export, final_output):
-    main_wb = load_workbook(main_export)
-    note_wb = load_workbook(note_export)
-    for sheet_name in note_wb.sheetnames:
-        if sheet_name not in main_wb.sheetnames:
-            continue
-        main_ws = main_wb[sheet_name]
-        note_ws = note_wb[sheet_name]
-        main_cn = find_col(main_ws, "cn_notes")
-        main_en = find_col(main_ws, "en_notes")
-        note_cn = find_col(note_ws, "cn_notes")
-        note_en = find_col(note_ws, "en_notes")
-        if not all([main_cn, main_en, note_cn, note_en]):
-            continue
-        max_row = min(main_ws.max_row, note_ws.max_row)
-        for row_idx in range(2, max_row + 1):
-            main_ws.cell(row=row_idx, column=main_cn, value=note_ws.cell(row=row_idx, column=note_cn).value)
-            main_ws.cell(row=row_idx, column=main_en, value=note_ws.cell(row=row_idx, column=note_en).value)
-    main_wb.save(final_output)
 
 
 def audit_workbook(path, manual_review_limit):
@@ -381,122 +366,64 @@ def main():
 
     google_cfg = activate_google_translate(session, args.api_base)
     translation_ids = resolve_dictionary_ids(session, args.api_base, args.translation_dicts)
-    main_replacement_ids = resolve_dictionary_ids(session, args.api_base, args.main_replacement_dicts)
-    note_replacement_ids = resolve_dictionary_ids(session, args.api_base, args.note_replacement_dicts)
+    replacement_dict_names = list(dict.fromkeys(args.main_replacement_dicts + args.note_replacement_dicts))
+    replacement_ids = resolve_dictionary_ids(session, args.api_base, replacement_dict_names)
+    verify_note_replacement_scope(repo_root, replacement_dict_names)
 
-    main_created = create_project(
+    source_headers = list(DEFAULT_MAIN_SOURCE_HEADERS)
+    source_cols = list(main_cols)
+    if notes_col is not None and note_sheets:
+        source_headers.append(DEFAULT_NOTE_SOURCE_HEADER)
+        source_cols.append(notes_col)
+
+    created = create_project(
         session,
         args.api_base,
         input_path,
-        f"{project_name}-main",
-        main_cols,
+        project_name,
+        source_cols,
         translation_ids,
-        main_replacement_ids,
+        replacement_ids,
     )
-    main_project_id = main_created["id"]
-    main_initial_project = get_json(
+    project_id = created["id"]
+    initial_project = get_json(
         session,
-        f"{args.api_base}/api/project/{main_project_id}",
-        "Fetch created main project",
+        f"{args.api_base}/api/project/{project_id}",
+        "Fetch created project",
     )
-    main_expected_chunks = count_project_chunks(main_initial_project)
+    expected_chunks = count_project_chunks(initial_project)
 
-    note_project_id = None
-    note_subset_path = None
-    note_expected_chunks = 0
-    if notes_col is not None and note_sheets:
-        note_subset_path = make_sheet_subset_copy(input_path, note_sheets)
-        note_created = create_project(
-            session,
-            args.api_base,
-            note_subset_path,
-            f"{project_name}-notes",
-            [notes_col],
-            translation_ids,
-            note_replacement_ids,
-        )
-        note_project_id = note_created["id"]
-        note_initial_project = get_json(
-            session,
-            f"{args.api_base}/api/project/{note_project_id}",
-            "Fetch created note project",
-        )
-        note_expected_chunks = count_project_chunks(note_initial_project)
-
-    main_translate = post_json(
+    translate_result = post_json(
         session,
-        f"{args.api_base}/api/translate/{main_project_id}/translate-all",
+        f"{args.api_base}/api/translate/{project_id}/translate-all",
         {},
-        "Translate all main chunks",
+        "Translate all chunks",
     )
-    ensure_translation_completed(main_translate, main_expected_chunks, "Translate all main chunks")
-    main_replace = post_json(
+    ensure_translation_completed(translate_result, expected_chunks, "Translate all chunks")
+    replace_result = post_json(
         session,
-        f"{args.api_base}/api/proofread/{main_project_id}/batch-replace-all",
+        f"{args.api_base}/api/proofread/{project_id}/batch-replace-all",
         {},
-        "Run batch replacement for main project",
+        "Run batch replacement",
     )
-
-    note_translate = None
-    note_replace = None
-    if note_project_id is not None:
-        note_translate = post_json(
-            session,
-            f"{args.api_base}/api/translate/{note_project_id}/translate-all",
-            {},
-            "Translate all note chunks",
-        )
-        ensure_translation_completed(note_translate, note_expected_chunks, "Translate all note chunks")
-        note_replace = post_json(
-            session,
-            f"{args.api_base}/api/proofread/{note_project_id}/batch-replace-all",
-            {},
-            "Run batch replacement for note project",
-        )
 
     backup_path = backup_database(repo_root, project_name)
-    main_proofread = run_validation_proofread(repo_root, main_project_id)
-    if not main_proofread["verify_clean"]:
-        raise SystemExit("Validation proofreading did not return a clean result for the main project.")
-
-    note_proofread = None
-    if note_project_id is not None:
-        note_proofread = run_validation_proofread(repo_root, note_project_id)
-        if not note_proofread["verify_clean"]:
-            raise SystemExit("Validation proofreading did not return a clean result for the note project.")
+    proofread_result = run_validation_proofread(repo_root, project_id)
+    if not proofread_result["verify_clean"]:
+        raise SystemExit("Validation proofreading did not return a clean result.")
 
     put_json(
         session,
-        f"{args.api_base}/api/project/{main_project_id}/status",
+        f"{args.api_base}/api/project/{project_id}/status",
         {"status": "done"},
-        "Set main project status",
+        "Set project status",
     )
-    if note_project_id is not None:
-        put_json(
-            session,
-            f"{args.api_base}/api/project/{note_project_id}/status",
-            {"status": "done"},
-            "Set note project status",
-        )
 
-    main_project = get_json(session, f"{args.api_base}/api/project/{main_project_id}", "Fetch final main project")
-    note_project = None if note_project_id is None else get_json(
-        session,
-        f"{args.api_base}/api/project/{note_project_id}",
-        "Fetch final note project",
-    )
+    project = get_json(session, f"{args.api_base}/api/project/{project_id}", "Fetch final project")
 
     warnings = []
     if not args.skip_export:
-        tmpdir = Path(tempfile.mkdtemp(prefix="validation_translate_proofread_export_"))
-        main_export = tmpdir / "main_bilingual.xlsx"
-        export_bilingual(session, args.api_base, main_project_id, main_export)
-        if note_project_id is not None:
-            note_export = tmpdir / "note_bilingual.xlsx"
-            export_bilingual(session, args.api_base, note_project_id, note_export)
-            merge_note_exports(main_export, note_export, output_path)
-        else:
-            shutil.copy2(main_export, output_path)
+        export_bilingual(session, args.api_base, project_id, output_path)
         warnings = audit_workbook(output_path, args.manual_review_limit)
 
     report = {
@@ -512,36 +439,21 @@ def main():
             "model_name": google_cfg.get("model_name"),
         },
         "translation_dicts": list(zip(args.translation_dicts, translation_ids)),
-        "main_replacement_dicts": list(zip(args.main_replacement_dicts, main_replacement_ids)),
-        "note_replacement_dicts": list(zip(args.note_replacement_dicts, note_replacement_ids)),
+        "replacement_dicts": list(zip(replacement_dict_names, replacement_ids)),
         "sheet_headers": sheet_headers,
-        "main_project": {
-            "id": main_project_id,
-            "source_headers": DEFAULT_MAIN_SOURCE_HEADERS,
-            "source_cols": main_cols,
+        "project": {
+            "id": project_id,
+            "source_headers": source_headers,
+            "source_cols": source_cols,
+            "notes_sheets": note_sheets,
             "translate_result": {
-                "translated": main_translate.get("translated"),
-                "errors": main_translate.get("errors", []),
+                "translated": translate_result.get("translated"),
+                "errors": translate_result.get("errors", []),
             },
-            "replace_result": main_replace,
-            "chunk_count": main_project.get("chunk_count"),
-            "verify_clean": main_proofread["verify_clean"],
-            "verify_stdout": main_proofread["verify_stdout"],
-        },
-        "note_project": None if note_project_id is None else {
-            "id": note_project_id,
-            "source_header": DEFAULT_NOTE_SOURCE_HEADER,
-            "source_col": notes_col,
-            "sheets": note_sheets,
-            "subset_path": str(note_subset_path) if note_subset_path else None,
-            "translate_result": {
-                "translated": note_translate.get("translated"),
-                "errors": note_translate.get("errors", []),
-            },
-            "replace_result": note_replace,
-            "chunk_count": note_project.get("chunk_count"),
-            "verify_clean": note_proofread["verify_clean"],
-            "verify_stdout": note_proofread["verify_stdout"],
+            "replace_result": replace_result,
+            "chunk_count": project.get("chunk_count"),
+            "verify_clean": proofread_result["verify_clean"],
+            "verify_stdout": proofread_result["verify_stdout"],
         },
         "backup": str(backup_path),
         "manual_review_warnings": warnings,
@@ -554,12 +466,11 @@ def main():
         json.dumps(
             {
                 "project_name": project_name,
-                "main_project_id": main_project_id,
-                "note_project_id": note_project_id,
+                "project_id": project_id,
                 "output": None if args.skip_export else str(output_path),
                 "report": str(report_path),
                 "warnings": len(warnings),
-                "verify_clean": main_proofread["verify_clean"] and (note_proofread is None or note_proofread["verify_clean"]),
+                "verify_clean": proofread_result["verify_clean"],
             },
             ensure_ascii=False,
             indent=2,

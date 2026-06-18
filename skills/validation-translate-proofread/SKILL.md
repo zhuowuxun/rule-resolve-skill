@@ -23,6 +23,7 @@ Validation should feel like two user-facing workflows only:
 - If the workbook has not been standardized yet, run `standardize-validation-rules` first unless the user explicitly wants a raw translation pass.
 - `validation note replacement` is note-only. It may apply only to chunks whose Excel header is `cn_notes` and must not touch `cn_name` or `cn_desc`.
 - If the backend service code does not enforce note-only scoping, enforce it manually and patch the service before future runs.
+- Validation translation must create exactly one AI Translation Studio project per workbook. Do not split one workbook into separate `main` and `notes` projects just to isolate `validation note replacement`; the backend replacement flow must scope that dictionary to `cn_notes`.
 
 ## Expected Dictionaries
 Use these dictionaries when present:
@@ -69,8 +70,9 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 4. Back up the database.
    Example: `output/env-backup/translator_before_<project>_translate_validation_<date>.db`.
 
-5. Create a translate project through the API.
-   Use `source_type=xlsx`, `workflow=translate`, `target_lang=EN`, and `source_col` indices for `cn_name`, `cn_desc`, `cn_notes`. Attach the translation and replacement dictionaries, but remember note-only scoping for `validation note replacement`.
+5. Create one translate project through the API.
+   Use `source_type=xlsx`, `workflow=translate`, `target_lang=EN`, and one `source_col` list containing the indices for `cn_name`, `cn_desc`, and `cn_notes` when present. Attach the translation dictionaries and the combined replacement dictionary set (`基础字符校对`, `validation校对`, `validation note replacement`). `validation note replacement` must be scoped by backend `check_flow.py` so it only touches chunks whose Excel header is `cn_notes`.
+   Before creating the project, verify `backend/services/check_flow.py` contains the `validation note replacement` note-only guard. If it does not, stop and ask for the platform/backend to be updated. Do not create separate `-main` / `-notes` projects as a workaround.
 
 6. Translate all chunks.
    Call `/api/translate/<project_id>/translate-all` with `{"force": false}`. If a Google batch hits a transient auth error but fallback finishes with `errors: []`, continue.

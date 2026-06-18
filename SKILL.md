@@ -126,6 +126,7 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 - Keep URLs, paths, CVEs, versions, parameters, functions, and file extensions protected.
 - Final workbooks must be Excel-openable: verify with `openpyxl` and `unzip -t`.
 - Prefer concise output filenames such as `_standardized.xlsx`, `_translated.xlsx`, or `_proofread.xlsx`. Do not introduce `_DELIVERABLE` for standardization outputs.
+- Validation translation must create exactly one AI Translation Studio project per input workbook. Do not split one workbook into separate `main` / `notes` projects; note-only replacement must be enforced by the validation translation child skill and backend replacement logic.
 
 ## How To Work
 1. Run the mandatory preflight.
