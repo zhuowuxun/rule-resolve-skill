@@ -1,6 +1,6 @@
 ---
 name: validation-translate-proofread
-description: Primary user-facing validation delivery workflow. Translate and proofread validation Excel workbooks in the AI Translation Studio repo (`/Users/carmenz/Documents/翻译软件`). Use when the user wants the “翻译+校对” half of validation work for `.xlsx` workbooks with `cn_name`, `cn_desc`, `cn_notes` and preallocated `en_name`, `en_desc`, `en_notes` columns. Pair with `standardize-validation-rules`; do not treat `validation-proofread` as a third peer workflow.
+description: Primary user-facing validation delivery workflow. Translate and proofread validation Excel workbooks in AI Translation Studio. Use when the user wants the “翻译+校对” half of validation work for `.xlsx` workbooks with `cn_name`, `cn_desc`, `cn_notes` and preallocated `en_name`, `en_desc`, `en_notes` columns. Pair with `standardize-validation-rules`; do not treat `validation-proofread` as a third peer workflow.
 ---
 
 # Validation Translate Proofread
@@ -14,7 +14,8 @@ Validation should feel like two user-facing workflows only:
 `validation-proofread` still exists, but only as a project-only helper for already-created `va*` projects. It is not a third peer entry point.
 
 ## Core Rules
-- Work in `/Users/carmenz/Documents/翻译软件` unless the user explicitly points to another AI Translation Studio checkout.
+- Work in `~/Documents/翻译软件` unless the user explicitly points to another AI Translation Studio checkout.
+- Default API is `http://192.168.10.89:5002`. If `192.168.10.89` is unreachable or AI Translation Studio readiness is not confirmed, stop and ask the user to confirm the platform API base URL. Do not silently fall back to `127.0.0.1`.
 - Do not overwrite the user's original workbook. Export a new `_DELIVERABLE.xlsx` plus a `_report.json`.
 - Use the active database at `backend/instance/translator.db` unless the running app clearly points elsewhere.
 - Back up the database before repair passes or manual SQL changes under `output/env-backup/`.
@@ -56,26 +57,30 @@ PY
 For standard validation workbooks, translate source columns `cn_name`, `cn_desc`, and `cn_notes`; export should populate adjacent `en_name`, `en_desc`, and `en_notes`. Do not translate `uuid`, `vid`, `created`, or already-English columns.
 
 ## Workflow
-1. Confirm Google Translate is the active provider.
-   Query `model_configs`; if another provider is active, ask only if switching would be risky. Otherwise use the active configuration if the user explicitly requested Google Translate and it is already active.
+1. Confirm platform translation readiness before creating any project.
+   Check `/api/health`, `/api/settings/model`, Google Translate model config availability, and required dictionaries (`专业名称翻译`, `software翻译`, `基础字符校对`, `validation校对`, `validation note replacement`). `/api/health` alone is not enough because the backend can be alive while Google Translate credentials or dictionaries are unusable.
 
-2. Start the backend if needed.
+2. Confirm Google Translate is the active provider.
+   Query model settings; if another provider is active, ask only if switching would be risky. Otherwise use the active configuration if the user explicitly requested Google Translate and it is already active.
+
+3. Start the backend if needed.
    Use `./backend/venv/bin/python backend/app.py` from the repo and keep track of the session so it can be stopped.
 
-3. Back up the database.
+4. Back up the database.
    Example: `output/env-backup/translator_before_<project>_translate_validation_<date>.db`.
 
-4. Create a translate project through the API.
+5. Create a translate project through the API.
    Use `source_type=xlsx`, `workflow=translate`, `target_lang=EN`, and `source_col` indices for `cn_name`, `cn_desc`, `cn_notes`. Attach the translation and replacement dictionaries, but remember note-only scoping for `validation note replacement`.
 
-5. Translate all chunks.
+6. Translate all chunks.
    Call `/api/translate/<project_id>/translate-all` with `{"force": false}`. If a Google batch hits a transient auth error but fallback finishes with `errors: []`, continue.
+   If `translate-all` returns `502`, times out, reports any `errors`, translates `0` chunks, or translates fewer chunks than the project created, stop immediately. Report the project ID(s) and do not run replacement, proofreading, or export.
 
-6. Apply replacement dictionaries.
+7. Apply replacement dictionaries.
    Preferred path: ensure `backend/services/check_flow.py` skips `validation note replacement` unless header is `cn_notes`, then call `/api/proofread/<project_id>/batch-replace-all`.
    If service scoping is unavailable, run replacement in narrower code that excludes the note-only dictionary for non-note chunks.
 
-7. Run validation proofreading.
+8. Run validation proofreading.
    Use the existing skill/script:
    ```bash
    ./backend/venv/bin/python -m py_compile tools/validation/check_and_fix.py
@@ -84,7 +89,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    ```
    The final check must report zero issues, or only documented non-blocking false positives.
 
-8. Manually sample high-risk rows.
+9. Manually sample high-risk rows.
    Always read representative title, description, and note chunks:
    - rows with CVE, disclosure dates, URLs, endpoint paths, versions, and reference blocks
    - AI application vulnerability rows
@@ -94,7 +99,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    - software names without exact `software翻译` dictionary hits
    If the user flags the note column, compare current `cn_notes` / `en_notes` against historical validation projects in `backend/instance/translator.db` before repairing. Use exact historical matches first; for near-identical note templates, adapt the historical wording narrowly instead of trusting a fresh machine translation.
 
-9. Run independent delivery QA.
+10. Run independent delivery QA.
    Check at minimum:
    - every selected chunk has translation
    - no Chinese leftovers in `en_*`
@@ -110,7 +115,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    - title fields (`en_name`) contain no standalone articles: `a`, `an`, or `the`
    - `Host Command Line` titles use capitalized base-form action verbs after the dash, not lowercase starts, `-ing`, or third-person `-s`
 
-10. Export and verify the deliverable.
+11. Export and verify the deliverable.
     Mark the project done, export with `format=xlsx&bilingual=true`, then open the output with `openpyxl` and verify expected `en_*` fill counts.
 
 ## Repair Guidance

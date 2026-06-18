@@ -54,13 +54,35 @@ For any translation or proofreading task that touches AI Translation Studio, req
 python3 ~/.codex/skills/rule-resolve/scripts/preflight.py --require-translation-api
 ```
 
+For translation tasks, pass the route-specific dictionaries so preflight checks more than `/api/health`:
+
+```bash
+# detection translation
+python3 ~/.codex/skills/rule-resolve/scripts/preflight.py \
+  --require-translation-api \
+  --required-dict 专业名称翻译 \
+  --required-dict software翻译 \
+  --required-dict 基础字符校对 \
+  --required-dict detection校对
+
+# validation translation
+python3 ~/.codex/skills/rule-resolve/scripts/preflight.py \
+  --require-translation-api \
+  --required-dict 专业名称翻译 \
+  --required-dict software翻译 \
+  --required-dict 基础字符校对 \
+  --required-dict validation校对 \
+  --required-dict "validation note replacement"
+```
+
 Interpretation:
 - Default `10.89` host is `192.168.10.89`.
 - If `host_reachable` is false, stop before platform-dependent work. Tell the user that `192.168.10.89` is unreachable from this environment and ask them to confirm the translation-platform address.
-- If `host_reachable` is true but `translation_api_reachable` is false for a translation/proofreading request, tell the user that `10.89` is reachable but AI Translation Studio API health was not confirmed, then ask for the correct API base URL, for example `http://127.0.0.1:5002` or `http://192.168.10.89:<port>`.
+- If `host_reachable` is true but `translation_api_ready` is false for a translation/proofreading request, tell the user that `10.89` is reachable but AI Translation Studio translation readiness was not confirmed. Include whether `/api/health`, `/api/settings/model`, Google Translate config, and required dictionaries passed, then ask for the correct API base URL or platform-side fix.
 - If the user has already supplied an API address, pass it with `--api-base`.
 
 Do not silently fall back to an unknown platform address.
+Do not create translation projects when readiness is not confirmed. `/api/health` alone only means the Flask service is alive; it does not prove Google Translate credentials, model config, dictionaries, or the translate queue can run.
 
 ## Routing
 After preflight, inspect the workbook/project shape and load exactly the child skill(s) needed.
@@ -118,5 +140,7 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 Stop and ask the user before continuing when:
 - `192.168.10.89` is unreachable and the task needs platform, dictionary, tag-system, translation, or proofreading access.
 - No AI Translation Studio API candidate passes `/api/health` for translation/proofreading work.
+- AI Translation Studio `/api/health` passes but model config, Google Translate config, or required dictionary readiness fails.
+- `translate-all` returns `502`, times out, reports errors, or translates `0` chunks after a project is created. Stop immediately, report the created project ID(s), and do not run replacement/proofreading/export.
 - The workbook shape does not clearly match detection, validation main, or validation mitigation.
 - The user provides a manual workbook but the generation source is unclear.

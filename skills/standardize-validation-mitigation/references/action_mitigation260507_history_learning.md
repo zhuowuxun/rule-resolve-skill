@@ -1,6 +1,6 @@
 # action_mitigation260507 历史标准化学习
 
-来源文件：`/Users/carmenz/Downloads/action_mitigation260507.xlsx`
+来源文件：`~/Downloads/action_mitigation260507.xlsx`
 
 该文件是已标准化的 validation mitigation 历史语料，结构为：
 

@@ -49,6 +49,60 @@ def check_api_base(api_base: str, timeout: float) -> dict[str, Any]:
         return {"ok": False, "api_base": base, "url": url, "error": str(exc)}
 
 
+def request_json(base: str, path: str, timeout: float) -> dict[str, Any]:
+    url = f"{base.rstrip('/')}{path}"
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            return {
+                "ok": 200 <= resp.status < 300,
+                "url": url,
+                "status": resp.status,
+                "json": json.loads(body) if body else None,
+            }
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "url": url, "status": exc.code, "error": str(exc)}
+    except Exception as exc:
+        return {"ok": False, "url": url, "error": str(exc)}
+
+
+def check_translation_readiness(api_base: str, timeout: float, required_dicts: list[str]) -> dict[str, Any]:
+    base = api_base.rstrip("/")
+    model_result = request_json(base, "/api/settings/model", timeout)
+    dict_result = request_json(base, "/api/dict/", timeout)
+
+    configs = []
+    active_id = None
+    if model_result.get("ok") and isinstance(model_result.get("json"), dict):
+        data = model_result["json"]
+        configs = data.get("configs") or []
+        active_id = data.get("active_id")
+
+    google_configs = [cfg for cfg in configs if cfg.get("provider") == "google_translate"]
+    active_config = next((cfg for cfg in configs if cfg.get("id") == active_id), None)
+
+    dictionaries = dict_result.get("json") if dict_result.get("ok") else []
+    dict_names = []
+    if isinstance(dictionaries, list):
+        dict_names = [str(item.get("name", "")) for item in dictionaries if isinstance(item, dict)]
+    missing_dicts = [name for name in required_dicts if name not in dict_names]
+
+    ok = bool(model_result.get("ok") and dict_result.get("ok") and google_configs and not missing_dicts)
+    return {
+        "ok": ok,
+        "api_base": base,
+        "model_endpoint_ok": bool(model_result.get("ok")),
+        "dict_endpoint_ok": bool(dict_result.get("ok")),
+        "google_config_available": bool(google_configs),
+        "active_provider": active_config.get("provider") if active_config else "",
+        "required_dicts": required_dicts,
+        "missing_dicts": missing_dicts,
+        "model_check": model_result if not model_result.get("ok") else {"url": model_result.get("url"), "status": model_result.get("status")},
+        "dict_check": dict_result if not dict_result.get("ok") else {"url": dict_result.get("url"), "status": dict_result.get("status")},
+    }
+
+
 def candidate_api_bases(explicit: list[str]) -> list[str]:
     values: list[str] = []
     for item in explicit:
@@ -70,11 +124,23 @@ def main() -> int:
     parser.add_argument("--ping-timeout-ms", type=int, default=1000)
     parser.add_argument("--api-base", action="append", default=[], help="AI Translation Studio API base URL; can be repeated.")
     parser.add_argument("--require-translation-api", action="store_true", help="Fail if no AI Translation Studio API responds.")
+    parser.add_argument(
+        "--required-dict",
+        action="append",
+        default=[],
+        help="Dictionary name that must exist for translation readiness; can be repeated.",
+    )
     parser.add_argument("--api-timeout", type=float, default=3.0)
     args = parser.parse_args()
 
     host_result = ping_host(args.host, args.ping_timeout_ms)
     api_results = [check_api_base(base, args.api_timeout) for base in candidate_api_bases(args.api_base)]
+    readiness_results = [
+        check_translation_readiness(item["api_base"], args.api_timeout, args.required_dict)
+        if item.get("ok") else None
+        for item in api_results
+    ]
+    ready_api = next((item for item in readiness_results if item and item.get("ok")), None)
     reachable_api = next((item for item in api_results if item.get("ok")), None)
 
     result = {
@@ -83,14 +149,16 @@ def main() -> int:
         "host_check": host_result,
         "translation_api_required": args.require_translation_api,
         "translation_api_reachable": bool(reachable_api),
-        "translation_api_base": reachable_api.get("api_base") if reachable_api else "",
+        "translation_api_ready": bool(ready_api),
+        "translation_api_base": ready_api.get("api_base") if ready_api else (reachable_api.get("api_base") if reachable_api else ""),
         "api_checks": api_results,
+        "translation_readiness_checks": [item for item in readiness_results if item],
     }
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
     if not result["host_reachable"]:
         return 10
-    if args.require_translation_api and not result["translation_api_reachable"]:
+    if args.require_translation_api and not result["translation_api_ready"]:
         return 20
     return 0
 

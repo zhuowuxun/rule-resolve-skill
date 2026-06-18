@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import zipfile
 from functools import lru_cache
@@ -169,9 +170,7 @@ ACTION_CONTEXTUAL_ALIAS_RULES = (
     (re.compile(r"(?<![A-Za-z0-9])Qilin(?![A-Za-z0-9])", re.IGNORECASE), "麒麟勒索软件", "Qilin 勒索软件"),
 )
 
-RANSOMWARE_REFERENCE_WORKBOOK = Path(
-    "/Users/carmenz/Documents/tag管理系统/output/spreadsheet/validation总表0410_malware标签单独导出.xlsx"
-)
+RANSOMWARE_REFERENCE_ENV = "VALIDATION_RANSOMWARE_REFERENCE_WORKBOOK"
 
 
 def qname(local: str) -> str:
@@ -496,7 +495,10 @@ def _normalize_lookup_name(text: str) -> str:
 @lru_cache(maxsize=1)
 def load_known_ransomware_families() -> set[str]:
     families: set[str] = set()
-    path = RANSOMWARE_REFERENCE_WORKBOOK
+    configured_path = os.environ.get(RANSOMWARE_REFERENCE_ENV, "").strip()
+    if not configured_path:
+        return families
+    path = Path(configured_path).expanduser()
     if not path.exists():
         return families
     try:

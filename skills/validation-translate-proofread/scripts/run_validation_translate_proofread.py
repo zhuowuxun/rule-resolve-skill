@@ -14,8 +14,8 @@ import requests
 from openpyxl import load_workbook
 
 
-DEFAULT_REPO_ROOT = Path("/Users/carmenz/Documents/翻译软件")
-DEFAULT_API_BASE = "http://127.0.0.1:5002"
+DEFAULT_REPO_ROOT = Path.home() / "Documents/翻译软件"
+DEFAULT_API_BASE = "http://192.168.10.89:5002"
 DEFAULT_TRANSLATION_DICTS = ["专业名称翻译", "software翻译"]
 DEFAULT_MAIN_REPLACEMENT_DICTS = ["基础字符校对", "validation校对"]
 DEFAULT_NOTE_REPLACEMENT_DICTS = ["基础字符校对", "validation校对", "validation note replacement"]
@@ -76,7 +76,7 @@ def perform_request(session, method, url, context, **kwargs):
         resp = session.request(method, url, **kwargs)
     except requests.RequestException as exc:
         raise RuntimeError(
-            f"{context} failed: could not reach {url}. Start the local AI Translation Studio backend first."
+            f"{context} failed: could not reach {url}. Confirm the AI Translation Studio API base URL first."
         ) from exc
     return ensure_ok(resp, context)
 
@@ -91,6 +91,29 @@ def post_json(session, url, payload, context):
 
 def put_json(session, url, payload, context):
     return perform_request(session, "PUT", url, context, json=payload, timeout=1800).json()
+
+
+def count_project_chunks(project):
+    chunks = project.get("chunks")
+    if isinstance(chunks, list):
+        return len(chunks)
+    try:
+        return int(project.get("chunk_count") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def ensure_translation_completed(result, expected_count, context):
+    errors = result.get("errors") or []
+    translated = int(result.get("translated") or 0)
+    if expected_count <= 0:
+        raise RuntimeError(f"{context} did not create any chunks. Check source headers/source_col before translating.")
+    if errors or translated < expected_count:
+        error_preview = json.dumps(errors[:5], ensure_ascii=False) if isinstance(errors, list) else str(errors)
+        raise RuntimeError(
+            f"{context} incomplete: translated {translated}/{expected_count}; errors={error_preview}. "
+            "Stop here and check AI Translation Studio / Google Translate server configuration before replacement/export."
+        )
 
 
 def sanitize_project_name(name):
@@ -371,9 +394,16 @@ def main():
         main_replacement_ids,
     )
     main_project_id = main_created["id"]
+    main_initial_project = get_json(
+        session,
+        f"{args.api_base}/api/project/{main_project_id}",
+        "Fetch created main project",
+    )
+    main_expected_chunks = count_project_chunks(main_initial_project)
 
     note_project_id = None
     note_subset_path = None
+    note_expected_chunks = 0
     if notes_col is not None and note_sheets:
         note_subset_path = make_sheet_subset_copy(input_path, note_sheets)
         note_created = create_project(
@@ -386,6 +416,12 @@ def main():
             note_replacement_ids,
         )
         note_project_id = note_created["id"]
+        note_initial_project = get_json(
+            session,
+            f"{args.api_base}/api/project/{note_project_id}",
+            "Fetch created note project",
+        )
+        note_expected_chunks = count_project_chunks(note_initial_project)
 
     main_translate = post_json(
         session,
@@ -393,6 +429,7 @@ def main():
         {},
         "Translate all main chunks",
     )
+    ensure_translation_completed(main_translate, main_expected_chunks, "Translate all main chunks")
     main_replace = post_json(
         session,
         f"{args.api_base}/api/proofread/{main_project_id}/batch-replace-all",
@@ -409,6 +446,7 @@ def main():
             {},
             "Translate all note chunks",
         )
+        ensure_translation_completed(note_translate, note_expected_chunks, "Translate all note chunks")
         note_replace = post_json(
             session,
             f"{args.api_base}/api/proofread/{note_project_id}/batch-replace-all",

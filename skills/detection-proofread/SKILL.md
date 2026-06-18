@@ -1,23 +1,23 @@
 ---
 name: detection-proofread
-description: Use when proofreading detection translation projects in the AI Translation Studio repo, especially `de*` projects that should follow the repo's detection dictionaries and `/Users/carmenz/Documents/翻译软件/tools/detection/check_and_fix.py`. Use for running the detection proofreading script, backing up the active database first, reviewing residual translation issues, and continuously tightening the detection proofreading rules without overriding user-confirmed terminology.
+description: Use when proofreading detection translation projects in the AI Translation Studio repo, especially `de*` projects that should follow the repo's detection dictionaries and `tools/detection/check_and_fix.py`. Use for running the detection proofreading script, backing up the active database first, reviewing residual translation issues, and continuously tightening the detection proofreading rules without overriding user-confirmed terminology.
 ---
 
 # Detection Proofread
 
 ## Workflow
 1. Confirm the target project and inspect its dictionaries before changing anything.
-   Use the active project DB at `/Users/carmenz/Documents/翻译软件/backend/instance/translator.db` unless the running backend is clearly pointing elsewhere.
+   Use the active project DB at `~/Documents/翻译软件/backend/instance/translator.db` unless the running backend is clearly pointing elsewhere.
    Check project dictionaries first; translation dictionaries outrank personal language preference.
 
 2. Back up the live database before any repair pass or manual SQL change.
-   Write backups under `/Users/carmenz/Documents/翻译软件/output/env-backup/`.
+   Write backups under `~/Documents/翻译软件/output/env-backup/`.
    Use descriptive names such as `translator_before_<project>_<reason>_<date>.db`.
 
 3. Run the detection proofreading script first.
    Command:
    ```bash
-   ./backend/venv/bin/python /Users/carmenz/Documents/翻译软件/tools/detection/check_and_fix.py <project_id> --repair
+   ./backend/venv/bin/python ~/Documents/翻译软件/tools/detection/check_and_fix.py <project_id> --repair
    ```
    Re-run without `--repair` to confirm the script now reports zero issues or only expected residuals.
 
@@ -31,7 +31,7 @@ description: Use when proofreading detection translation projects in the AI Tran
    Re-run the script on the current project after each meaningful rule change.
    Verify the script still compiles:
    ```bash
-   ./backend/venv/bin/python -m py_compile /Users/carmenz/Documents/翻译软件/tools/detection/check_and_fix.py
+   ./backend/venv/bin/python -m py_compile ~/Documents/翻译软件/tools/detection/check_and_fix.py
    ```
 
 ## Priority Rules
@@ -47,7 +47,7 @@ description: Use when proofreading detection translation projects in the AI Tran
 
 ## Detection Conventions In This Repo
 - Detection proofreading script:
-  `/Users/carmenz/Documents/翻译软件/tools/detection/check_and_fix.py`
+  `~/Documents/翻译软件/tools/detection/check_and_fix.py`
 - Common project pattern:
   `de####`
 - Common title fields:

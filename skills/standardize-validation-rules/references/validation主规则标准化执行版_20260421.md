@@ -2,7 +2,7 @@
 
 适用文件：
 
-- `/Users/carmenz/Downloads/20260415134001-t_1.xlsx`
+- `~/Downloads/20260415134001-t_1.xlsx`
 
 这份文档只负责 `validation` 主规则标准化，不包含 mitigation 字典补数细节。
 

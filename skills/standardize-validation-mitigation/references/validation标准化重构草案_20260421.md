@@ -6,11 +6,11 @@
 
 适用对象：
 
-- `/Users/carmenz/Downloads/20260415134001-t_1.xlsx`
+- `~/Downloads/20260415134001-t_1.xlsx`
 
 对应文档：
 
-- `/Users/carmenz/Documents/tag管理系统/validation主规则标准化执行版_20260421.md`
+- `references/validation主规则标准化执行版_20260421.md`
 
 说明：
 
@@ -22,12 +22,12 @@
 
 适用对象：
 
-- `/Users/carmenz/Downloads/20260415134001-mit_1.xlsx`
-- `/Users/carmenz/Downloads/mitigation字典_0118.xlsx`
+- `~/Downloads/20260415134001-mit_1.xlsx`
+- `~/Downloads/mitigation字典_0118.xlsx`
 
 对应文档：
 
-- `/Users/carmenz/Documents/tag管理系统/validation_mitigation标准化执行版_20260421.md`
+- `references/validation_mitigation标准化执行版_20260421.md`
 
 说明：
 

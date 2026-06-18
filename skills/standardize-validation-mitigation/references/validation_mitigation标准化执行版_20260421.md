@@ -2,8 +2,8 @@
 
 适用文件：
 
-- `/Users/carmenz/Downloads/20260415134001-mit_1.xlsx`
-- `/Users/carmenz/Downloads/mitigation字典_0118.xlsx`
+- `~/Downloads/20260415134001-mit_1.xlsx`
+- `~/Downloads/mitigation字典_0118.xlsx`
 
 这份文档只负责 `mitigation` 标准化，不包含 `Actions / Sequences / Playbook` 的命名和描述标准化细节。
 
@@ -35,7 +35,7 @@
 
 字典文件：
 
-- `/Users/carmenz/Downloads/mitigation字典_0118.xlsx`
+- `~/Downloads/mitigation字典_0118.xlsx`
 
 当前确认这是 remediation 模板字典，不是逐条规则明细表。
 

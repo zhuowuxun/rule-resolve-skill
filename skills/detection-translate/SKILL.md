@@ -1,6 +1,6 @@
 ---
 name: detection-translate
-description: Use when translating detection Excel workbooks through the AI Translation Studio repo, especially `.xlsx` files with `name.1`, `desc`, and `notes` source columns that should be translated with Google Translate, the detection dictionaries, replacement flow, and `/Users/carmenz/Documents/翻译软件/tools/detection/check_and_fix.py`.
+description: Use when translating detection Excel workbooks through AI Translation Studio, especially `.xlsx` files with `name.1`, `desc`, and `notes` source columns that should be translated with Google Translate, detection dictionaries, replacement flow, and `tools/detection/check_and_fix.py`.
 ---
 
 # Detection Translate
@@ -10,16 +10,27 @@ Use this skill when the user wants to translate a detection workbook through the
 ## Default Workflow
 1. Confirm the local AI Translation Studio backend is the target environment.
    Default repo root:
-   `/Users/carmenz/Documents/翻译软件`
+   `~/Documents/翻译软件`
    Default API:
-   `http://127.0.0.1:5002`
+   `http://192.168.10.89:5002`
 
-2. Use the bundled script for the end-to-end flow:
+   If the environment cannot access `192.168.10.89`, stop and ask the user to confirm the AI Translation Studio API base URL. Do not silently fall back to `127.0.0.1`.
+
+2. Before creating any project, verify translation readiness:
+   - `/api/health` responds
+   - `/api/settings/model` responds
+   - a `google_translate` model config exists
+   - required dictionaries exist: `专业名称翻译`, `software翻译`, `基础字符校对`, `detection校对`
+
+   `/api/health` alone is not enough. A healthy Flask service can still have broken Google Translate credentials or dictionaries.
+
+3. Use the bundled script for the end-to-end flow:
    - activate the Google Translate model config
    - inspect the workbook and detect the detection source columns
    - create a real platform project
    - attach the standard detection dictionaries
    - run translate-all
+   - stop immediately if `translate-all` returns `502`, times out, reports errors, or translates fewer chunks than the project created
    - run batch replacement
    - back up the live database
    - run the detection proofreading script with repair
@@ -27,7 +38,7 @@ Use this skill when the user wants to translate a detection workbook through the
    - export a bilingual `.xlsx`
    - generate a small warning report for manual review
 
-3. After the script finishes, manually review the warning report.
+4. After the script finishes, manually review the warning report.
    Focus on `name.1`, `desc`, and `notes`.
    Treat Chinese path fragments, protected URLs, and vendor product names as source-aligned content unless the source clearly requires a translation.
 
@@ -49,7 +60,7 @@ Use this skill when the user wants to translate a detection workbook through the
 Run the bundled script with the backend venv Python:
 
 ```bash
-/Users/carmenz/Documents/翻译软件/backend/venv/bin/python \
+~/Documents/翻译软件/backend/venv/bin/python \
   ~/.codex/skills/detection-translate/scripts/run_detection_translate.py \
   --input /absolute/path/to/source.xlsx \
   --project-name de0506 \
@@ -57,8 +68,9 @@ Run the bundled script with the backend venv Python:
 ```
 
 Useful options:
-- `--api-base http://127.0.0.1:5002`
-- `--repo-root /Users/carmenz/Documents/翻译软件`
+- `--api-base http://192.168.10.89:5002`
+- `--api-base http://127.0.0.1:5002` only when the user confirms a local backend
+- `--repo-root ~/Documents/翻译软件`
 - `--manual-review-limit 20`
 - `--skip-export`
 
@@ -68,6 +80,7 @@ Useful options:
 - For software and product names, exact dictionary matches outrank manual language judgment.
 - If a Chinese software name has no exact approved dictionary entry, do not normalize it to a more “natural” English product name. Keep it for manual review or dictionary completion instead.
 - Do not skip the replacement flow before proofreading.
+- Do not run replacement/proofreading/export if translation produced zero chunks, partial chunks, or any `errors`.
 - Always back up `backend/instance/translator.db` before running detection proofreading repair.
 - Never overwrite source columns in the final Excel; export bilingually unless the user explicitly asks for single-language overwrite.
 - Keep URLs exact.
