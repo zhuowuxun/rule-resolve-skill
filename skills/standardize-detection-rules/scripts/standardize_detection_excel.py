@@ -38,6 +38,9 @@ HARDWARE_PRODUCT_KEYWORDS = (
     "PAN-OS",
     "GlobalProtect",
     "Palo Alto",
+    # Industry/operation platforms with web endpoints should still use the generic application prefix.
+    "Acrel EEMS",
+    "电力运维平台",
 )
 AI_APPLICATION_PRODUCTS = (
     "Blinko",
@@ -102,6 +105,16 @@ def is_software_description_sentence(sentence: str) -> bool:
         return False
     if text.startswith(("系统不仅具有", "该系统不仅具有", "产品不仅具有")) or "还具有强大的" in text:
         return True
+    if text.startswith(("它不仅仅是", "不仅仅是")):
+        return True
+    known_product_intro_prefixes = (
+        "Microsoft Exchange 是微软公司开发",
+        "Microsoft Exchange是微软公司开发",
+        "OpenStack Swift是开源对象存储系统",
+        "OpenStack Swift 是开源对象存储系统",
+    )
+    if text.startswith(known_product_intro_prefixes):
+        return True
     clear_description_markers = (
         "是一款",
         "是一个",
@@ -161,7 +174,7 @@ def is_software_description_sentence(sentence: str) -> bool:
         "它使",
     )):
         return True
-    if re.search(r"是[^。！？]{0,30}一款", text) or "自主研发" in text:
+    if re.search(r"是[^。！？]{0,40}(?:一款|一个|一种|一套)", text) or "自主研发" in text:
         return True
     description_markers = (
         "是一款",
@@ -353,6 +366,14 @@ def normalize_attack_text(text: str) -> str:
     normalized = re.sub(r"(?<![A-Za-z])http(?![A-Za-z])", "HTTP", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])url(?![A-Za-z])", "URL", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])json(?![A-Za-z])", "JSON", normalized, flags=re.IGNORECASE)
+    # Some source rows miss the negation marker and use the awkward phrase
+    # "经身份验证的攻击者/用户"; normalize only that bare form. Do not touch
+    # valid "经过身份验证" or already-correct "未经身份验证".
+    normalized = re.sub(
+        r"(?<![未过])经身份验证(?=的?(?:远程攻击者|攻击者|用户))",
+        "未经身份验证",
+        normalized,
+    )
 
     for marker, token in protected_tokens.items():
         normalized = normalized.replace(marker, token)
@@ -391,6 +412,12 @@ def normalize_software_description(text: str) -> str:
     normalized = normalized.replace("，为企事业单位", "，为企业")
     normalized = normalized.replace(",为企事业单位", "，为企业")
     compact = normalized.replace(" ", "")
+    if "MicrosoftExchange" in compact:
+        return "Microsoft Exchange 是微软公司开发的企业级消息与协作平台。"
+    if "OpenStackSwift" in compact:
+        return "OpenStack Swift 是开源对象存储系统。"
+    if "同鑫eHR" in compact or "同鑫EHR" in compact:
+        return "同鑫 eHR 是一款人力资源管理平台。"
     if "金蝶EAS" in compact:
         return "金蝶 EAS 是面向集团型企业的数字化管理平台。"
     if re.search(r"用友\s*NC", normalized):
@@ -462,6 +489,50 @@ def normalize_software_description(text: str) -> str:
     return normalized
 
 
+def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str, vuln: str) -> str:
+    """Drop a repeated "target + exists vulnerability" prefix already covered by the intro."""
+    text = clean_text(attack_text)
+    if not text or not vuln:
+        return text
+    product_pattern = re.escape(clean_text(product))
+    endpoint_pattern = re.escape(clean_text(endpoint))
+    vuln_pattern = re.escape(clean_text(vuln))
+    if not product_pattern or not vuln_pattern:
+        return text
+    separators = r"(?:\s+|/|，|,|的|插件\s*)*"
+    accessors = r"(?:接口|端点|方法|函数|API\s*端点|路由)"
+    if endpoint_pattern:
+        target_pattern = rf"{product_pattern}{separators}{endpoint_pattern}"
+    else:
+        target_pattern = product_pattern
+    pattern = re.compile(
+        rf"^{target_pattern}\s*{accessors}?\s*存在{vuln_pattern}，",
+        flags=re.IGNORECASE,
+    )
+    updated = pattern.sub("", text, count=1).strip()
+    if updated != text:
+        return updated or text
+
+    # Fallback for rows whose source uses a more precise path than the title,
+    # e.g. title `/public` but source `/api/upload/public`. Remove only the
+    # first comma-delimited clause and keep the attacker condition/impact.
+    first_clause, sep, rest = text.partition("，")
+    if sep and rest:
+        endpoint_key = re.sub(r"[^a-z0-9]+", "", clean_text(endpoint).lower())
+        clause_key = re.sub(r"[^a-z0-9]+", "", first_clause.lower())
+        has_version_context = bool(re.search(r"(?:版本|<=|>=|<|>|及之前|之前版本|以下版本)", first_clause))
+        if (
+            not has_version_context
+            and product in first_clause
+            and "存在" in first_clause
+            and vuln in first_clause
+            and (not endpoint_key or endpoint_key in clause_key)
+        ):
+            return rest.strip() or text
+
+    return text
+
+
 def build_standardized_desc(name: str, desc: str, historical_desc_map: Dict[str, str]) -> str:
     product, endpoint, vuln, _ = parse_rule_name(name)
     main_text, disclosure = split_disclosure_time(desc)
@@ -486,6 +557,7 @@ def build_standardized_desc(name: str, desc: str, historical_desc_map: Dict[str,
     software_desc = normalize_software_description(software_desc)
 
     attack_text = normalize_attack_text("".join(attack_sentences))
+    attack_text = remove_redundant_attack_prefix(attack_text, product, endpoint, vuln)
     target = " ".join(part for part in (product, endpoint) if part).strip()
     intro_target = format_target_for_intro(target)
     intro = (

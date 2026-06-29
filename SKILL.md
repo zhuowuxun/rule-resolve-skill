@@ -7,7 +7,7 @@ description: Meta workflow for rule deliverables. Use when the user asks to reso
 
 This is the top-level router for rule Excel work. It packages the three standardization skills and four translation/proofreading skills without merging their logic.
 
-Bundled child skills live under `skills/` in this package. Prefer those bundled copies first so a downloaded `rule-resolve-skill` release is self-contained. Fall back to sibling installed skills only when a bundled child skill is missing.
+Bundled child skills live under `skills/` in this package. Prefer those bundled copies first so a downloaded `rule-resolve-skill` release is self-contained. Fall back to sibling standalone skills only when a bundled child skill is missing.
 
 ## Start Message
 After this skill is triggered and the route is chosen, send one short user-facing status line before substantial work:
@@ -153,10 +153,11 @@ After preflight, inspect the workbook/project shape and load exactly the child s
 
 Child skill resolution order:
 1. bundled child skill: `~/.codex/skills/rule-resolve/skills/<child-skill>/SKILL.md`
-2. sibling installed skill: `~/.codex/skills/<child-skill>/SKILL.md`
-3. if neither exists, stop and report the missing child skill
+2. sibling standalone skill: `~/.codex/skills/<child-skill>-standalone/SKILL.md`
+3. legacy sibling skill, if still present: `~/.codex/skills/<child-skill>/SKILL.md`
+4. if none exists, stop and report the missing child skill
 
-When the bundled child skill contains scripts, resolve relative script paths from that bundled child skill directory, not from the sibling installed skill.
+When the bundled child skill contains scripts, resolve relative script paths from that bundled child skill directory, not from the sibling standalone skill.
 
 | User Intent / File Shape | Route To |
 | --- | --- |
