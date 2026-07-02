@@ -34,6 +34,7 @@ Use these dictionaries when present:
 - Translation dictionaries: `专业名称翻译`, `software翻译`
 - Replacement dictionaries: `基础字符校对`, `validation校对`
 - Note-only replacement dictionary: `validation note replacement`
+- Product variants in `software翻译` must be split into exact source terms. Do not use a generic product entry that collapses CRM/OA variants; keep spaced and unspaced variants when source workbooks use both forms, for example `孚盟云 CRM` / `孚盟云CRM` -> `Fumasoft CRM` and `孚盟云 OA` / `孚盟云OA` -> `Fumasoft OA`.
 
 Look up dictionary IDs from `backend/instance/translator.db`; do not assume IDs are stable. Typical current IDs are:
 
