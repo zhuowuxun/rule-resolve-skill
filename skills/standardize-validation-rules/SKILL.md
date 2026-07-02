@@ -67,6 +67,7 @@ This skill is not for:
    - Host command, command-and-control, malicious file transfer, protected sandbox, scene, and email rows should follow the confirmed validation naming rules.
    - Host command titles must not stop at appending an OS suffix. Rewrite verbose forms like `主机命令行 - 使用“CMD”命令显示XXX` into `主机命令行 - CMD，XXX显示 (Windows)` or the closest concise action form.
    - In `Sequences`, normalize residual `下载威胁` wording to `下载攻击活动` so the final title does not become `下载威胁 攻击活动`.
+   - In `Sequences`, if the subject already ends with `恶意软件活动`, normalize it to `恶意软件攻击活动` rather than appending another `攻击活动`.
    - In `Sequences`, keep scene numbering as trailing `#n` such as `恶意活动场景 - APT36 威胁组织攻击活动 #2`; do not use `，变种 #n` for scene titles.
    - OS suffixes use English parentheses such as `(Windows)` / `(Linux)` / `(macOS)`.
    - Place OS suffixes near the malware/tool/product segment, not after action verbs such as `执行` / `下载` / `投放`.
@@ -77,9 +78,11 @@ This skill is not for:
    - If a malicious file-transfer description says the downloaded object is an `恶意快捷方式文件` or `.LNK 文件`, add `恶意快捷方式文件` before `下载` in the title.
    - If a malicious file-transfer description gives a precise file type such as `.NET 木马` or `恶意 .NET 可执行文件`, add that precise malicious-file type to the title even when the malware family name is already present, for example `REGALSPICE，恶意 .NET 木马文件，下载`.
    - If a malicious file-transfer title only says `下载`, infer and add the downloaded file/tool type from the description, for example `远程访问工具` -> `恶意远程访问工具`.
+   - Keep inferred malicious file-transfer types concise, such as `恶意远程访问工具`, `恶意远程访问木马文件`, `恶意安装程序`, `恶意 Windows Installer 程序包`, `恶意 JavaScript 下载器`, and do not backfill long URL paths into titles.
    - For malicious file-transfer rows, infer precise file/container types from the description when the title only says `下载`, including `.NET 可执行文件`, `Python 脚本文件`, `32 位 Windows .DLL文件`, `恶意 Windows .DLL文件`, `恶意动态链接库文件`, `恶意软件组件文件`, `木马化的软件组件文件`, `混淆脚本文件`, `恶意配置脚本文件`, `恶意混淆脚本文件`, `恶意批处理脚本文件`, `恶意脚本文件`, `恶意配置文件`, and `压缩存档文件`.
    - In malicious file-transfer names, shorten redundant malware nouns such as `Dindoor后门恶意软件` to `Dindoor后门` and `恶意软件释放器` to `释放器`, while descriptions may retain the fuller object wording.
    - For command-and-control rows, preserve URI paths from the description in `cn_name`, for example `/api/auth/login` or `/api/home/status`.
+   - For Web / AI / application vulnerability rows, if the description contains a more complete endpoint path than the raw title and it contains the title path's tail, use the complete description path in both `cn_name` and the opening sentence.
    - Normalize `电报` to `Telegram` in command-and-control names.
    - Collapse duplicated C2 wording such as `C&C 或 C&C` to a single `C&C`.
    - For phishing-email malicious-link rows, keep the existing Email subject and do not backfill long URL paths from the `Email` body into the action title; `恶意链接` is enough unless the title/description already contains a concise payload family or file type.
@@ -172,6 +175,15 @@ This skill is not for:
    - one long `Sequences` row
    - one row with protected paths/functions/parameters
    Fix any issue found and re-run QA.
+
+10. Compare the standardized workbook against the source workbook before final response.
+   - Align by `uuid` / `vid` when available and compare `cn_name`, `cn_desc`, `cn_notes`, `cn_subject`, `cn_body`, and any standardized `Sequences` fields.
+   - Treat loss of `未` / `未经` before `授权` / `身份验证`, dropped CVE/path/URL/file/function/parameter/date/version tokens, dropped defanged indicators, and empty output descriptions from non-empty sources as failed runs.
+   - For Web / AI / application vulnerability rows, if the source description contains a fuller endpoint path than the title, verify the final `cn_name` and opening sentence use the full path instead of only the short title path.
+   - For `恶意文件传输`, verify inferred file/tool types were added before `下载` only when useful, and that concrete filenames already present in the source were not overwritten by generic type labels.
+   - For `Sequences`, verify campaign IDs are removed or converted to `攻击活动`, while meaningful non-markdown extra sentences about threat organizations, malware, tools, or activity background are preserved after cleanup.
+   - Keep existing `Email` subjects unchanged unless the user explicitly asked to change them.
+   - If the compare finds real content loss, patch the script/rules, regenerate, rerun QA, and rerun the source compare before delivery.
 
 ## Script
 Use the bundled runner for deterministic execution:

@@ -193,6 +193,17 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 - Prefer concise output filenames such as `_standardized.xlsx`, `_translated.xlsx`, or `_proofread.xlsx`. Do not introduce `_DELIVERABLE` for standardization outputs.
 - Validation translation must create exactly one AI Translation Studio project per input workbook. Do not split one workbook into separate `main` / `notes` projects; note-only replacement must be enforced by the validation translation child skill and backend replacement logic.
 
+## Post-Standardization Source Compare
+After every standardization run and before the final response, compare the exact output workbook against the exact source workbook.
+
+- Align rows by stable keys when available (`uuid`, `vid`, rule ID) and fall back to row order only when the sheet has no stable key.
+- Compare the branch-relevant fields: detection `name.1` / `desc` / `notes`; validation main `cn_name` / `cn_desc` / `cn_notes` plus `Sequences` / `Email` fields; mitigation `cn_notes` / `en_notes` / `cve` / `reference`-style fields and fill markers.
+- Verify protected evidence is preserved unless an approved normalization explicitly changes it: CVE/CNVD/CWE/CAPEC IDs, URLs, URI paths, hostnames/domains, filenames, extensions, functions, parameters, CLI flags, dates, versions, APT IDs, and defanged indicators such as `[.]`.
+- Investigate rows where the output becomes much shorter after excluding approved cleanup noise. Treat missing negation (`未` / `未经`), lost endpoint/path tails, lost malware/file names, lost extra sequence sentences, or lost reference/disclosure information as a failed run.
+- Approved cleanup noise includes campaign IDs that rules say to remove or convert, disposable markdown/entity tails such as `- [**...**] -`, `_x000D_`, duplicate vulnerability wording, political/geographic/promotional product-copy text, and branch-specific cleanup explicitly listed in the routed child skill.
+- If the compare finds real content loss, patch the child skill/script, regenerate the workbook, rerun Excel QA, and rerun the source compare. Do not deliver the workbook until the compare is clean or all remaining differences are listed as intentional.
+- In the final response, state that source comparison was run and summarize any intentional differences or fixed issues.
+
 ## How To Work
 1. Run the mandatory preflight.
 2. If translation readiness fails only because Google smoke / egress appears blocked on remote 10.89, ask whether to enable the local Google API proxy. If the user already confirmed in the same request, configure it and rerun preflight immediately.
@@ -202,7 +213,18 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 6. Use that child skill's bundled script when available.
 7. Manually sample high-risk rows after script output.
 8. Run Excel/platform QA gates from the child skill.
-9. If user feedback reveals a repeatable rule, patch the routed child skill or script, not this router, unless the feedback is about routing/preflight or remote platform configuration.
+9. Run the post-standardization source compare for standardization routes.
+10. If user feedback reveals a repeatable rule, patch the routed child skill or script, not this router, unless the feedback is about routing/preflight, source-compare policy, Git versioning, or remote platform configuration.
+
+## Git Version Rule
+When a standardization run requires changing any `rule-resolve` skill document or bundled script, update the GitHub version before the final response.
+
+- Commit only the relevant skill/script changes. Do not include unrelated dirty files.
+- Run `git status -sb` first, then stage explicit paths.
+- Create the next patch version tag after a successful commit, for example `v0.4.4` after `v0.4.3`.
+- Push both `main` and the new tag to the `rule-resolve-skill` remote.
+- If no skill/script files changed during the run, do not create a new tag; say `skill 未变更，未打新 tag`.
+- If the skill copy being used is not inside a Git repo, report that the local skill was updated but no Git version could be pushed.
 
 ## Stop And Ask
 Stop and ask the user before continuing when:

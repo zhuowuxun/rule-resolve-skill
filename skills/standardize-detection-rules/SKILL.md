@@ -65,6 +65,13 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
 5. Prefer a slim output.
    Unless the user explicitly asks for comparison columns, keep the original workbook shape and overwrite only the target fields in the output copy.
 
+6. Compare the standardized workbook against the source workbook before final response.
+   - Align rows by stable IDs when present and otherwise by row order; compare `name.1`, `desc`, and `notes`.
+   - Verify protected evidence is preserved: CVEs, URLs, URI paths, filenames, extensions, disclosure dates, versions, vendor links, product names, and negation markers such as `未授权` / `未经身份验证`.
+   - Treat loss of `未` / `未经`, endpoint/path tails, `披露时间`, reference/vendor URLs, or technical impact text as a failed run.
+   - Approved intentional differences include CVE extraction into the title, prefix correction, moving/shortening software description to the end, duplicate vulnerability wording removal, city/province cleanup, and promotional/political wording cleanup.
+   - If the compare finds real content loss, patch the script/rules, regenerate the workbook, rerun Excel QA, and rerun the source compare before delivery.
+
 ## Script
 Use the bundled script for deterministic execution:
 

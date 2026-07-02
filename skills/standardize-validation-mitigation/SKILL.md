@@ -128,10 +128,14 @@ This skill is not for:
    - Use the manual workbook to find rule gaps and wording improvements.
    - Do not copy its descriptions into the generated result.
 
-6. Always audit the generated workbook against the source workbook before delivery.
+6. Always compare the generated workbook against the source workbook before final response.
    - Apart from the extra `自动回填记录` sheet, the output must keep the same sheet/cell values as the source except for explicitly approved mitigation changes.
    - Approved mitigation changes must be recorded in `自动回填记录` and highlighted yellow in the modified `cn_notes` / `en_notes` cells.
    - Only cells whose values actually changed may be highlighted or recorded; if a CVE fetch/append pass produces the same value as the source, leave the cell unhighlighted and do not add it to `自动回填记录`.
+   - Verify protected evidence is preserved or intentionally rebuilt from the same CVE: CVE IDs, URLs, vendor/product names, rule type, OS scope, existing remediation paragraphs, and English/Chinese reference blocks.
+   - In Chinese `cn_notes`, verify newly appended `请参考` links do not include `nist.gov`; in English `en_notes`, keep `nist.gov` links when they are part of the selected reference set.
+   - Verify cloud/software wording changes and dictionary/history fills are both highlighted yellow and recorded, while pre-existing non-empty remediation text is not silently overwritten.
+   - Treat stale cross-CVE descriptions, missing reference blocks for rows with CVE values, unhighlighted fills, or unrecorded changed cells as failed runs.
    - If any unrecorded cell value changes, treat the run as failed and inspect the report's `source_consistency.unexpected_diffs` before delivering.
 
 ## Script

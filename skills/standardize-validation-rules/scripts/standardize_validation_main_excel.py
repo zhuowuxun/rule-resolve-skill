@@ -1018,6 +1018,49 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
     return product.strip(), entry.strip(), vuln_type.strip(), cve
 
 
+def normalize_web_entry_path(path: str) -> str:
+    value = normalize_common_text(path).strip().strip("，,。.;；:：)）]】")
+    if not value:
+        return ""
+    value = re.sub(r"^/+", "/", value)
+    return value
+
+
+def extract_web_entry_candidates(text: str) -> List[str]:
+    body, _ = split_references(text)
+    candidates: List[str] = []
+    for match in re.finditer(r"(?<!:)/+[A-Za-z0-9._~/%-]+", body):
+        candidate = normalize_web_entry_path(match.group(0))
+        if not candidate:
+            continue
+        # Avoid obvious prose/date fragments; references are already split out.
+        if re.search(r"\.(?:html?|md)$", candidate, flags=re.IGNORECASE):
+            continue
+        if candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
+
+
+def prefer_desc_web_entry(entry: str, desc: str) -> str:
+    current = normalize_web_entry_path(entry)
+    candidates = extract_web_entry_candidates(desc)
+    if not current:
+        return candidates[0] if candidates else ""
+    current_key = re.sub(r"[^a-z0-9]+", "", current.lower())
+    current_tail = current.rstrip("/").split("/")[-1].lower()
+    for candidate in candidates:
+        candidate_key = re.sub(r"[^a-z0-9]+", "", candidate.lower())
+        candidate_tail = candidate.rstrip("/").split("/")[-1].lower()
+        if candidate == current:
+            return current
+        if len(candidate) > len(current) and (
+            current_key and current_key in candidate_key
+            or current_tail and current_tail == candidate_tail
+        ):
+            return candidate
+    return current
+
+
 def is_hardware_like(product: str, desc: str) -> bool:
     return any(keyword in product for keyword in HARDWARE_KEYWORDS)
 
@@ -1054,6 +1097,7 @@ def select_web_vuln_prefix(product: str, desc: str, entry: str = "") -> str:
 
 def normalize_web_name(name: str, desc: str) -> str:
     product, entry, vuln_type, cve = parse_web_name(name)
+    entry = prefer_desc_web_entry(entry, desc)
     prefix = select_web_vuln_prefix(product, desc, entry)
     parts = [product]
     if cve:
@@ -1280,6 +1324,7 @@ def standardize_web_desc(name: str, desc: str) -> str:
 
     attack_sentences, disclosure = extract_disclosure(attack_sentences)
     product, entry, vuln_type, _ = parse_web_name(name)
+    entry = prefer_desc_web_entry(entry, desc)
     attack_sentences = dedupe_web_attack_sentences(attack_sentences, product, entry, vuln_type)
 
     target = product
@@ -1342,8 +1387,24 @@ def standardize_web_desc(name: str, desc: str) -> str:
     return ensure_terminal_punctuation(text) + build_reference_block(urls)
 
 
+def extract_file_identity_text(desc: str) -> str:
+    text = normalize_common_text(desc)
+    patterns = (
+        r"(?:该文件|这个文件|此文件|这是|该样本|文件)\s*(?:是|为|属于|充当|用作)\s*(?:一个|一种|一款|一段)?[^。；]{0,120}",
+        r"这是\s*(?:一个|一种|一款|一段)?[^。；]{0,120}",
+        r"(?:该文件|这个文件|此文件|该样本)\s*利用[^。；]{0,120}",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(0)
+    return ""
+
+
 def infer_file_type(name: str, desc: str) -> str:
-    text = f"{name} {desc}"
+    full_text = f"{name} {desc}"
+    identity_text = extract_file_identity_text(desc)
+    text = f"{name} {identity_text}" if identity_text else full_text
     if "Web Shell" in text or "JSP Web Shell" in text:
         return "Web Shell文件"
     if "恶意且经过混淆处理的 .NET 可执行文件" in text or ".NET 可执行文件" in text:
@@ -1372,22 +1433,46 @@ def infer_file_type(name: str, desc: str) -> str:
         return "恶意批处理脚本文件"
     if "恶意配置文件" in text:
         return "恶意配置文件"
+    if "JavaScript 下载脚本" in text or "javascript 下载脚本" in text:
+        return "恶意 JavaScript 下载脚本"
+    if "JavaScript 下载器" in text or "javascript 下载器" in text:
+        return "恶意 JavaScript 下载器"
     if "JavaScript 脚本" in text or "javascript 脚本" in text or "JavaScript 文件" in text:
         return "恶意 JavaScript 脚本"
     if "64 位 Windows 可执行文件" in text or "64 位可执行文件" in text:
         return "恶意 64 位可执行文件"
+    if "32 位 Windows 可执行文件" in text or "32 位可执行文件" in text:
+        return "恶意 32 位可执行文件"
+    if "远程访问可执行文件" in text:
+        return "恶意远程访问可执行文件"
     if "恶意可执行文件" in text:
         return "恶意可执行文件"
     if "恶意移动应用程序" in text:
         return "恶意移动应用程序"
+    if "Windows Installer 程序包" in text or "Windows Installer程序包" in text:
+        return "恶意 Windows Installer 程序包"
+    if "安装程序包" in text:
+        return "恶意安装程序包"
+    if "安装程序" in text:
+        return "恶意安装程序"
+    if "远程访问木马" in text:
+        return "恶意远程访问木马文件"
     if "远程访问工具" in text:
         return "恶意远程访问工具"
+    if "后门木马" in text:
+        return "恶意后门木马文件"
+    if "后门程序" in text or "恶意后门" in text or "后门恶意软件" in text:
+        return "恶意后门文件"
+    if "木马下载器" in text:
+        return "恶意木马下载器"
     if "恶意快捷方式文件" in text or ".LNK 文件" in text or ".lnk 文件" in text:
         return "恶意快捷方式文件"
     if "恶意下载文件" in text:
         return "恶意下载文件"
     if "恶意下载脚本" in text:
         return "恶意下载脚本"
+    if "恶意木马脚本" in text or "木马脚本" in text:
+        return "恶意木马脚本文件"
     if "恶意脚本" in text:
         return "恶意脚本文件"
     if "PowerShell 脚本" in text:
@@ -1404,10 +1489,6 @@ def infer_file_type(name: str, desc: str) -> str:
         return "恶意 64 位 DLL 文件"
     if "压缩 ZIP 存档" in text or "压缩存档文件" in text or "压缩存档" in text:
         return "压缩存档文件"
-    if "安装程序包" in text:
-        return "恶意安装程序包"
-    if "安装程序" in text:
-        return "恶意安装程序"
     if "服务器端脚本" in text:
         return "Web Shell文件"
     return ""
@@ -1425,9 +1506,18 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
         "恶意 64 位可执行文件",
         "恶意可执行文件",
         "恶意移动应用程序",
+        "恶意远程访问工具",
+        "恶意远程访问木马文件",
+        "恶意远程访问可执行文件",
+        "恶意后门木马文件",
+        "恶意后门文件",
+        "恶意木马下载器",
         "恶意快捷方式文件",
         "恶意下载文件",
         "恶意下载脚本",
+        "恶意木马脚本文件",
+        "恶意 JavaScript 下载脚本",
+        "恶意 JavaScript 下载器",
         "恶意脚本文件",
         "恶意 PowerShell 脚本",
         "恶意 VBScript 脚本",
@@ -1441,7 +1531,9 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
         "木马化的软件组件文件",
         "混淆脚本文件",
         "恶意 64 位 DLL 文件",
+        "恶意 32 位可执行文件",
         "压缩存档文件",
+        "恶意 Windows Installer 程序包",
         "恶意安装程序包",
         "恶意安装程序",
     }
@@ -1458,6 +1550,8 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
 def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
     if not inferred or inferred in parts:
         return False
+    if any(re.search(r"\b[A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}\b", part) for part in parts):
+        return False
     if not has_specific_transfer_name(parts):
         return True
     # Keep precise malware/container types from the description even when a family name is present.
@@ -1469,7 +1563,24 @@ def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
         "恶意混淆脚本文件",
         "恶意批处理脚本文件",
         "恶意配置文件",
+        "恶意下载脚本",
         "恶意脚本文件",
+        "恶意木马脚本文件",
+        "恶意 JavaScript 脚本",
+        "恶意 JavaScript 下载脚本",
+        "恶意 JavaScript 下载器",
+        "恶意远程访问工具",
+        "恶意远程访问木马文件",
+        "恶意远程访问可执行文件",
+        "恶意后门木马文件",
+        "恶意后门文件",
+        "恶意木马下载器",
+        "恶意 64 位可执行文件",
+        "恶意 32 位可执行文件",
+        "恶意可执行文件",
+        "恶意安装程序",
+        "恶意安装程序包",
+        "恶意 Windows Installer 程序包",
         "压缩存档文件",
     }
 
@@ -1926,8 +2037,8 @@ def derive_sequence_subject(name: str) -> str:
     raw = re.sub(r"(APT-U\d+)\s*攻击活动", r"\1 攻击活动", raw)
     raw = re.sub(r"\s*攻击活动\s*$", "攻击活动", raw)
     raw = re.sub(r"(APT-U\d+)攻击活动", r"\1 攻击活动", raw)
-    raw = re.sub(r"(威胁组织|勒索软件|病毒)活动\s*攻击活动$", r"\1攻击活动", raw)
-    raw = re.sub(r"(威胁组织|勒索软件|病毒)活动$", r"\1攻击活动", raw)
+    raw = re.sub(r"(威胁组织|勒索软件|病毒|恶意软件)活动\s*攻击活动$", r"\1攻击活动", raw)
+    raw = re.sub(r"(威胁组织|勒索软件|病毒|恶意软件)活动$", r"\1攻击活动", raw)
     raw = re.sub(r"攻击活动\s*攻击活动$", "攻击活动", raw)
     raw = raw.replace("恶意软件 攻击活动", "恶意软件攻击活动")
     raw = raw.replace("勒索软件 攻击活动", "勒索软件攻击活动")
@@ -2048,6 +2159,24 @@ def normalize_sequence_desc_text(text: str) -> str:
     return text
 
 
+def recover_sequence_extra_sentences(body: str, clean: str) -> str:
+    if len(split_sentences(clean)) > 1:
+        return clean
+    raw = normalize_actor_spacing(normalize_geo_company_text(normalize_cn_action_terms(body)))
+    extras: List[str] = []
+    for sentence in split_sentences(raw)[1:]:
+        if sentence in clean:
+            continue
+        if any(marker in sentence for marker in ("[**", "CAMP.", "FireEye", "与中国有关联", "中国相关", "中国支持", "分发集群")):
+            continue
+        recovered = sentence.replace("犯罪团伙", "威胁组织")
+        recovered = recovered.replace("他们散布", "其分发").replace("他们分发", "其分发")
+        extras.append(recovered)
+    if not extras:
+        return clean
+    return clean + "".join(extras)
+
+
 def standardize_pipeline_name(name: str) -> str:
     return normalize_common_text(name)
 
@@ -2065,6 +2194,7 @@ def standardize_sequence_desc(name: str, desc: str) -> str:
     desc_subject = sequence_desc_subject(subject)
     body, urls = split_references(desc)
     clean = normalize_actor_spacing(cleanup_unwanted_attribution(normalize_geo_company_text(normalize_cn_action_terms(body))))
+    clean = recover_sequence_extra_sentences(body, clean)
     if clean.startswith("此验证场景包括了"):
         text = clean
     elif clean:
