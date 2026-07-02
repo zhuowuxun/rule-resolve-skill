@@ -137,6 +137,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 - Do not add marketing, attribution, or business-value claims that are not present in the Chinese source. Remove invented trailing claims such as `helping enterprises achieve digital transformation and efficient management`.
 - For product background sentences, preserve the Chinese information boundary. If the Chinese only says a product is for an industry, do not add launch parties, vendors, cities, or provinces. Example: `律师 e 通是一款律师行业协同办公云平台产品。` -> `Lawyer e-Pass is a collaborative office cloud platform product for the legal industry.` Do not append `jointly launched by China Telecom and Bizhi`.
 - Preserve source sentence order in vulnerability descriptions: exploit/vulnerability impact and `Disclosure date: YYYY-MM-DD` should appear before general product background when the Chinese source has that order. Do not move product background ahead of vulnerability cause or impact sentences.
+- Distinguish product variants in dictionary and repair rules. `孚盟云 CRM` / `孚盟云CRM` is `Fumasoft CRM`, not `Fumasoft OA CRM`; `孚盟云 OA` is `Fumasoft OA`.
 - In `cn_notes`, use `Isolator` for `受保护的沙盘` and `This rule requires Isolator to execute correctly.`
 - For `cn_notes` OS/user-profile templates that mention `验证机器人`, keep the Validator concept attached to the endpoint/validator, not as a stray singular suffix after an OS name. Prefer forms such as `on Windows 10, Windows 11, Windows Server 2016, Windows Server 2019, and Windows Server 2022 Validators`.
 - In `cn_notes`, follow the historical lowercase role-name style for execution recommendations: `administrator`, `user`, `regular user`, `root user`, `SYSTEM user`, and `non-administrator`. Do not apply title/name capitalization rules to these note roles.
@@ -159,6 +160,8 @@ Use the `software翻译` dictionary first. If a validation workbook contains a s
 | `泛微 E-cology10` | `Weaver e-cology10` |
 | `WordPress Geo Mashup` | `WordPress Geo Mashup` |
 | `Ech0` | `Ech0` |
+| `孚盟云 CRM` / `孚盟云CRM` | `Fumasoft CRM` |
+| `孚盟云 OA` | `Fumasoft OA` |
 
 When updating titles, also update the matching product mention in `cn_desc`. Preserve source semantics and do not invent an English name when the reference page only supports a conservative transliteration or project/repo name.
 
