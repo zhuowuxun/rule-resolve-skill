@@ -1709,8 +1709,69 @@ def titleize_malicious_transfer(name: str, desc: str) -> str:
     return "恶意文件传输 - " + "，".join(parts)
 
 
+def _is_transfer_desc_object(part: str) -> bool:
+    value = normalize_common_text(part).strip()
+    if not value:
+        return False
+    if value == "下载" or value.startswith("变种 #") or value.startswith("APT-"):
+        return False
+    file_type_markers = (
+        "文件",
+        "脚本",
+        "程序",
+        "工具",
+        "木马",
+        "后门",
+        "下载器",
+        "释放器",
+        "组件",
+        "存档",
+        "安装程序",
+        "程序包",
+        "可执行",
+        "DLL",
+    )
+    if any(marker in value for marker in file_type_markers):
+        return False
+    return True
+
+
+def preferred_transfer_association_phrase(title: str) -> str:
+    subject = title.replace("恶意文件传输 - ", "")
+    parts = [part.strip() for part in subject.split("，") if part.strip()]
+    actor = next((part for part in parts if re.fullmatch(r"APT-U\d+", part)), "")
+    objects = [part for part in parts if _is_transfer_desc_object(part)]
+    if not actor:
+        return ""
+    if not objects:
+        return f"与 {actor} 关联的文件"
+    formatted = [f"{objects[0]} ({actor})", *objects[1:]]
+    if len(formatted) == 1:
+        object_text = formatted[0]
+    elif len(formatted) == 2:
+        object_text = f"{formatted[0]} 和 {formatted[1]}"
+    else:
+        object_text = f"{'，'.join(formatted[:-1])} 和 {formatted[-1]}"
+    return f"与 {object_text} 关联的文件"
+
+
+def normalize_transfer_association_opening(text: str, title: str) -> str:
+    preferred = preferred_transfer_association_phrase(title)
+    if not preferred:
+        return text
+    value = normalize_common_text(text)
+    value = re.sub(r"（(APT-U\d+)）", r"(\1)", value)
+    return re.sub(
+        r"^(此验证动作还原了主机尝试下载)与\s*.*?\s*关联的文件。",
+        rf"\1{preferred}。",
+        value,
+        count=1,
+    )
+
+
 def standardize_malicious_transfer_desc(title: str, desc: str) -> str:
     text = standardize_generic_desc(desc)
+    text = normalize_transfer_association_opening(text, title)
     subject = title.replace("恶意文件传输 - ", "")
     parts = [part.strip() for part in subject.split("，") if part.strip()]
     detail_parts = [part for part in parts if part not in {"下载"} and not part.startswith("变种 #")]

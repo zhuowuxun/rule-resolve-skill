@@ -93,6 +93,7 @@ This skill is not for:
    - Host command descriptions must describe the validation action, not merely restate the tool help text. For example, `“tasklist”显示...` should become `此验证动作还原了在 Windows 主机上执行 tasklist /svc 命令以显示...的行为。`
    - Normalize `网络钓鱼电子邮件` to `钓鱼邮件` in descriptions as well as titles.
    - File-transfer descriptions should use `此验证动作还原了主机尝试下载...。` and should not append `的过程` at the end of the first sentence.
+   - File-transfer descriptions should use one consistent actor/object association format: `恶意软件或工具 (APT-U####)`; do not mix this with `恶意软件或工具，APT-U####`. When there are multiple objects, attach the APT ID to the first malware/tool object, for example `REMCOS (APT-U5487) 和 SHADOWLADDER`.
    - File-transfer type enrichment is primarily for `cn_name`; do not force the first description sentence from `与 APT-U#### 关联的文件` into a longer typed object unless the original wording is unclear or ungrammatical.
    - For scene descriptions composed from malicious-file-transfer download threats, use wording such as `此验证场景包括了与 X 相关的各种变种的下载。` rather than `各种样本`; do not apply this to non-download ransomware attack scenes such as plain `INC 勒索软件攻击活动`.
    - Web descriptions should follow the detection-inspired order:
