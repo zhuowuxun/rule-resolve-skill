@@ -121,6 +121,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    - software names match the dictionary or the user-confirmed fallback table below
    - title fields (`en_name`) contain no standalone articles: `a`, `an`, or `the`
    - `Host Command Line` titles use capitalized base-form action verbs after the dash, not lowercase starts, `-ing`, or third-person `-s`
+   - `Malicious File Transfer` titles use Title Case for attack/file-type descriptors such as `Malicious Remote Access Tool`, `Malicious Installer Package`, and `Malicious JavaScript Downloader`; keep action and variant fields lowercase, e.g. `download, variant -3`
 
 11. Export and verify the output.
     Mark the project done, export with `format=xlsx&bilingual=true`, then open the output with `openpyxl` and verify expected `en_*` fill counts.
@@ -145,6 +146,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 - In `cn_name`, use `Protected Sandbox`, not `Isolator`.
 - In `cn_name` / exported `en_name`, remove standalone title articles (`a`, `an`, `the`) anywhere in the title, including phrases such as `Discover the current user`, `Display a list`, and `using the tasklist command`.
 - In `Host Command Line` titles, normalize action phrases to capitalized base form and avoid `-ing`: `Gather`, `Hijack`, `Hook`, `Load`, `Use`, `Write`, `Display`, `Collect`; prefer `via` over `using` in trailing method phrases when it avoids `-ing`.
+- In `Malicious File Transfer` titles, normalize attack/file-type descriptors to Title Case while leaving action/variant fields lowercase: `Malicious Remote Access Tool, download, variant -7`; `Malicious Download Script, download, variant -34`; `Malicious Windows Installer Package, download, variant -9`.
 
 ## Software Name Fallbacks
 Use the `software翻译` dictionary first. If a validation workbook contains a software/product name with no exact dictionary hit, check the row's `notes`/reference URL and apply user-confirmed fallbacks when applicable:

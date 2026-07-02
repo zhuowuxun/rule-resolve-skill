@@ -128,6 +128,7 @@ Use `validation-proofread` only when a validation project already exists in the 
 - In title content after the category prefix, normalize Chinese `C&C通信` to `C2 Traffic`; do not keep it as `C&C communication`.
 - In all English validation output body/content fields, normalize `C&C` to `C2` when it refers to command-and-control infrastructure, traffic, server, channel, or protocol.
 - Do not mechanically rewrite body text `communication` to `Traffic`; keep that replacement scoped to titles.
+- In `Malicious File Transfer` title fields, attack/file-type descriptors use Title Case, such as `Malicious Remote Access Tool`, `Malicious Installer Package`, and `Malicious JavaScript Downloader`; action and variant fields stay lowercase, such as `download, variant -3`.
 
 ## Safe Rule Design
 - Fix punctuation, spacing, glued terms, repeated words, and title casing with deterministic patterns.
@@ -159,6 +160,7 @@ Use `validation-proofread` only when a validation project already exists in the 
 - Check `cn_name` prefixes after running automated rules. Search for action titles missing the `类别 - ...` shape, and compare neighboring rows with the same campaign/product so one missed row does not remain among standardized rows.
 - Check actor/campaign entity labels in titles: bare actor names like `Mustang Panda，...`, `Parisite，...`, or `Hexane，...` should be `... 威胁组织，...`; campaign names such as `Shadow Campaigns` or `Crimson Palace` should be labeled as `攻击活动`.
 - Check title translations for campaign wording: `攻击活动` / `活动` in validation titles should be `Campaign`; flag `Activity` / `Activities` when it is being used as the campaign label.
+- Check `Malicious File Transfer` titles for mixed-case attack/file-type descriptors. Flag lowercase forms such as `malicious installer`, `malicious download script`, and `malicious remote access tool`.
 - Check Web vulnerability descriptions for duplicated "存在漏洞" phrasing and product-description fluency.
 - Check that vulnerability rows with explicit Web endpoint paths remain `Web应用程序漏洞`, including ERP or management-system products.
 - Check product-specific application/appliance exceptions before applying generic Web-path classification, especially Infoblox NETMRI and 深信服运维安全管理系统.
