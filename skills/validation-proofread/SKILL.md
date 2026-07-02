@@ -172,7 +172,7 @@ Use `validation-proofread` only when a validation project already exists in the 
 
 ## Deliverable Rules
 - For Excel deliverables, write to a new output file. Do not overwrite the user's original workbook.
-- Do not use `_DELIVERABLE` in final filenames.
+- Do not add verbose delivery/final suffixes to final filenames.
 - Do not use status words such as `已校对` unless proofreading has actually been completed. For standardization-only output, use a neutral filename such as `_standardized.xlsx`.
 - Generate a QA/report artifact next to the deliverable, such as `_report.json`, listing row counts, sampled rows, and all issues found.
 - Do not tell the user a workbook is deliverable unless the report has zero blocking issues and high-risk samples have been manually read.

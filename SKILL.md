@@ -1,6 +1,6 @@
 ---
 name: rule-resolve
-description: Meta workflow for rule deliverables. Use when the user asks to resolve, standardize, translate, proofread, or package detection / validation / mitigation rule Excel workbooks and wants one entry point that routes to the correct standardization or AI Translation Studio skill. Always preflight access to 10.89 before work, confirm the translation-platform API address if access or API health is unavailable, optionally configure this Mac as a Google API proxy for remote 10.89 translation after user confirmation, and support `help` / `帮助` for usage guidance.
+description: Meta workflow for rule workbooks. Use when the user asks to resolve, standardize, translate, proofread, or package detection / validation / mitigation rule Excel workbooks and wants one entry point that routes to the correct standardization or AI Translation Studio skill. Always preflight access to 10.89 before work, confirm the translation-platform API address if access or API health is unavailable, optionally configure this Mac as a Google API proxy for remote 10.89 translation after user confirmation, and support `help` / `帮助` for usage guidance.
 ---
 
 # Rule Resolve
@@ -190,7 +190,7 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 - Do not copy from a manual comparison workbook as a generation source; use it only to learn repeatable differences.
 - Keep URLs, paths, CVEs, versions, parameters, functions, and file extensions protected.
 - Final workbooks must be Excel-openable: verify with `openpyxl` and `unzip -t`.
-- Prefer concise output filenames such as `_standardized.xlsx`, `_translated.xlsx`, or `_proofread.xlsx`. Do not introduce `_DELIVERABLE` for standardization outputs.
+- Prefer concise output filenames such as `_standardized.xlsx`, `_translated.xlsx`, or `_proofread.xlsx`. Do not add verbose delivery/final suffixes to any rule workflow output.
 - Validation translation must create exactly one AI Translation Studio project per input workbook. Do not split one workbook into separate `main` / `notes` projects; note-only replacement must be enforced by the validation translation child skill and backend replacement logic.
 
 ## Post-Standardization Source Compare

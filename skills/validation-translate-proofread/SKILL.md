@@ -9,7 +9,7 @@ description: Primary user-facing validation delivery workflow. Translate and pro
 Validation should feel like two user-facing workflows only:
 
 - `standardize-validation-rules`: standardize the Chinese validation workbook first
-- `validation-translate-proofread`: translate, proofread, QA, and export the bilingual deliverable
+- `validation-translate-proofread`: translate, proofread, QA, and export the bilingual output
 
 `validation-proofread` still exists, but only as a project-only helper for already-created `va*` projects. It is not a third peer entry point.
 
@@ -17,7 +17,7 @@ Validation should feel like two user-facing workflows only:
 - Work in `~/Documents/翻译软件` for local scripts unless the user explicitly points to another AI Translation Studio checkout.
 - Default API is `http://192.168.10.89`. If `192.168.10.89` is unreachable or AI Translation Studio readiness is not confirmed, stop and ask the user to confirm the platform API base URL. Do not silently fall back to `127.0.0.1`.
 - Do not change the platform-global active model silently. Google Translate must already be active before translation starts, or `--activate-google` may be used only after explicit user confirmation.
-- Do not overwrite the user's original workbook. Export a new `_DELIVERABLE.xlsx` plus a `_report.json`.
+- Do not overwrite the user's original workbook. Export a new `_translated.xlsx` plus a `_translated_report.json`.
 - Bind the project to the API base that creates or owns it. If the project is on `http://192.168.10.89`, keep translation, replacement, proofreading, DB backup, `check_and_fix.py`, status changes, and export on 10.89. Do not use a local backend/DB to proofread or repair that remote project ID.
 - Use the local active database at `backend/instance/translator.db` only for local API projects or when the user explicitly says to use the local backend.
 - Back up the database before repair passes or manual SQL changes under `output/env-backup/`.
@@ -121,7 +121,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    - title fields (`en_name`) contain no standalone articles: `a`, `an`, or `the`
    - `Host Command Line` titles use capitalized base-form action verbs after the dash, not lowercase starts, `-ing`, or third-person `-s`
 
-11. Export and verify the deliverable.
+11. Export and verify the output.
     Mark the project done, export with `format=xlsx&bilingual=true`, then open the output with `openpyxl` and verify expected `en_*` fill counts.
 
 ## Repair Guidance
@@ -163,9 +163,9 @@ Use the `software翻译` dictionary first. If a validation workbook contains a s
 When updating titles, also update the matching product mention in `cn_desc`. Preserve source semantics and do not invent an English name when the reference page only supports a conservative transliteration or project/repo name.
 
 ## Output
-Place deliverables under `output/validation_runs/` unless the user requests another destination:
+Place outputs under `output/validation_runs/` unless the user requests another destination. Use concise names only; never add verbose delivery/final suffixes:
 
-- `<input-stem>_validation_DELIVERABLE.xlsx`
-- `<input-stem>_validation_DELIVERABLE_report.json`
+- `<input-stem>_translated.xlsx`
+- `<input-stem>_translated_report.json`
 
-The report should include project id, chunk counts, translated counts, header counts, sampled rows, blocking issues, and ATT&CK bleed hits. Do not call the file deliverable unless both the validation script and independent QA pass.
+The report should include project id, chunk counts, translated counts, header counts, sampled rows, blocking issues, and ATT&CK bleed hits. Do not present the workbook as final unless both the validation script and independent QA pass.

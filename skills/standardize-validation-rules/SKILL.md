@@ -222,7 +222,7 @@ If a rule must edit punctuation, scope it by field, row type, and surrounding te
 ## Output Naming
 - Use a new output file; never modify the input workbook.
 - Use `_standardized.xlsx` for the final standardized workbook.
-- Do not use `_DELIVERABLE` in validation standardization filenames.
+- Do not add verbose delivery/final suffixes to validation standardization filenames.
 - Keep a sibling report such as `_standardized_report.json`.
 - If a generated workbook fails QA, do not present it as final. Fix, regenerate, and re-run QA first.
 

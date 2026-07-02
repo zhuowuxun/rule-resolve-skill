@@ -455,7 +455,7 @@ def main():
     output_path = (
         Path(args.output).expanduser().resolve()
         if args.output
-        else input_path.with_name(f"{input_path.stem}_validation_DELIVERABLE.xlsx")
+        else input_path.with_name(f"{input_path.stem}_translated.xlsx")
     )
     report_path = (
         Path(args.report).expanduser().resolve()
