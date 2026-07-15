@@ -25,7 +25,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - remove leftover wrapping parentheses after extracting the CVE
    - keep the default prefix `Web应用程序漏洞 - `
    - for AI / LLM application products, use `AI应用程序漏洞 - ` instead of `Web应用程序漏洞 - `
-   - currently confirmed AI application products include `Blinko`, `LMDeploy`, and `Scramble`
+   - currently confirmed AI application products include `9Router`, `Blinko`, `Crawl4AI`, `Gradio`, `Langflow`, `LMDeploy`, and `Scramble`
    - for hardware/security-appliance style products such as 上网行为管理, 防火墙, 安全网关, 路由器, 交换机, VPN, load-balancing devices, or PA/Palo Alto/PAN-OS/GlobalProtect security products, use `应用程序漏洞 - ` instead of the `Web应用程序漏洞 - ` prefix
    - for industry/operation platforms that merely expose web endpoints, such as `Acrel EEMS 电力运维平台`, use `应用程序漏洞 - ` rather than `Web应用程序漏洞 - `
    - do not infer `AI应用程序漏洞 - ` only from an `/api` path; the product or historical standard must indicate an AI/LLM application
@@ -44,6 +44,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - preserve technical path and filename casing inside the attack-method text, such as `/api/...` and `ModuleGridSource.aspx`
    - preserve negation markers such as `未授权` / `未经身份验证`; if source text has the malformed bare phrase `经身份验证的攻击者/用户`, repair it to `未经身份验证的攻击者/用户` unless the source clearly says `经过身份验证`
    - after the opening sentence already says `针对 产品/入口 存在的漏洞类型`, remove an immediately repeated attack-method prefix like `产品/入口 接口存在漏洞类型，` and keep the remaining attacker condition / impact
+   - do not remove a repeated attack-method prefix when it contains a more complete path than the title endpoint; preserve full paths such as `/api/settings/database` even when the title uses `/database`
    - you may tighten wording for attack-method phrasing
    - if a historical standardized software description exists, reuse or shorten toward that wording
    - keep the application description at the end

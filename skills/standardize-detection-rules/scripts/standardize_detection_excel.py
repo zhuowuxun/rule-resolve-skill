@@ -43,7 +43,11 @@ HARDWARE_PRODUCT_KEYWORDS = (
     "电力运维平台",
 )
 AI_APPLICATION_PRODUCTS = (
+    "9Router",
     "Blinko",
+    "Crawl4AI",
+    "Crawl4ai",
+    "Gradio",
     "Langflow",
     "LMDeploy",
     "MiroFish",
@@ -83,6 +87,15 @@ def normalize_product_key(text: str) -> str:
     return text
 
 
+def normalize_product_name(product: str) -> str:
+    normalized = clean_text(product)
+    for city in CITY_NAMES:
+        if normalized.startswith(city) and len(normalized) > len(city) + 1:
+            normalized = normalized[len(city) :].strip()
+            break
+    return normalized
+
+
 def split_sentences(text: str) -> List[str]:
     normalized = clean_text(text)
     normalized = normalized.replace("。", "。\n").replace("！", "！\n").replace("？", "？\n")
@@ -91,7 +104,7 @@ def split_sentences(text: str) -> List[str]:
 
 def split_disclosure_time(text: str) -> Tuple[str, str]:
     cleaned = clean_text(text)
-    matched = re.search(r"披露时间[:：]\s*(\d{4}-\d{2}(?:-\d{2})?)\s*$", cleaned)
+    matched = re.search(r"披露时间[:：]\s*(\d{4}-\d{2}(?:-\d{2})?)\s*[.。]?\s*$", cleaned)
     if not matched:
         return cleaned, ""
     main = cleaned[: matched.start()].strip(" ，,。")
@@ -115,6 +128,40 @@ def is_software_description_sentence(sentence: str) -> bool:
     )
     if text.startswith(known_product_intro_prefixes):
         return True
+    strong_attack_markers = (
+        "漏洞",
+        "攻击者",
+        "未授权",
+        "未经",
+        "未认证",
+        "未对",
+        "用户受控",
+        "payload",
+        "Payload",
+        "nonce",
+        "SQL",
+        "SSRF",
+        "XSS",
+        "路径遍历",
+        "路径穿越",
+        "任意文件",
+        "任意代码",
+        "任意命令",
+        "权限提升",
+        "绕过",
+        "注入",
+        "读取服务器",
+        "上传恶意",
+        "解压",
+        "符号链接",
+        "沙箱逃逸",
+        "直接拼接",
+        "直接将其用于",
+    )
+    if any(marker in text for marker in strong_attack_markers):
+        return False
+    if "是国内领先" in text or ("服务商" in text and "攻击者" not in text):
+        return True
     clear_description_markers = (
         "是一款",
         "是一个",
@@ -124,6 +171,7 @@ def is_software_description_sentence(sentence: str) -> bool:
         "用于",
         "提供",
         "支持",
+        "核心目标是",
     )
     if any(marker in text for marker in clear_description_markers) and not any(
         marker in text for marker in ("漏洞", "攻击者", "未授权", "未经身份验证", "接口存在", "端点存在")
@@ -157,6 +205,7 @@ def is_software_description_sentence(sentence: str) -> bool:
         "其核心使命是",
         "它的核心使命是",
         "核心使命是",
+        "核心目标是",
         "它主要面向",
         "主要面向",
         "它尤其适合",
@@ -189,6 +238,7 @@ def is_software_description_sentence(sentence: str) -> bool:
         "核心作用是",
         "核心价值在于",
         "核心使命是",
+        "核心目标是",
         "旨在",
         "不仅具有",
         "还具有",
@@ -216,6 +266,7 @@ def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
                 endpoint = part
             else:
                 vuln = part
+        product = normalize_product_name(product)
         return product, endpoint, vuln, cve
 
     cve = ""
@@ -258,7 +309,7 @@ def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
                 product = " ".join(tokens[:-1]).strip()
                 endpoint = tail
 
-    return product or left, endpoint, vuln, cve
+    return normalize_product_name(product or left), endpoint, vuln, cve
 
 
 def is_hardware_like_product(product: str) -> bool:
@@ -345,6 +396,8 @@ def normalize_attack_text(text: str) -> str:
     normalized = re.sub(r"\s+", " ", normalized).strip()
     normalized = normalized.replace(". ", "。")
     normalized = normalized.replace(",", "，")
+    normalized = normalized.replace("上海鸿翼软件", "鸿翼软件")
+    normalized = normalized.replace("北京方向标信息", "方向标信息")
 
     protected_tokens: Dict[str, str] = {}
 
@@ -412,8 +465,28 @@ def normalize_software_description(text: str) -> str:
     normalized = normalized.replace("，为企事业单位", "，为企业")
     normalized = normalized.replace(",为企事业单位", "，为企业")
     compact = normalized.replace(" ", "")
+    if "9Router" in normalized:
+        return "9Router 是一个开源的 AI 路由与代理工具。"
+    if "Budibase" in normalized:
+        return "Budibase 是一个开源低代码平台。"
+    if "Crawl4AI" in normalized or "Crawl4ai" in normalized:
+        return "Crawl4AI 是一个面向大型语言模型和 AI 应用的网络爬虫和数据抓取工具。"
+    if "Gradio" in normalized:
+        return "Gradio 是一个开源的 Python 库，用于构建机器学习、数据科学和 Web 应用演示。"
+    if "n8n" in normalized:
+        return "n8n 是一款开源的工作流自动化平台。"
+    if "Penpot" in normalized:
+        return "Penpot 是一个开源设计与原型协作平台。"
+    if "XWiki" in normalized:
+        return "XWiki 是一个开源的 wiki 平台。"
+    if "泛微E-cology" in compact or "泛微Ecology" in compact:
+        return "泛微 E-cology 是一款面向中大型组织的协同办公管理平台。"
     if "MicrosoftExchange" in compact:
         return "Microsoft Exchange 是微软公司开发的企业级消息与协作平台。"
+    if "方向标邮件网关" in normalized:
+        return "方向标邮件网关（FangMail 邮件安全网关）是企业级邮件安全防护产品。"
+    if "鸿翼" in normalized and "电子文档管理" in normalized:
+        return "鸿翼软件电子文档管理系统为企业提供非结构化数据的全生命周期管控。"
     if "OpenStackSwift" in compact:
         return "OpenStack Swift 是开源对象存储系统。"
     if "同鑫eHR" in compact or "同鑫EHR" in compact:
@@ -480,6 +553,8 @@ def normalize_software_description(text: str) -> str:
     )
     if earliest_marketing >= 0:
         normalized = normalized[:earliest_marketing].rstrip("，,、；; 的")
+    normalized = re.sub(r"(?:，|,)?具有$", "", normalized).strip()
+    normalized = re.sub(r"(?:，|,)?具有。$", "。", normalized).strip()
     normalized = re.sub(r"\s+", " ", normalized).strip()
     normalized = normalized.replace("（ ", "（").replace("( ", "(")
     normalized = normalized.replace("  ", " ")
@@ -518,6 +593,10 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     # first comma-delimited clause and keep the attacker condition/impact.
     first_clause, sep, rest = text.partition("，")
     if sep and rest:
+        clause_paths = re.findall(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+", first_clause)
+        endpoint_text = clean_text(endpoint)
+        if endpoint_text and any(path != endpoint_text for path in clause_paths):
+            return text
         endpoint_key = re.sub(r"[^a-z0-9]+", "", clean_text(endpoint).lower())
         clause_key = re.sub(r"[^a-z0-9]+", "", first_clause.lower())
         has_version_context = bool(re.search(r"(?:版本|<=|>=|<|>|及之前|之前版本|以下版本)", first_clause))
