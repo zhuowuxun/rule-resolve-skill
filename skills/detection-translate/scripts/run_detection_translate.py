@@ -22,6 +22,7 @@ DEFAULT_TRANSLATION_DICTS = ["专业名称翻译", "software翻译"]
 DEFAULT_REPLACEMENT_DICTS = ["基础字符校对", "detection校对"]
 DEFAULT_SOURCE_HEADERS = ["name.1", "desc", "notes"]
 CN_RE = re.compile(r"[\u4e00-\u9fff]")
+URL_RE = re.compile(r"https?://[^\s]+|www\.[^\s]+", re.IGNORECASE)
 
 
 def parse_args():
@@ -407,6 +408,192 @@ def export_bilingual(session, api_base, project_id, output_path):
     output_path.write_bytes(resp.content)
 
 
+def replace_text(text, old, new):
+    if not isinstance(text, str) or old not in text:
+        return text, False
+    return text.replace(old, new), True
+
+
+def regex_replace_text(text, pattern, repl):
+    if not isinstance(text, str):
+        return text, False
+    new_text, count = re.subn(pattern, repl, text)
+    return new_text, count > 0
+
+
+def postprocess_exported_workbook(output_path):
+    """Apply deterministic output-only fixes that the platform dictionaries miss.
+
+    These fixes are intentionally narrow and evidence-backed by source columns or
+    vendor URLs preserved in the exported workbook. They do not overwrite source
+    Chinese columns.
+    """
+    wb = load_workbook(output_path)
+    fixes = []
+
+    for ws in wb.worksheets:
+        headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
+        header_index = {header: idx + 1 for idx, header in enumerate(headers) if header}
+        english_headers = [h for h in ("name_en", "desc_en", "notes_en") if h in header_index]
+
+        for row in range(2, ws.max_row + 1):
+            source_text = " ".join(
+                str(ws.cell(row, header_index[h]).value or "")
+                for h in ("name.1", "desc", "notes")
+                if h in header_index
+            )
+            source_lower = source_text.lower()
+            urls = " ".join(URL_RE.findall(source_text)).lower()
+            replacements = []
+
+            if "fangmail.net" in urls:
+                replacements.extend(
+                    [
+                        ("Directional Mail Gateway", "FangMail Email Security Gateway"),
+                        ("Direction Mail Gateway", "FangMail Email Security Gateway"),
+                        ("FangMail email gateway", "FangMail Email Security Gateway"),
+                        ("FangMail Email Gateway", "FangMail Email Security Gateway"),
+                    ]
+                )
+
+            if "macrowing.com" in urls:
+                replacements.extend(
+                    [
+                        (
+                            "Hongyi Software Electronic Document Management System",
+                            "Macrowing Electronic Document Management System",
+                        ),
+                        (
+                            "Hongyi Electronic Document Management System",
+                            "Macrowing Electronic Document Management System",
+                        ),
+                        ("Hongyi Software", "Macrowing"),
+                    ]
+                )
+
+            if "crawl4ai" in source_lower:
+                replacements.append(("Crawl4ai", "Crawl4AI"))
+
+            if "pythonreplcomponent" in source_lower:
+                replacements.extend(
+                    [
+                        ("Python REPLComponent", "PythonREPLComponent"),
+                        ("Python REPL Component", "PythonREPLComponent"),
+                    ]
+                )
+
+            if "security-constraint" in source_lower:
+                replacements.extend(
+                    [
+                        ("Apache Tomcat security constraint", "Apache Tomcat security-constraint"),
+                        ("security constraint, Authentication", "security-constraint, Authentication"),
+                        (
+                            "When a single<security-constraint> Multiple extension patterns that share the same URL are defined.<web-resource-collection> When a block is selected,",
+                            "When a single `<security-constraint>` defines multiple `<web-resource-collection>` blocks that share the same URL extension pattern,",
+                        ),
+                    ]
+                )
+
+            replacements.append(("Privilege Escalation漏洞", "Privilege Escalation Vulnerability"))
+
+            for header in english_headers:
+                cell = ws.cell(row, header_index[header])
+                original = cell.value
+                value = original
+                for old, new in replacements:
+                    value, changed = replace_text(value, old, new)
+                    if changed:
+                        fixes.append({"sheet": ws.title, "row": row, "header": header, "from": old, "to": new})
+
+                if header == "name_en":
+                    value, changed = regex_replace_text(value, r"\bstored XSS Vulnerability\b", "Stored XSS Vulnerability")
+                    if changed:
+                        fixes.append(
+                            {
+                                "sheet": ws.title,
+                                "row": row,
+                                "header": header,
+                                "from": "stored XSS Vulnerability",
+                                "to": "Stored XSS Vulnerability",
+                            }
+                        )
+
+                value, changed = regex_replace_text(value, r"(^|[\s(])(/[^`\s]+)`(?=[,.;])", r"\1\2")
+                if changed:
+                    fixes.append(
+                        {
+                            "sheet": ws.title,
+                            "row": row,
+                            "header": header,
+                            "from": "unopened stray backtick after path",
+                            "to": "path without stray backtick",
+                        }
+                    )
+
+                value, changed = replace_text(
+                    value,
+                    "causing Python `exec()` function to automatically injection the complete",
+                    "causing the Python `exec()` function to automatically inject the complete",
+                )
+                if changed:
+                    fixes.append(
+                        {
+                            "sheet": ws.title,
+                            "row": row,
+                            "header": header,
+                            "from": "automatically injection",
+                            "to": "automatically inject",
+                        }
+                    )
+
+                if value != original:
+                    cell.value = value
+
+    if fixes:
+        wb.save(output_path)
+    return fixes
+
+
+def audit_exported_workbook(output_path, manual_review_limit):
+    warnings = []
+    wb = load_workbook(output_path, read_only=True, data_only=True)
+
+    for ws in wb.worksheets:
+        headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
+        header_index = {header: idx + 1 for idx, header in enumerate(headers) if header}
+        english_headers = [h for h in ("name_en", "desc_en", "notes_en") if h in header_index]
+
+        for row in range(2, ws.max_row + 1):
+            source_text = " ".join(
+                str(ws.cell(row, header_index[h]).value or "")
+                for h in ("name.1", "desc", "notes")
+                if h in header_index
+            )
+            urls = " ".join(URL_RE.findall(source_text)).lower()
+
+            for header in english_headers:
+                text = ws.cell(row, header_index[header]).value or ""
+                if not isinstance(text, str) or not text:
+                    continue
+                if CN_RE.search(text):
+                    warnings.append({"row": row, "header": header, "issue": "contains_chinese", "text": text})
+                if re.search(r",(?=[A-Za-z/])", text):
+                    warnings.append({"row": row, "header": header, "issue": "comma_spacing", "text": text})
+                if re.search(r",,|\.\.(?!/)", text):
+                    warnings.append({"row": row, "header": header, "issue": "double_punctuation", "text": text})
+                if header == "name_en" and re.search(r"\bvulnerability\b", text):
+                    warnings.append({"row": row, "header": header, "issue": "lowercase_vulnerability", "text": text})
+                if "fangmail.net" in urls and "Directional Mail Gateway" in text:
+                    warnings.append({"row": row, "header": header, "issue": "vendor_link_product_name", "text": text})
+                if "macrowing.com" in urls and "Hongyi" in text:
+                    warnings.append({"row": row, "header": header, "issue": "vendor_link_product_name", "text": text})
+                if "crawl4ai" in source_text.lower() and "Crawl4ai" in text:
+                    warnings.append({"row": row, "header": header, "issue": "product_case", "text": text})
+
+    wb.close()
+    return warnings[:manual_review_limit]
+
+
 def main():
     args = parse_args()
     repo_root = Path(args.repo_root).expanduser().resolve()
@@ -499,10 +686,14 @@ def main():
     )
 
     project = get_json(session, f"{args.api_base}/api/project/{project_id}", "Fetch final project")
-    warnings = audit_project(project, args.manual_review_limit)
+    project_warnings = audit_project(project, args.manual_review_limit)
+    export_fixes = []
+    warnings = project_warnings
 
     if not args.skip_export:
         export_bilingual(session, args.api_base, project_id, output_path)
+        export_fixes = postprocess_exported_workbook(output_path)
+        warnings = audit_exported_workbook(output_path, args.manual_review_limit)
 
     report = {
         "project_id": project_id,
@@ -535,6 +726,8 @@ def main():
             "repair_stdout_tail": proofread_result["repair_stdout"][-4000:],
             "verify_stdout": proofread_result["verify_stdout"],
         },
+        "project_manual_review_warnings": project_warnings,
+        "export_postprocess_fixes": export_fixes,
         "manual_review_warnings": warnings,
         "status": project.get("status"),
     }

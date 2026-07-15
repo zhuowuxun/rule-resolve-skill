@@ -40,6 +40,7 @@ Use this skill when the user wants to translate a detection workbook through AI 
    - run the detection proofreading script with repair
    - verify the proofreading script reports zero issues
    - export a bilingual `.xlsx`
+   - run export-side product-name proofreading for rows whose `notes` contain vendor/homepage URLs
    - generate a small warning report for manual review
 
    When `--api-base` points to a non-local platform such as `http://192.168.10.89`, all database-side operations must run on that platform, not on the user's local `~/Documents/翻译软件` database. Pass `--platform-ssh` so DB backup and `tools/detection/check_and_fix.py` execute on the remote platform. If `--platform-ssh` is missing for a non-local API, the script must stop instead of repairing a local project with the same numeric ID.
@@ -47,6 +48,7 @@ Use this skill when the user wants to translate a detection workbook through AI 
 4. After the script finishes, manually review the warning report.
    Focus on `name.1`, `desc`, and `notes`.
    Treat Chinese path fragments, protected URLs, and vendor product names as source-aligned content unless the source clearly requires a translation.
+   For software/product names that do not have an exact dictionary entry, use the vendor URL in `notes` and the software description in `desc` as evidence for proofreading. Do not leave literal machine translations when the URL clearly reveals the product/vendor spelling, such as `fangmail.net -> FangMail`, `macrowing.com/XDMS -> Macrowing`, or `crawl4ai -> Crawl4AI`.
 
 ## Standard Detection Settings
 - Translation dictionaries:
@@ -91,6 +93,7 @@ Useful options:
 - Resolve dictionary IDs by dictionary names, not by hard-coded IDs.
 - For software and product names, exact dictionary matches outrank manual language judgment.
 - If a Chinese software name has no exact approved dictionary entry, do not normalize it to a more “natural” English product name. Keep it for manual review or dictionary completion instead.
+- Exception: when `notes` contains a vendor/homepage URL or the Chinese description contains an official English alias, use that URL/alias to proofread the exported English product name. This is evidence-backed proofreading, not free normalization.
 - Do not skip the replacement flow before proofreading.
 - Do not run replacement/proofreading/export if translation produced zero chunks, partial chunks, or any `errors`.
 - Do not leave failed draft projects behind by default. If translation fails before replacement/export, delete the just-created project unless the user explicitly asks to keep it.
@@ -104,5 +107,6 @@ Useful options:
 - Check for leftover Chinese in English fields that is not an intentional path or product token.
 - Check for missing spaces after English commas.
 - Check for glued attack phrases or lowercase `vulnerability` in `name.1`.
+- Check rows with vendor URLs but no exact product dictionary entry; product names must align with the official URL/alias rather than a literal machine translation.
 - Check for obviously broken machine phrasing in `desc`, especially missing articles, duplicated product names, or mangled identifiers.
 - Check that `notes` still use the approved `digiDations recommends` template and preserve the vendor URL.
