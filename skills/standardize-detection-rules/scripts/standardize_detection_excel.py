@@ -18,7 +18,8 @@ WEB_PREFIX = "Web应用程序漏洞 - "
 APP_PREFIX = "应用程序漏洞 - "
 AI_APP_PREFIX = "AI应用程序漏洞 - "
 PREFIX = WEB_PREFIX
-PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~?#\[\]@!$&'()*+,;=%/-]+")
+PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~:?#\[\]@!$&'()*+,;=%/-]+")
+ACTION_ENTRY_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\s+AJAX\s+Action\b", re.IGNORECASE)
 WARNING_FILL = PatternFill(fill_type="solid", fgColor="FFFF00")
 HISTORICAL_VENDOR_URLS = {
     "用友 NC": "https://www.yonyou.com/",
@@ -265,7 +266,7 @@ def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
         for part in parts[1:]:
             if re.fullmatch(r"CVE-\d{4}-\d+", part, flags=re.IGNORECASE):
                 cve = part.upper()
-            elif part.startswith("/") or re.fullmatch(r"[A-Za-z0-9._?=&:/$-]+", part):
+            elif part.startswith("/") or ACTION_ENTRY_RE.fullmatch(part) or re.fullmatch(r"[A-Za-z0-9._?=&:/$-]+", part):
                 endpoint = part
             else:
                 vuln = part
@@ -324,6 +325,15 @@ def extract_paths(text: str) -> List[str]:
     return paths
 
 
+def extract_entry_points(text: str) -> List[str]:
+    entries = extract_paths(text)
+    for match in ACTION_ENTRY_RE.finditer(clean_text(text)):
+        entry = clean_text(match.group(0))
+        if entry and entry not in entries:
+            entries.append(entry)
+    return entries
+
+
 def normalize_path_key(path: str) -> str:
     cleaned = clean_text(path).strip("`'\"()[]{}<>，,。；;：:、").lower()
     cleaned = re.sub(r"[?#].*$", "", cleaned)
@@ -338,6 +348,9 @@ def endpoint_path_related(endpoint: str, desc_path: str) -> bool:
     endpoint_token = endpoint_key.lstrip("/")
     desc_token = desc_key.lstrip("/")
     if endpoint_key == desc_key:
+        return True
+    endpoint_prefix = endpoint_key.rstrip("/")
+    if endpoint_prefix and desc_key.startswith(f"{endpoint_prefix}/"):
         return True
     if endpoint_key.startswith("/") and (
         desc_key.endswith(endpoint_key) or desc_key.endswith(f"/{endpoint_token}")
@@ -362,20 +375,33 @@ def resolve_endpoint_from_desc(endpoint: str, desc: str) -> Tuple[str, bool, Lis
     Returns `(resolved_endpoint, mismatch_warning, desc_paths)`.
     """
     endpoint = clean_text(endpoint)
-    desc_paths = extract_paths(desc)
-    if not desc_paths:
+    desc_entries = extract_entry_points(desc)
+    if not desc_entries:
         return endpoint, False, []
 
     if endpoint:
-        related = [path for path in desc_paths if endpoint_path_related(endpoint, path)]
+        related = [entry for entry in desc_entries if endpoint_path_related(endpoint, entry)]
         if related:
-            return max(related, key=len), False, desc_paths
+            return max(related, key=len), False, desc_entries
         # Only flag path mismatch when the title already contains a path-like endpoint.
         # Non-path components such as `JavaScript` or `PythonREPLComponent` should not
         # be compared against implementation paths in the description.
-        return endpoint, endpoint.startswith("/"), desc_paths
+        return endpoint, endpoint.startswith("/"), desc_entries
 
-    return desc_paths[0], False, desc_paths
+    return desc_entries[0], False, desc_entries
+
+
+def refine_vulnerability_from_desc(vuln: str, desc: str) -> str:
+    """Promote precise vulnerability families from the source description."""
+    normalized_vuln = clean_text(vuln)
+    normalized_desc = clean_text(desc)
+    if not normalized_vuln or not normalized_desc:
+        return normalized_vuln
+    if re.fullmatch(r"SQL\s*注入漏洞", normalized_vuln, flags=re.IGNORECASE) and re.search(
+        r"ClickHouse\s*SQL\s*注入漏洞", normalized_desc, flags=re.IGNORECASE
+    ):
+        return "ClickHouse SQL注入漏洞"
+    return normalized_vuln
 
 
 def is_hardware_like_product(product: str) -> bool:
@@ -390,6 +416,7 @@ def is_ai_application_product(product: str) -> bool:
 def build_standardized_name(name: str, desc: str = "") -> Tuple[str, bool]:
     product, endpoint, vuln, cve = parse_rule_name(name)
     endpoint, path_mismatch, _ = resolve_endpoint_from_desc(endpoint, desc)
+    vuln = refine_vulnerability_from_desc(vuln, desc)
     parts = [product]
     if cve:
         parts.append(cve)
@@ -655,7 +682,11 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     text = clean_text(attack_text)
     if not text or not vuln:
         return text
-    product_pattern = re.escape(clean_text(product))
+    product_text = clean_text(product)
+    product_variants = [product_text]
+    if product_text.startswith("WordPress "):
+        product_variants.append(product_text[len("WordPress ") :])
+    product_pattern = "(?:" + "|".join(re.escape(item) for item in product_variants if item) + ")"
     endpoint_pattern = re.escape(clean_text(endpoint))
     vuln_pattern = re.escape(clean_text(vuln))
     if not product_pattern or not vuln_pattern:
@@ -673,6 +704,20 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     updated = pattern.sub("", text, count=1).strip()
     if updated != text:
         return updated or text
+
+    endpoint_text = clean_text(endpoint)
+    if endpoint_text:
+        endpoint_loose = re.escape(endpoint_text).replace(r"\ ", r"\s+")
+        version_exists_pattern = re.compile(
+            rf"^({product_pattern}\s*[^，。；;]{{0,80}}?(?:版本|之前版本|及之前版本))"
+            rf"(?:的|通过)\s*{endpoint_loose}\s*"
+            rf"(?:REST\s*API\s*)?(?:端点|接口|AJAX\s*Action)?\s*存在"
+            rf"[^，。；;]{{0,80}}?(?:漏洞|缺陷)(?:\([A-Za-z0-9+\-\s]+\))?[，。]",
+            flags=re.IGNORECASE,
+        )
+        updated = version_exists_pattern.sub(r"\1中，", text, count=1).strip()
+        if updated != text:
+            return updated or text
 
     # Fallback for rows whose source uses a more precise path than the title,
     # e.g. title `/public` but source `/api/upload/public`. Remove only the
@@ -730,6 +775,14 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
             and "存在" in first_clause
         ):
             return rest.strip() or text
+        if (
+            not has_version_context
+            and not has_detail_context
+            and endpoint_key
+            and endpoint_key in clause_key
+            and re.search(r"存在[^，。；;]{0,50}(?:漏洞|缺陷)", first_clause)
+        ):
+            return rest.strip() or text
 
     return text
 
@@ -741,6 +794,7 @@ def build_standardized_desc(
     endpoint_override: str | None = None,
 ) -> str:
     product, endpoint, vuln, _ = parse_rule_name(name)
+    vuln = refine_vulnerability_from_desc(vuln, desc)
     if endpoint_override is not None:
         endpoint = endpoint_override
     main_text, disclosure = split_disclosure_time(desc)

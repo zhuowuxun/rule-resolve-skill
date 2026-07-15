@@ -31,6 +31,9 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - do not infer `AI应用程序漏洞 - ` only from an `/api` path; the product or historical standard must indicate an AI/LLM application
    - keep the application name before the first Chinese comma
    - if `desc` contains a more complete path that clearly expands the title path, use the complete `desc` path in `name.1` as well, for example title `/database` plus desc `/api/settings/database` becomes `/api/settings/database`
+   - preserve parameterized paths from `desc`, including colon parameters such as `/workflow/docs/:componentName`
+   - treat action-style entry names in `desc`, such as `qcld_wb_chatbot_conversation_save AJAX Action`, as valid rule entry points when they expand a shorter title token
+   - when `desc` contains a more precise vulnerability family than the title, promote it into `name.1`, for example `ClickHouse SQL 注入漏洞` should not be reduced to generic `SQL注入漏洞`
    - if the title path and `desc` path are completely unrelated, do not force-replace the title path; highlight the `name.1` and `desc` cells yellow for manual review
 
 3. Standardize `desc`.
@@ -47,6 +50,8 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - preserve authentication semantics exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, `已获得登录权限`, `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证` must match the source row; do not guess or add/remove `未`
    - after the opening sentence already says `针对 产品/入口 存在的漏洞类型`, remove an immediately repeated attack-method prefix like `产品/入口 接口存在漏洞类型，` and keep the remaining attacker condition / impact
    - when a repeated attack-method prefix contains a more complete path than the original title endpoint, first synchronize the full path into `name.1` and the opening sentence, then remove the repeated `完整路径 存在漏洞类型，` prefix from the attack-method text
+   - for version-qualified duplicate prefixes such as `产品 1.2.3 及之前版本通过 入口 存在某漏洞。由于...` or `产品 1.2.3 之前版本的 入口 存在某漏洞，参数...`, keep the version context but remove the repeated vulnerability prefix
+   - if a first clause restates `产品/入口存在某漏洞，` but the rest of the sentence contains the actual attacker condition or impact, drop only that repeated first clause
    - you may tighten wording for attack-method phrasing
    - if a historical standardized software description exists, reuse or shorten toward that wording
    - keep the application description at the end

@@ -50,7 +50,11 @@ Use this skill when the user wants to translate a detection workbook through AI 
    Focus on `name.1`, `desc`, and `notes`.
    Treat Chinese path fragments, protected URLs, and vendor product names as source-aligned content unless the source clearly requires a translation.
    For software/product names that do not have an exact dictionary entry, use the vendor URL in `notes` and the software description in `desc` as evidence for proofreading. Do not leave literal machine translations when the URL clearly reveals the product/vendor spelling, such as `fangmail.net -> FangMail`, `macrowing.com/XDMS -> Macrowing`, or `crawl4ai -> Crawl4AI`.
+   Use the approved product wording from source evidence and prior corrections, for example `fangmail.net` rows should use `FangMail Email Gateway`.
    If translation changes a protected path or code identifier, such as replacing vendor tokens inside `/servlet/...` or splitting `/gradio_api/proxy`, restore the exact path from the Chinese source columns.
+   If the Chinese source columns contain precise entry points such as `qcld_wb_chatbot_conversation_save AJAX Action` or `/workflow/docs/:componentName`, the English `name_en` and `desc_en` must use the same precise entry point rather than a shorter title token.
+   If the Chinese source columns contain a precise vulnerability family such as `ClickHouse SQL注入漏洞`, the English fields must say `ClickHouse SQL Injection Vulnerability`, not generic `SQL Injection Vulnerability`.
+   Remove duplicate English vulnerability-restatement sentences after the opening sentence when the Chinese standardized source has already removed the duplicate and kept only version context plus attack method.
    Authentication semantics must match the Chinese source row exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, and `已获得登录权限` map to authenticated wording; `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证` map to unauthenticated/unauthorized wording. Do not infer the opposite from vulnerability type names such as authentication bypass.
 
 ## Standard Detection Settings
@@ -105,6 +109,8 @@ Useful options:
 - Never overwrite source columns in the final Excel; export bilingually unless the user explicitly asks for single-language overwrite.
 - Keep URLs exact.
 - Keep URI paths and code identifiers exact, including case and vendor tokens. Do not translate path fragments.
+- Keep parameterized paths and action entry names exact, including `:componentName` and `AJAX Action`.
+- Keep precise vulnerability qualifiers such as `ClickHouse` when present in the Chinese source columns.
 - Keep authentication state exact. English `authenticated` / `unauthenticated` / `unauthorized` wording must be checked against the Chinese source row.
 - Keep Chinese and English semantically aligned. Do not inject scope or platform qualifiers that are absent from the Chinese source.
 
@@ -114,6 +120,8 @@ Useful options:
 - Check for glued attack phrases or lowercase `vulnerability` in `name.1`.
 - Check rows with vendor URLs but no exact product dictionary entry; product names must align with the official URL/alias rather than a literal machine translation.
 - Check paths in `name_en` / `desc_en` against the Chinese source path; translated paths are defects.
+- Check action entry names and parameterized paths against the Chinese source columns; shortened entries are defects.
+- Check precise vulnerability qualifiers such as `ClickHouse`; genericized vulnerability names are defects.
 - Check authentication semantics in `desc_en` against Chinese `desc`; mismatch is a defect even when the rest of the translation is fluent.
 - Check for obviously broken machine phrasing in `desc`, especially missing articles, duplicated product names, or mangled identifiers.
 - Check that `notes` still use the approved `digiDations recommends` template and preserve the vendor URL.

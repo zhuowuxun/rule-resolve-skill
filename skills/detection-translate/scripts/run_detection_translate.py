@@ -481,11 +481,11 @@ def postprocess_exported_workbook(output_path):
             if "fangmail.net" in urls:
                 replacements.extend(
                     [
-                        ("Directional Mail Gateway", "FangMail Email Security Gateway"),
-                        ("Direction Mail Gateway", "FangMail Email Security Gateway"),
-                        ("Beacon Mail Gateway", "FangMail Email Security Gateway"),
-                        ("FangMail email gateway", "FangMail Email Security Gateway"),
-                        ("FangMail Email Gateway", "FangMail Email Security Gateway"),
+                        ("Directional Mail Gateway", "FangMail Email Gateway"),
+                        ("Direction Mail Gateway", "FangMail Email Gateway"),
+                        ("Beacon Mail Gateway", "FangMail Email Gateway"),
+                        ("FangMail email gateway", "FangMail Email Gateway"),
+                        ("FangMail Email Security Gateway", "FangMail Email Gateway"),
                     ]
                 )
 
@@ -506,6 +506,71 @@ def postprocess_exported_workbook(output_path):
 
             if "crawl4ai" in source_lower:
                 replacements.append(("Crawl4ai", "Crawl4AI"))
+
+            if "qcld_wb_chatbot_conversation_save ajax action" in source_lower:
+                replacements.extend(
+                    [
+                        (
+                            "chatbot_conversation_save, Stored XSS Vulnerability",
+                            "qcld_wb_chatbot_conversation_save AJAX Action, Stored XSS Vulnerability",
+                        ),
+                        (
+                            "WordPress WPBot chatbot_conversation_save function",
+                            "WordPress WPBot qcld_wb_chatbot_conversation_save AJAX Action",
+                        ),
+                        (
+                            "via the qcld_wb_chatbot_conversation_save AJAX action",
+                            "via qcld_wb_chatbot_conversation_save AJAX Action",
+                        ),
+                        (
+                            "WPBot versions 8.4.9 and earlier contain a stored cross-site scripting (XSS) vulnerability via qcld_wb_chatbot_conversation_save AJAX Action. Because the plugin exposes",
+                            "In WPBot versions 8.4.9 and earlier, the plugin exposes",
+                        ),
+                    ]
+                )
+
+            if "/workflow/docs/:componentname" in source_lower:
+                replacements.extend(
+                    [
+                        (
+                            "/workflow/docs/, Arbitrary File Read Vulnerability",
+                            "/workflow/docs/:componentName, Arbitrary File Read Vulnerability",
+                        ),
+                        (
+                            "`/workflow/docs/` endpoint",
+                            "`/workflow/docs/:componentName` interface",
+                        ),
+                        (
+                            "OneUptime's `/workflow/docs/` endpoint",
+                            "OneUptime's `/workflow/docs/:componentName` interface",
+                        ),
+                        (
+                            "OneUptime versions 10.0.20 and earlier contain a path traversal vulnerability in the `/workflow/docs/:componentName` endpoint. The Worker service",
+                            "In OneUptime versions 10.0.20 and earlier, the Worker service",
+                        ),
+                    ]
+                )
+
+            if re.search(r"ClickHouse\s*SQL\s*注入漏洞", source_text, flags=re.IGNORECASE):
+                replacements.extend(
+                    [
+                        ("SQL Injection Vulnerability", "ClickHouse SQL Injection Vulnerability"),
+                        ("a SQL injection vulnerability", "a ClickHouse SQL injection vulnerability"),
+                        ("A SQL injection vulnerability", "A ClickHouse SQL injection vulnerability"),
+                        (
+                            "Versions of OneUptime prior to 10.0.23 contain a ClickHouse SQL injection vulnerability in the `/api/logs/aggregate` endpoint. The `aggregationType` parameter",
+                            "In versions of OneUptime prior to 10.0.23, the `aggregationType` parameter",
+                        ),
+                    ]
+                )
+
+            if "泛微" in source_text and "e-cology10" in source_lower and "sql注入" not in source_text.replace(" ", "").lower():
+                replacements.append(
+                    (
+                        "The Weaver E-cology /papi/em/transform/downLoadSyslog interface contains a SQL injection vulnerability, which could allow",
+                        "This vulnerability could allow",
+                    )
+                )
 
             if "pythonreplcomponent" in source_lower:
                 replacements.extend(
@@ -557,6 +622,13 @@ def postprocess_exported_workbook(output_path):
                 [
                     ("敏感Information Exfiltration Vulnerability", "Sensitive Information Exfiltration Vulnerability"),
                     ("敏感Information Exfiltration", "Sensitive Information Exfiltration"),
+                    ("write trojan to the server", "write trojan into the server"),
+                    ("Host Access .ALL", "HostAccess.ALL"),
+                    (
+                        "via wp_localize_script, an unauthenticated adversary can obtain",
+                        "via wp_localize_script, allowing an unauthenticated adversary to obtain",
+                    ),
+                    ("using the injection path traversal", "by injecting path traversal characters"),
                 ]
             )
 
