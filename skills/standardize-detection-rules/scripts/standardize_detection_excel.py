@@ -11,12 +11,15 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
 
 WEB_PREFIX = "Web应用程序漏洞 - "
 APP_PREFIX = "应用程序漏洞 - "
 AI_APP_PREFIX = "AI应用程序漏洞 - "
 PREFIX = WEB_PREFIX
+PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~?#\[\]@!$&'()*+,;=%/-]+")
+WARNING_FILL = PatternFill(fill_type="solid", fgColor="FFFF00")
 HISTORICAL_VENDOR_URLS = {
     "用友 NC": "https://www.yonyou.com/",
     "用友NC": "https://www.yonyou.com/",
@@ -250,7 +253,7 @@ def is_software_description_sentence(sentence: str) -> bool:
 def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
     text = clean_text(name).replace("（", "(").replace("）", ")")
 
-    for known_prefix in (WEB_PREFIX, APP_PREFIX):
+    for known_prefix in (WEB_PREFIX, APP_PREFIX, AI_APP_PREFIX):
         if not text.startswith(known_prefix):
             continue
         remainder = text[len(known_prefix) :].strip()
@@ -312,6 +315,69 @@ def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
     return normalize_product_name(product or left), endpoint, vuln, cve
 
 
+def extract_paths(text: str) -> List[str]:
+    paths: List[str] = []
+    for match in PATH_RE.finditer(clean_text(text)):
+        path = match.group(0).strip("`'\"()[]{}<>，,。；;：:、")
+        if path and path not in paths:
+            paths.append(path)
+    return paths
+
+
+def normalize_path_key(path: str) -> str:
+    cleaned = clean_text(path).strip("`'\"()[]{}<>，,。；;：:、").lower()
+    cleaned = re.sub(r"[?#].*$", "", cleaned)
+    return cleaned.rstrip("/")
+
+
+def endpoint_path_related(endpoint: str, desc_path: str) -> bool:
+    endpoint_key = normalize_path_key(endpoint)
+    desc_key = normalize_path_key(desc_path)
+    if not endpoint_key or not desc_key:
+        return False
+    endpoint_token = endpoint_key.lstrip("/")
+    desc_token = desc_key.lstrip("/")
+    if endpoint_key == desc_key:
+        return True
+    if endpoint_key.startswith("/") and (
+        desc_key.endswith(endpoint_key) or desc_key.endswith(f"/{endpoint_token}")
+    ):
+        return True
+    if desc_key.startswith("/") and (
+        endpoint_key.endswith(desc_key) or endpoint_token.endswith(desc_token)
+    ):
+        return True
+    endpoint_tail = endpoint_token.rsplit("/", 1)[-1]
+    desc_tail = desc_token.rsplit("/", 1)[-1]
+    if endpoint_tail and len(endpoint_tail) >= 4 and endpoint_tail == desc_tail:
+        return True
+    if not endpoint_key.startswith("/") and endpoint_tail and endpoint_tail in desc_token:
+        return True
+    return False
+
+
+def resolve_endpoint_from_desc(endpoint: str, desc: str) -> Tuple[str, bool, List[str]]:
+    """Use the full path from desc when it clearly expands the title endpoint.
+
+    Returns `(resolved_endpoint, mismatch_warning, desc_paths)`.
+    """
+    endpoint = clean_text(endpoint)
+    desc_paths = extract_paths(desc)
+    if not desc_paths:
+        return endpoint, False, []
+
+    if endpoint:
+        related = [path for path in desc_paths if endpoint_path_related(endpoint, path)]
+        if related:
+            return max(related, key=len), False, desc_paths
+        # Only flag path mismatch when the title already contains a path-like endpoint.
+        # Non-path components such as `JavaScript` or `PythonREPLComponent` should not
+        # be compared against implementation paths in the description.
+        return endpoint, endpoint.startswith("/"), desc_paths
+
+    return desc_paths[0], False, desc_paths
+
+
 def is_hardware_like_product(product: str) -> bool:
     return any(keyword in product for keyword in HARDWARE_PRODUCT_KEYWORDS)
 
@@ -321,8 +387,9 @@ def is_ai_application_product(product: str) -> bool:
     return any(normalize_product_key(keyword) in normalized for keyword in AI_APPLICATION_PRODUCTS)
 
 
-def build_standardized_name(name: str) -> str:
+def build_standardized_name(name: str, desc: str = "") -> Tuple[str, bool]:
     product, endpoint, vuln, cve = parse_rule_name(name)
+    endpoint, path_mismatch, _ = resolve_endpoint_from_desc(endpoint, desc)
     parts = [product]
     if cve:
         parts.append(cve)
@@ -336,7 +403,7 @@ def build_standardized_name(name: str) -> str:
         prefix = APP_PREFIX
     else:
         prefix = WEB_PREFIX
-    return prefix + "，".join(parts)
+    return prefix + "，".join(parts), path_mismatch
 
 
 def iter_name_desc_objects(value: Any) -> Iterable[Dict[str, Any]]:
@@ -575,7 +642,7 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     if not product_pattern or not vuln_pattern:
         return text
     separators = r"(?:\s+|/|，|,|的|插件\s*)*"
-    accessors = r"(?:接口|端点|方法|函数|API\s*端点|路由)"
+    accessors = r"(?:接口|接口处|端点|方法|函数|配置|API\s*端点|REST\s*API\s*端点|路由)"
     if endpoint_pattern:
         target_pattern = rf"{product_pattern}{separators}{endpoint_pattern}"
     else:
@@ -599,21 +666,64 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
             return text
         endpoint_key = re.sub(r"[^a-z0-9]+", "", clean_text(endpoint).lower())
         clause_key = re.sub(r"[^a-z0-9]+", "", first_clause.lower())
+        vuln_key = re.sub(r"[\s，,]+", "", clean_text(vuln).lower())
+        clause_vuln_key = re.sub(r"[\s，,]+", "", first_clause.lower())
         has_version_context = bool(re.search(r"(?:版本|<=|>=|<|>|及之前|之前版本|以下版本)", first_clause))
+        has_detail_context = any(
+            marker in first_clause
+            for marker in (
+                "参数",
+                "过滤",
+                "拼接",
+                "多个模块",
+                "处理器",
+                "盲注",
+                "未对",
+                "由于",
+                "直接",
+            )
+        )
         if (
             not has_version_context
+            and not has_detail_context
             and product in first_clause
             and "存在" in first_clause
             and vuln in first_clause
             and (not endpoint_key or endpoint_key in clause_key)
         ):
             return rest.strip() or text
+        if (
+            not has_version_context
+            and not has_detail_context
+            and product in first_clause
+            and "存在" in first_clause
+            and vuln in first_clause
+            and len(first_clause) <= 80
+        ):
+            return rest.strip() or text
+        if (
+            not has_version_context
+            and not has_detail_context
+            and endpoint_key
+            and endpoint_key in clause_key
+            and vuln_key
+            and vuln_key in clause_vuln_key
+            and "存在" in first_clause
+        ):
+            return rest.strip() or text
 
     return text
 
 
-def build_standardized_desc(name: str, desc: str, historical_desc_map: Dict[str, str]) -> str:
+def build_standardized_desc(
+    name: str,
+    desc: str,
+    historical_desc_map: Dict[str, str],
+    endpoint_override: str | None = None,
+) -> str:
     product, endpoint, vuln, _ = parse_rule_name(name)
+    if endpoint_override is not None:
+        endpoint = endpoint_override
     main_text, disclosure = split_disclosure_time(desc)
     sentences = split_sentences(main_text)
 
@@ -734,8 +844,20 @@ def main() -> None:
         original_desc = clean_text(ws.cell(row=row_idx, column=header_index["desc"]).value)
         original_notes = clean_text(ws.cell(row=row_idx, column=header_index["notes"]).value)
 
-        ws.cell(row=row_idx, column=header_index["name.1"], value=build_standardized_name(original_name))
-        ws.cell(row=row_idx, column=header_index["desc"], value=build_standardized_desc(original_name, original_desc, historical_desc_map))
+        standardized_name, path_mismatch = build_standardized_name(original_name, original_desc)
+        _, resolved_endpoint, _, _ = parse_rule_name(standardized_name)
+        name_cell = ws.cell(row=row_idx, column=header_index["name.1"])
+        desc_cell = ws.cell(row=row_idx, column=header_index["desc"])
+        name_cell.value = standardized_name
+        desc_cell.value = build_standardized_desc(
+            original_name,
+            original_desc,
+            historical_desc_map,
+            endpoint_override=resolved_endpoint,
+        )
+        if path_mismatch:
+            name_cell.fill = WARNING_FILL
+            desc_cell.fill = WARNING_FILL
         ws.cell(
             row=row_idx,
             column=header_index["notes"],

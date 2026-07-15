@@ -30,6 +30,8 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - for industry/operation platforms that merely expose web endpoints, such as `Acrel EEMS 电力运维平台`, use `应用程序漏洞 - ` rather than `Web应用程序漏洞 - `
    - do not infer `AI应用程序漏洞 - ` only from an `/api` path; the product or historical standard must indicate an AI/LLM application
    - keep the application name before the first Chinese comma
+   - if `desc` contains a more complete path that clearly expands the title path, use the complete `desc` path in `name.1` as well, for example title `/database` plus desc `/api/settings/database` becomes `/api/settings/database`
+   - if the title path and `desc` path are completely unrelated, do not force-replace the title path; highlight the `name.1` and `desc` cells yellow for manual review
 
 3. Standardize `desc`.
    The description should follow this order:
@@ -44,7 +46,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - preserve technical path and filename casing inside the attack-method text, such as `/api/...` and `ModuleGridSource.aspx`
    - preserve negation markers such as `未授权` / `未经身份验证`; if source text has the malformed bare phrase `经身份验证的攻击者/用户`, repair it to `未经身份验证的攻击者/用户` unless the source clearly says `经过身份验证`
    - after the opening sentence already says `针对 产品/入口 存在的漏洞类型`, remove an immediately repeated attack-method prefix like `产品/入口 接口存在漏洞类型，` and keep the remaining attacker condition / impact
-   - do not remove a repeated attack-method prefix when it contains a more complete path than the title endpoint; preserve full paths such as `/api/settings/database` even when the title uses `/database`
+   - when a repeated attack-method prefix contains a more complete path than the original title endpoint, first synchronize the full path into `name.1` and the opening sentence, then remove the repeated `完整路径 存在漏洞类型，` prefix from the attack-method text
    - you may tighten wording for attack-method phrasing
    - if a historical standardized software description exists, reuse or shorten toward that wording
    - keep the application description at the end
@@ -70,6 +72,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - Align rows by stable IDs when present and otherwise by row order; compare `name.1`, `desc`, and `notes`.
    - Verify protected evidence is preserved: CVEs, URLs, URI paths, filenames, extensions, disclosure dates, versions, vendor links, product names, and negation markers such as `未授权` / `未经身份验证`.
    - Treat loss of `未` / `未经`, endpoint/path tails, `披露时间`, reference/vendor URLs, or technical impact text as a failed run.
+   - Confirm rows with full paths in `desc` also use those full paths in `name.1`; if `desc` and `name.1` paths are unrelated, confirm the yellow highlight is present.
    - Approved intentional differences include CVE extraction into the title, prefix correction, moving/shortening software description to the end, duplicate vulnerability wording removal, city/province cleanup, and promotional/political wording cleanup.
    - If the compare finds real content loss, patch the script/rules, regenerate the workbook, rerun Excel QA, and rerun the source compare before delivery.
 

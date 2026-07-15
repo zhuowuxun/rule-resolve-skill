@@ -451,6 +451,7 @@ def postprocess_exported_workbook(output_path):
                     [
                         ("Directional Mail Gateway", "FangMail Email Security Gateway"),
                         ("Direction Mail Gateway", "FangMail Email Security Gateway"),
+                        ("Beacon Mail Gateway", "FangMail Email Security Gateway"),
                         ("FangMail email gateway", "FangMail Email Security Gateway"),
                         ("FangMail Email Gateway", "FangMail Email Security Gateway"),
                     ]
@@ -494,7 +495,38 @@ def postprocess_exported_workbook(output_path):
                     ]
                 )
 
+            if "/gradio_api/proxy" in source_lower:
+                replacements.extend(
+                    [
+                        ("/ gradio /proxy", "/gradio_api/proxy"),
+                        ("Gradio/ gradio /proxy", "Gradio /gradio_api/proxy"),
+                        ("Gradio/gradio_api/proxy", "Gradio /gradio_api/proxy"),
+                    ]
+                )
+
+            if "com.yonyou.ma.roster.servlet.marosterphotoservlet" in source_lower:
+                replacements.append(
+                    (
+                        "/servlet/~uap/com.UFIDA.ma.roster.servlet.MARosterPhotoServlet",
+                        "/servlet/~uap/com.yonyou.ma.roster.servlet.MARosterPhotoServlet",
+                    )
+                )
+
+            if "/editor/elfinder/php/connector.php" in source_lower and "xerte" in source_lower:
+                replacements.append(
+                    (
+                        "in the `/editor/elfinder/php/ Online file of Xerte Online Toolkits. The endpoint of `/editor/elfinder/php/connector.php` contains",
+                        "in Xerte Online Toolkits `/editor/elfinder/php/connector.php`. The `/editor/elfinder/php/connector.php` endpoint contains",
+                    )
+                )
+
             replacements.append(("Privilege Escalation漏洞", "Privilege Escalation Vulnerability"))
+            replacements.extend(
+                [
+                    ("敏感Information Exfiltration Vulnerability", "Sensitive Information Exfiltration Vulnerability"),
+                    ("敏感Information Exfiltration", "Sensitive Information Exfiltration"),
+                ]
+            )
 
             for header in english_headers:
                 cell = ws.cell(row, header_index[header])
@@ -543,6 +575,30 @@ def postprocess_exported_workbook(output_path):
                             "header": header,
                             "from": "automatically injection",
                             "to": "automatically inject",
+                        }
+                )
+
+                value, changed = replace_text(value, "simulates an an attempt", "simulates an attempt")
+                if changed:
+                    fixes.append(
+                        {
+                            "sheet": ws.title,
+                            "row": row,
+                            "header": header,
+                            "from": "simulates an an attempt",
+                            "to": "simulates an attempt",
+                        }
+                    )
+
+                value, changed = regex_replace_text(value, r",(?=[A-Za-z/])", ", ")
+                if changed:
+                    fixes.append(
+                        {
+                            "sheet": ws.title,
+                            "row": row,
+                            "header": header,
+                            "from": "missing space after comma",
+                            "to": "comma followed by space",
                         }
                     )
 
