@@ -486,15 +486,6 @@ def normalize_attack_text(text: str) -> str:
     normalized = re.sub(r"(?<![A-Za-z])http(?![A-Za-z])", "HTTP", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])url(?![A-Za-z])", "URL", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])json(?![A-Za-z])", "JSON", normalized, flags=re.IGNORECASE)
-    # Some source rows miss the negation marker and use the awkward phrase
-    # "经身份验证的攻击者/用户"; normalize only that bare form. Do not touch
-    # valid "经过身份验证" or already-correct "未经身份验证".
-    normalized = re.sub(
-        r"(?<![未过])经身份验证(?=的?(?:远程攻击者|攻击者|用户))",
-        "未经身份验证",
-        normalized,
-    )
-
     for marker, token in protected_tokens.items():
         normalized = normalized.replace(marker, token)
 
@@ -502,6 +493,34 @@ def normalize_attack_text(text: str) -> str:
     if normalized and normalized[-1] not in "。！？":
         normalized = f"{normalized}。"
     return normalized
+
+
+def auth_state_cn(text: str) -> Tuple[bool, bool]:
+    """Return `(authenticated, unauthenticated)` for source-aligned auth wording."""
+    normalized = clean_text(text)
+    unauthenticated = bool(
+        re.search(
+            r"未授权|未认证|未经认证|未经授权|未经身份(?:认证|验证)|无需(?:身份)?认证|无须(?:身份)?认证|不需要(?:身份)?认证",
+            normalized,
+        )
+    )
+    authenticated = bool(
+        re.search(
+            r"经过身份(?:认证|验证)|经过认证|(?<!未)经身份(?:认证|验证)|(?<!未)经认证|认证用户|已认证用户|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:经过身份(?:认证|验证)的?|经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
+            normalized,
+        )
+    )
+    return authenticated, unauthenticated
+
+
+def ensure_auth_state_matches_source(source_desc: str, standardized_desc: str, row_idx: int) -> None:
+    source_state = auth_state_cn(source_desc)
+    standardized_state = auth_state_cn(standardized_desc)
+    if source_state != standardized_state:
+        raise ValueError(
+            "Auth semantics changed while standardizing "
+            f"row {row_idx}: source={source_state}, standardized={standardized_state}"
+        )
 
 
 def contains_ascii(text: str) -> bool:
@@ -849,12 +868,14 @@ def main() -> None:
         name_cell = ws.cell(row=row_idx, column=header_index["name.1"])
         desc_cell = ws.cell(row=row_idx, column=header_index["desc"])
         name_cell.value = standardized_name
-        desc_cell.value = build_standardized_desc(
+        standardized_desc = build_standardized_desc(
             original_name,
             original_desc,
             historical_desc_map,
             endpoint_override=resolved_endpoint,
         )
+        ensure_auth_state_matches_source(original_desc, standardized_desc, row_idx)
+        desc_cell.value = standardized_desc
         if path_mismatch:
             name_cell.fill = WARNING_FILL
             desc_cell.fill = WARNING_FILL

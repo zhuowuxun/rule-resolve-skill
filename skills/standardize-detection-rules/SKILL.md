@@ -44,7 +44,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - do not remove `披露时间`
    - do not invent exploit details that are absent from the source
    - preserve technical path and filename casing inside the attack-method text, such as `/api/...` and `ModuleGridSource.aspx`
-   - preserve negation markers such as `未授权` / `未经身份验证`; if source text has the malformed bare phrase `经身份验证的攻击者/用户`, repair it to `未经身份验证的攻击者/用户` unless the source clearly says `经过身份验证`
+   - preserve authentication semantics exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, `已获得登录权限`, `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证` must match the source row; do not guess or add/remove `未`
    - after the opening sentence already says `针对 产品/入口 存在的漏洞类型`, remove an immediately repeated attack-method prefix like `产品/入口 接口存在漏洞类型，` and keep the remaining attacker condition / impact
    - when a repeated attack-method prefix contains a more complete path than the original title endpoint, first synchronize the full path into `name.1` and the opening sentence, then remove the repeated `完整路径 存在漏洞类型，` prefix from the attack-method text
    - you may tighten wording for attack-method phrasing
@@ -70,8 +70,8 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
 
 6. Compare the standardized workbook against the source workbook before final response.
    - Align rows by stable IDs when present and otherwise by row order; compare `name.1`, `desc`, and `notes`.
-   - Verify protected evidence is preserved: CVEs, URLs, URI paths, filenames, extensions, disclosure dates, versions, vendor links, product names, and negation markers such as `未授权` / `未经身份验证`.
-   - Treat loss of `未` / `未经`, endpoint/path tails, `披露时间`, reference/vendor URLs, or technical impact text as a failed run.
+   - Verify protected evidence is preserved: CVEs, URLs, URI paths, filenames, extensions, disclosure dates, versions, vendor links, product names, and authentication markers such as `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证`.
+   - Treat any authenticated/unauthenticated state mismatch, loss of `未` / `未经`, endpoint/path tails, `披露时间`, reference/vendor URLs, or technical impact text as a failed run.
    - Confirm rows with full paths in `desc` also use those full paths in `name.1`; if `desc` and `name.1` paths are unrelated, confirm the yellow highlight is present.
    - Approved intentional differences include CVE extraction into the title, prefix correction, moving/shortening software description to the end, duplicate vulnerability wording removal, city/province cleanup, and promotional/political wording cleanup.
    - If the compare finds real content loss, patch the script/rules, regenerate the workbook, rerun Excel QA, and rerun the source compare before delivery.

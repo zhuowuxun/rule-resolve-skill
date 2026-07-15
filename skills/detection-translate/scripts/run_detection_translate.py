@@ -25,6 +25,38 @@ CN_RE = re.compile(r"[\u4e00-\u9fff]")
 URL_RE = re.compile(r"https?://[^\s]+|www\.[^\s]+", re.IGNORECASE)
 
 
+def auth_state_cn(text):
+    text = str(text or "")
+    unauthenticated = bool(
+        re.search(
+            r"未授权|未认证|未经认证|未经授权|未经身份(?:认证|验证)|无需(?:身份)?认证|无须(?:身份)?认证|不需要(?:身份)?认证",
+            text,
+        )
+    )
+    authenticated = bool(
+        re.search(
+            r"经过身份(?:认证|验证)|经过认证|(?<!未)经身份(?:认证|验证)|(?<!未)经认证|认证用户|已认证用户|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:经过身份(?:认证|验证)的?|经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
+            text,
+        )
+    )
+    return {"authenticated": authenticated, "unauthenticated": unauthenticated}
+
+
+def auth_state_en(text):
+    text = str(text or "").lower()
+    unauthenticated = bool(
+        re.search(r"\bunauthenticated\b|\bunauthorized\b|without authentication|no authentication", text)
+    )
+    auth_probe = re.sub(r"\bunauthenticated\b|\bunauthorized\b", " ", text)
+    authenticated = bool(
+        re.search(
+            r"\bauthenticated\b|logged-in|with login privileges|with builder privileges|with query submission privileges|valid credentials|authentication is required",
+            auth_probe,
+        )
+    )
+    return {"authenticated": authenticated, "unauthenticated": unauthenticated}
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Create and run a detection translation project through AI Translation Studio."
@@ -625,7 +657,23 @@ def audit_exported_workbook(output_path, manual_review_limit):
                 for h in ("name.1", "desc", "notes")
                 if h in header_index
             )
+            source_desc = str(ws.cell(row, header_index["desc"]).value or "") if "desc" in header_index else source_text
+            english_desc = str(ws.cell(row, header_index["desc_en"]).value or "") if "desc_en" in header_index else ""
             urls = " ".join(URL_RE.findall(source_text)).lower()
+            source_auth_state = auth_state_cn(source_desc)
+            english_auth_state = auth_state_en(english_desc)
+            if source_auth_state != english_auth_state:
+                warnings.append(
+                    {
+                        "row": row,
+                        "header": "desc_en",
+                        "issue": "auth_semantics_mismatch",
+                        "source_auth": source_auth_state,
+                        "english_auth": english_auth_state,
+                        "source_text": source_desc,
+                        "text": english_desc,
+                    }
+                )
 
             for header in english_headers:
                 text = ws.cell(row, header_index[header]).value or ""
