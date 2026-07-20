@@ -268,6 +268,12 @@ def build_cn_appendix(translated_desc: str, references: List[str]) -> str:
     desc = translated_desc.strip()
     parts = [desc] if desc else []
     cn_references = [ref for ref in references if "nist.gov" not in ref.lower()]
+    if not cn_references:
+        for ref in references:
+            match = re.search(r"CVE-\d{4}-\d+", ref, flags=re.IGNORECASE)
+            if match:
+                cn_references.append(f"https://www.tenable.com/cve/{match.group(0).upper()}")
+                break
     if cn_references:
         parts.append("请参考：\n" + "\n".join(cn_references[:5]))
     return "\n\n".join(parts).strip()
@@ -949,6 +955,7 @@ def transform_base_notes(
     inferred_os = infer_os_scope(name, os_scope)
     cn, en = cleanup_os_mismatch(cn, en, inferred_os, rule_type)
     cn, en = normalize_host_command_product_scope(cn, en, inferred_os, rule_type)
+    en = en.replace("Digidations", "digiDations")
 
     return cn.strip(), en.strip()
 

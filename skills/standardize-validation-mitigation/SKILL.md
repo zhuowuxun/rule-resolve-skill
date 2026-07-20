@@ -71,6 +71,7 @@ This skill is not for:
    - If NVD/CVE official pages do not expose a usable description or reference list, try the Tenable CVE page (`https://www.tenable.com/cve/<CVE-ID>`) before falling back to a bare source URL. Tenable is useful for CVEs that are not yet visible or parseable on cve.org/NVD.
    - If all CVE sources return no reference list, still append the CVE detail/source URL as the fallback `请参考` / `Please refer to` reference; a row with a CVE must not lose its reference block because the external page has no parsed reference table.
    - In Chinese `cn_notes`, remove `nist.gov` links from appended `请参考` references. Keep `nist.gov` links in English `en_notes` `Please refer to` references.
+   - If removing `nist.gov` would leave the Chinese `请参考` block empty, add `https://www.tenable.com/cve/<CVE-ID>` as the Chinese fallback reference.
    - When translating CVE version range wording, do not literalize `up to <version>` as `高达 <version>`; translate `A flaw/vulnerability has been found in <product> up to <version>.` as `<product> <version> 及之前版本存在漏洞。`
    - Append reference links in the fixed format:
 
@@ -123,6 +124,7 @@ This skill is not for:
      - For vendor/cloud products without CVE values, prefer the historical vendor-contact wording such as `联络孚盟云告知漏洞`.
    - For well-known vendors or device/appliance products, also prefer the vendor-contact wording even when the row has a CVE value; keep the CVE description/reference block after the remediation paragraph.
    - Preserve AI application security product wording for `AI应用程序漏洞`; do not treat `网络或主机或AI应用安全产品` as an old phrase.
+   - Normalize the English brand casing to `digiDations`, not `Digidations`.
 
 5. Compare against a manual mitigation workbook only as evaluation.
    - Use the manual workbook to find rule gaps and wording improvements.
