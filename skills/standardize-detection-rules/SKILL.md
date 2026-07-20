@@ -25,12 +25,12 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - remove leftover wrapping parentheses after extracting the CVE
    - keep the default prefix `Web应用程序漏洞 - `
    - for AI / LLM application products, use `AI应用程序漏洞 - ` instead of `Web应用程序漏洞 - `
-   - currently confirmed AI application products include `9Router`, `Blinko`, `Crawl4AI`, `Gradio`, `Langflow`, `LMDeploy`, and `Scramble`
+   - currently confirmed AI application products include `9Router`, `AstrBot`, `Blinko`, `Crawl4AI`, `Flowise`, `Gradio`, `LangBot`, `Langflow`, `LMDeploy`, and `Scramble`
    - for hardware/security-appliance style products such as 上网行为管理, 防火墙, 安全网关, 路由器, 交换机, VPN, load-balancing devices, or PA/Palo Alto/PAN-OS/GlobalProtect security products, use `应用程序漏洞 - ` instead of the `Web应用程序漏洞 - ` prefix
    - for industry/operation platforms that merely expose web endpoints, such as `Acrel EEMS 电力运维平台`, use `应用程序漏洞 - ` rather than `Web应用程序漏洞 - `
    - do not infer `AI应用程序漏洞 - ` only from an `/api` path; the product or historical standard must indicate an AI/LLM application
    - keep the application name before the first Chinese comma
-   - if `desc` contains a more complete path that clearly expands the title path, use the complete `desc` path in `name.1` as well, for example title `/database` plus desc `/api/settings/database` becomes `/api/settings/database`
+   - if `desc` contains a more complete path that clearly expands the title path, use the complete `desc` path in `name.1` as well, for example title `/database` plus desc `/api/settings/database` becomes `/api/settings/database`; also treat title path segments such as `/public-chatflows` as related to complete desc paths like `/api/v1/public-chatflows/:id`
    - preserve parameterized paths from `desc`, including colon parameters such as `/workflow/docs/:componentName`
    - treat action-style entry names in `desc`, such as `qcld_wb_chatbot_conversation_save AJAX Action`, as valid rule entry points when they expand a shorter title token
    - when `desc` contains a more precise vulnerability family than the title, promote it into `name.1`, for example `ClickHouse SQL 注入漏洞` should not be reduced to generic `SQL注入漏洞`
@@ -44,10 +44,10 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - application description last
 
    Guardrails:
-   - do not remove `披露时间`
+   - do not remove `披露时间`; normalize the label to `披露时间：` while preserving the original date value, including single-digit days such as `2026-01-3`
    - do not invent exploit details that are absent from the source
    - preserve technical path and filename casing inside the attack-method text, such as `/api/...` and `ModuleGridSource.aspx`
-   - preserve authentication semantics exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, `已获得登录权限`, `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证` must match the source row; do not guess or add/remove `未`
+   - preserve authentication semantics exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, `已获得登录权限`, `未授权`, `未认证`, `未经认证`, `未经身份认证/验证`, and `无需任何认证` must match the source row; do not guess or add/remove `未`
    - after the opening sentence already says `针对 产品/入口 存在的漏洞类型`, remove an immediately repeated attack-method prefix like `产品/入口 接口存在漏洞类型，` and keep the remaining attacker condition / impact
    - when a repeated attack-method prefix contains a more complete path than the original title endpoint, first synchronize the full path into `name.1` and the opening sentence, then remove the repeated `完整路径 存在漏洞类型，` prefix from the attack-method text
    - for version-qualified duplicate prefixes such as `产品 1.2.3 及之前版本通过 入口 存在某漏洞。由于...` or `产品 1.2.3 之前版本的 入口 存在某漏洞，参数...`, keep the version context but remove the repeated vulnerability prefix
@@ -75,7 +75,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
 
 6. Compare the standardized workbook against the source workbook before final response.
    - Align rows by stable IDs when present and otherwise by row order; compare `name.1`, `desc`, and `notes`.
-   - Verify protected evidence is preserved: CVEs, URLs, URI paths, filenames, extensions, disclosure dates, versions, vendor links, product names, and authentication markers such as `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证`.
+   - Verify protected evidence is preserved: CVEs, URLs, URI paths, filenames, extensions, disclosure dates, versions, vendor links, product names, and authentication markers such as `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `未授权`, `未认证`, `未经认证`, `未经身份认证/验证`, and `无需任何认证`.
    - Treat any authenticated/unauthenticated state mismatch, loss of `未` / `未经`, endpoint/path tails, `披露时间`, reference/vendor URLs, or technical impact text as a failed run.
    - Confirm rows with full paths in `desc` also use those full paths in `name.1`; if `desc` and `name.1` paths are unrelated, confirm the yellow highlight is present.
    - Approved intentional differences include CVE extraction into the title, prefix correction, moving/shortening software description to the end, duplicate vulnerability wording removal, city/province cleanup, and promotional/political wording cleanup.

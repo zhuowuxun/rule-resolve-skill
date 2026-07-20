@@ -60,6 +60,9 @@ AI_APPLICATION_PRODUCTS = (
     "MLflow",
     "NocoBase",
     "LiteLLM",
+    "Flowise",
+    "LangBot",
+    "AstrBot",
 )
 CITY_NAMES = [
     "北京", "上海", "广州", "深圳", "杭州", "南京", "苏州", "无锡", "常州",
@@ -108,7 +111,7 @@ def split_sentences(text: str) -> List[str]:
 
 def split_disclosure_time(text: str) -> Tuple[str, str]:
     cleaned = clean_text(text)
-    matched = re.search(r"披露时间[:：]\s*(\d{4}-\d{2}(?:-\d{2})?)\s*[.。]?\s*$", cleaned)
+    matched = re.search(r"披露时间[:：]\s*(\d{4}-\d{2}(?:-\d{1,2})?)\s*[.。]?\s*$", cleaned)
     if not matched:
         return cleaned, ""
     main = cleaned[: matched.start()].strip(" ，,。")
@@ -360,6 +363,8 @@ def endpoint_path_related(endpoint: str, desc_path: str) -> bool:
         endpoint_key.endswith(desc_key) or endpoint_token.endswith(desc_token)
     ):
         return True
+    if endpoint_token and f"/{endpoint_token}/" in f"/{desc_token}/":
+        return True
     endpoint_tail = endpoint_token.rsplit("/", 1)[-1]
     desc_tail = desc_token.rsplit("/", 1)[-1]
     if endpoint_tail and len(endpoint_tail) >= 4 and endpoint_tail == desc_tail:
@@ -527,7 +532,7 @@ def auth_state_cn(text: str) -> Tuple[bool, bool]:
     normalized = clean_text(text)
     unauthenticated = bool(
         re.search(
-            r"未授权|未认证|未经认证|未经授权|未经身份(?:认证|验证)|无需(?:身份)?认证|无须(?:身份)?认证|不需要(?:身份)?认证",
+            r"未授权|未认证|未经认证|未经授权|未经身份(?:认证|验证)|无需(?:任何)?(?:身份)?认证|无须(?:任何)?(?:身份)?认证|不需要(?:任何)?(?:身份)?认证",
             normalized,
         )
     )
@@ -586,6 +591,12 @@ def normalize_software_description(text: str) -> str:
         return "Crawl4AI 是一个面向大型语言模型和 AI 应用的网络爬虫和数据抓取工具。"
     if "Gradio" in normalized:
         return "Gradio 是一个开源的 Python 库，用于构建机器学习、数据科学和 Web 应用演示。"
+    if "Flowise" in normalized:
+        return "Flowise 是一款用于构建大语言模型工作流的拖拽式工具。"
+    if "LangBot" in normalized:
+        return "LangBot 是一个用于构建和部署大语言模型即时通讯机器人的开源开发平台。"
+    if "AstrBot" in normalized:
+        return "AstrBot 是一款支持多消息平台与 MCP 扩展的智能聊天机器人框架。"
     if "n8n" in normalized:
         return "n8n 是一款开源的工作流自动化平台。"
     if "Penpot" in normalized:
