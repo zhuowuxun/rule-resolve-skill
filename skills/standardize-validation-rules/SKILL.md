@@ -89,6 +89,7 @@ This skill is not for:
    - For malicious file-transfer rows, infer precise file/container types from the description when the title only says `下载`, including `.NET 可执行文件`, `恶意 .NET DLL文件`, `恶意 .NET 程序集`, `Python 脚本文件`, `恶意 PowerShell 下载脚本`, `恶意 PowerShell 脚本`, `恶意 VBA 脚本`, `macOS 后门文件`, `恶意 macOS 可执行文件`, `32 位 Windows .DLL文件`, `恶意 Windows .DLL文件`, `恶意动态链接库文件`, `恶意软件组件文件`, `恶意库组件文件`, `木马化的软件组件文件`, `混淆脚本文件`, `恶意配置脚本文件`, `恶意混淆脚本文件`, `恶意批处理脚本文件`, `恶意脚本文件`, `恶意 JavaScript 木马文件`, `恶意文档文件`, `恶意电子表格文件`, `恶意网页文件`, `恶意配置文件`, `释放器`, and `压缩存档文件`.
    - In malicious file-transfer names, shorten redundant malware nouns such as `Dindoor后门恶意软件` to `Dindoor后门` and `恶意软件释放器` to `释放器`, while descriptions may retain the fuller object wording.
    - For command-and-control rows, preserve URI paths from the description in `cn_name`, for example `/api/auth/login` or `/api/home/status`.
+   - For command-and-control rows, do not use `渗透` when the description is about data exfiltration/leakage, stolen reconnaissance data, PUT requests carrying Base64-encoded data, or status updates sent to C&C infrastructure. Use `数据泄漏` instead. Keep malware names such as `AEROSTAT` in English; do not translate them into words such as `浮空器`.
    - For Web / AI / application vulnerability rows, if the description contains a more complete endpoint path than the raw title and it contains the title path's tail, use the complete description path in both `cn_name` and the opening sentence.
    - Normalize `电报` to `Telegram` in command-and-control names.
    - Collapse duplicated C2 wording such as `C&C 或 C&C` to a single `C&C`.
@@ -159,6 +160,7 @@ This skill is not for:
    - no reference links flattened onto the same line as `请参考：`; reference blocks must be `请参考：` followed by one blank line and then the URL lines
    - no reference links may remain in `cn_notes`; if source `cn_desc` contains URLs, the standardized output must keep them at the end of `cn_desc` as a multiline `请参考：` block, while `cn_notes` should contain only execution/validator notes
    - no reference URL paths such as `/campaigns/...`, `/actors/...`, `/malware/...` inserted into C2 titles
+   - no C2 title may use `渗透` when the description clearly says `数据外泄` / `数据泄露` / `窃取` / Base64 data sent through C&C; use `数据泄漏`
    - no protected-token damage: dates, CVEs, paths, hostnames, filenames, extensions, functions, parameters, flags, versions, and product names
    - no defanged-domain damage such as turning `telen[.]example[.]com` into `telen example com`
    - no source-described Actions row may have an empty output `cn_desc`

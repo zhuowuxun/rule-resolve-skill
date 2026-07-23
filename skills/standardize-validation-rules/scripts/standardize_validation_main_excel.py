@@ -2199,8 +2199,34 @@ def titleize_c2(name: str) -> str:
     return raw
 
 
+def c2_desc_indicates_data_exfiltration(desc: str) -> bool:
+    text = normalize_cn_action_terms(desc)
+    lower_text = text.lower()
+    markers = (
+        "数据外泄",
+        "数据泄露",
+        "数据泄漏",
+        "数据暂存",
+        "窃取",
+        "外传",
+        "泄露的数据",
+        "泄露数据",
+        "exfiltrat",
+        "stolen",
+        "steal",
+        "data theft",
+    )
+    if any(marker in lower_text for marker in markers):
+        return True
+    return "put 请求" in text.lower() and "base64" in lower_text and any(token in text for token in ("数据", "信息"))
+
+
 def titleize_c2_with_context(name: str, desc: str) -> str:
     raw = titleize_c2(name)
+    if "AEROSTAT" in desc:
+        raw = raw.replace("浮空器", "AEROSTAT")
+    if "渗透" in raw and c2_desc_indicates_data_exfiltration(desc):
+        raw = raw.replace("渗透", "数据泄漏")
     if "FRONTLOAD" in desc:
         raw = raw.replace("前置式", "FRONTLOAD")
     for path in extract_uri_paths(desc)[:1]:

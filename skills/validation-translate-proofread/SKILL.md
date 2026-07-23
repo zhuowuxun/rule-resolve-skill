@@ -120,6 +120,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    - no ATT&CK replacement bleed in descriptions, such as title-case `Malware`, `Persistence`, `Obfuscation`, `Exfiltration`, `Reconnaissance`, `Lateral movement`, `Privilege Escalation`, `Policy`, or `Phishing Email`
    - `validation note replacement` outputs such as `Isolator` or `a Target Validator` are absent from `en_name` and `en_desc` unless source semantics explicitly require them outside note context
    - historical validation terminology rules are enforced: `攻击手法` / `attack techniques` -> `TTPs`, `工控安全` -> `OT Security`, and `#` in English title names becomes `-`
+   - C2 title terminology must match the standardized Chinese source: `数据泄漏` -> `Data Exfiltration`; do not translate it as `Penetration`, `Penetration Testing`, or `Infiltration`. Malware names such as `AEROSTAT` must remain English and must not become `Airship`.
    - software names match the dictionary or the user-confirmed fallback table below
    - title fields (`en_name`) contain no standalone articles: `a`, `an`, or `the`
    - `Host Command Line` titles use capitalized base-form action verbs after the dash, not lowercase starts, `-ing`, or third-person `-s`
@@ -149,6 +150,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 - In `cn_name` / exported `en_name`, remove standalone title articles (`a`, `an`, `the`) anywhere in the title, including phrases such as `Discover the current user`, `Display a list`, and `using the tasklist command`.
 - In `Host Command Line` titles, normalize action phrases to capitalized base form and avoid `-ing`: `Gather`, `Hijack`, `Hook`, `Load`, `Use`, `Write`, `Display`, `Collect`; prefer `via` over `using` in trailing method phrases when it avoids `-ing`.
 - In `Malicious File Transfer` titles, normalize attack/file-type descriptors to Title Case while leaving action/variant fields lowercase: `Malicious Remote Access Tool, download, variant -7`; `Malicious Download Script, download, variant -34`; `Malicious Windows Installer Package, download, variant -9`.
+- In `Command and Control` titles, translate `数据泄漏` as `Data Exfiltration`. If an exported title says `Penetration`, `Penetration Testing`, or `Infiltration` while the Chinese title says `数据泄漏`, repair it to `Data Exfiltration`.
 
 ## Software Name Fallbacks
 Use the `software翻译` dictionary first. If a validation workbook contains a software/product name with no exact dictionary hit, check the row's `notes`/reference URL and apply user-confirmed fallbacks when applicable:

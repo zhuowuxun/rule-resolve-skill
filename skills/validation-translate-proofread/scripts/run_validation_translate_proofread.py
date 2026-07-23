@@ -553,20 +553,44 @@ def relocate_reference_links_from_notes(output_path):
     wb = load_workbook(output_path)
     relocated_rows = 0
     normalized_rows = 0
+    title_rows_normalized = 0
 
     for ws in wb.worksheets:
         header_row = next(ws.iter_rows(min_row=1, max_row=1), None)
         if not header_row:
             continue
         headers = [str(cell.value).strip() if cell.value is not None else "" for cell in header_row]
+        header_map = {header: idx + 1 for idx, header in enumerate(headers) if header}
+        if {"cn_name", "en_name"}.issubset(header_map):
+            cn_name_col = header_map["cn_name"]
+            en_name_col = header_map["en_name"]
+            for row_idx in range(2, ws.max_row + 1):
+                cn_name = ws.cell(row_idx, cn_name_col).value or ""
+                en_name = ws.cell(row_idx, en_name_col).value or ""
+                if not isinstance(cn_name, str) or not isinstance(en_name, str):
+                    continue
+                new_en_name = en_name
+                if "数据泄漏" in cn_name:
+                    new_en_name = re.sub(
+                        r"\b(?:Penetration Testing|Penetration|Infiltration)\b",
+                        "Data Exfiltration",
+                        new_en_name,
+                        flags=re.IGNORECASE,
+                    )
+                if "AEROSTAT" in cn_name:
+                    new_en_name = re.sub(r"\bAirship\b", "AEROSTAT", new_en_name, flags=re.IGNORECASE)
+                if new_en_name != en_name:
+                    ws.cell(row_idx, en_name_col).value = new_en_name
+                    title_rows_normalized += 1
+
         required = {"cn_desc", "cn_notes", "en_desc", "en_notes"}
         if not required.issubset(set(headers)):
             continue
 
-        cn_desc_col = headers.index("cn_desc") + 1
-        cn_notes_col = headers.index("cn_notes") + 1
-        en_desc_col = headers.index("en_desc") + 1
-        en_notes_col = headers.index("en_notes") + 1
+        cn_desc_col = header_map["cn_desc"]
+        cn_notes_col = header_map["cn_notes"]
+        en_desc_col = header_map["en_desc"]
+        en_notes_col = header_map["en_notes"]
 
         for row_idx in range(2, ws.max_row + 1):
             cn_desc = ws.cell(row_idx, cn_desc_col).value or ""
@@ -619,7 +643,11 @@ def relocate_reference_links_from_notes(output_path):
 
     wb.save(output_path)
     wb.close()
-    return {"relocated_rows": relocated_rows, "normalized_rows": normalized_rows}
+    return {
+        "relocated_rows": relocated_rows,
+        "normalized_rows": normalized_rows,
+        "title_rows_normalized": title_rows_normalized,
+    }
 
 
 def audit_workbook(path, manual_review_limit):
@@ -628,6 +656,7 @@ def audit_workbook(path, manual_review_limit):
     reference_note_rows = []
     title_headers = {"en_name", "en_subject", "name_en"}
     rows = defaultdict(dict)
+    cn_names = {}
 
     for ws in wb.worksheets:
         header_row = next(ws.iter_rows(min_row=1, max_row=1), None)
@@ -647,6 +676,7 @@ def audit_workbook(path, manual_review_limit):
                 rows[(ws.title, row_idx)][hk] = str(text)
             cn_notes_val = row_map.get("cn_notes")
             en_notes_val = row_map.get("en_notes")
+            cn_names[(ws.title, row_idx)] = str(row_map.get("cn_name") or "")
             if (
                 isinstance(cn_notes_val, str)
                 and "参考链接" in cn_notes_val
@@ -671,6 +701,10 @@ def audit_workbook(path, manual_review_limit):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "title_trailing_period", "text": text})
             if header in title_headers and re.search(r"\b(a|an|the)\b", text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "title_article", "text": text})
+            if header in title_headers and re.search(r"\b(Penetration Testing|Penetration|Infiltration)\b", text, re.I):
+                cn_name = cn_names.get((sheet_name, row_num), "")
+                if "数据泄漏" in cn_name:
+                    warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "data_exfiltration_mistranslation", "text": text})
             if header in {"en_desc", "en_notes"} and re.search(r"Please refer to:\nhttps?://", text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "reference_link_missing_blank_line_after_marker", "text": text})
 
@@ -815,7 +849,7 @@ def main():
         relocate_stats = relocate_reference_links_from_notes(output_path)
         warnings = audit_workbook(output_path, args.manual_review_limit)
     else:
-        relocate_stats = {"relocated_rows": 0, "normalized_rows": 0}
+        relocate_stats = {"relocated_rows": 0, "normalized_rows": 0, "title_rows_normalized": 0}
 
     report = {
         "project_name": project_name,
@@ -853,6 +887,7 @@ def main():
         "manual_review_warnings": warnings,
         "reference_rows_relocated": relocate_stats["relocated_rows"],
         "reference_rows_normalized": relocate_stats["normalized_rows"],
+        "title_rows_normalized": relocate_stats["title_rows_normalized"],
     }
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -868,6 +903,7 @@ def main():
                 "warnings": len(warnings),
                 "reference_rows_relocated": relocate_stats["relocated_rows"],
                 "reference_rows_normalized": relocate_stats["normalized_rows"],
+                "title_rows_normalized": relocate_stats["title_rows_normalized"],
                 "verify_clean": proofread_result["verify_clean"],
             },
             ensure_ascii=False,
