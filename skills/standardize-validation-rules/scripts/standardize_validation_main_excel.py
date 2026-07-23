@@ -1436,6 +1436,8 @@ def infer_file_type(name: str, desc: str) -> str:
         return "恶意 Python 脚本"
     if ".MACHO" in upper_name and ("后门" in text or "backdoor" in text.lower()):
         return "macOS 后门文件"
+    if "权限提升工具" in full_text or ("实用程序" in full_text and "权限提升" in full_text):
+        return "权限提升工具"
     if "Web Shell" in text or "JSP Web Shell" in text:
         return "Web Shell文件"
     if "恶意 macOS 可执行文件" in text or "macOS 可执行文件" in text:
@@ -1575,6 +1577,7 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
         "恶意远程访问工具",
         "恶意远程访问木马文件",
         "恶意远程访问可执行文件",
+        "权限提升工具",
         "恶意后门木马文件",
         "恶意后门文件",
         "恶意木马下载器",
@@ -1698,6 +1701,7 @@ def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
         "恶意远程访问工具",
         "恶意远程访问木马文件",
         "恶意远程访问可执行文件",
+        "权限提升工具",
         "恶意后门木马文件",
         "恶意后门文件",
         "macOS 后门文件",

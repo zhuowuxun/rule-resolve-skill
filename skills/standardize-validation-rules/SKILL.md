@@ -81,6 +81,7 @@ This skill is not for:
    - If a malicious file-transfer description says the downloaded object is an `恶意快捷方式文件` or `.LNK 文件`, add `恶意快捷方式文件` before `下载` in the title.
    - If a malicious file-transfer description says the object is a `快捷方式文件` or `恶意快捷方式`, also normalize the title type to `恶意快捷方式文件`, even when a concrete malware family such as `TAMECAT` is already present.
    - If a malicious file-transfer description only says the object is a `脚本`, but the same description identifies the malware family as a PowerShell entry point such as `TAMECAT 是一个 PowerShell 入口点`, normalize the title type to `恶意 PowerShell 脚本`.
+   - If a malicious file-transfer description identifies the downloaded object as a privilege-escalation utility/tool, normalize the title type to `权限提升工具`, for example `PRINTSPOOFER，权限提升工具，下载`.
    - If a malicious file-transfer description gives a precise file type such as `.NET 木马` or `恶意 .NET 可执行文件`, add that precise malicious-file type to the title even when the malware family name is already present, for example `REGALSPICE，恶意 .NET 木马文件，下载`.
    - If a malicious file-transfer title only says `下载`, infer and add the downloaded file/tool type from the description, for example `远程访问工具` -> `恶意远程访问工具`.
    - If a malicious file-transfer title has only an actor plus a generic file/tool type, but the description names a concrete malware family/tool such as `CORNFLAKE 感染程序`, insert that concrete name before the generic type and before `下载`; do not insert generic technical words such as `API`, `URL`, `GET`, or `POST`.
