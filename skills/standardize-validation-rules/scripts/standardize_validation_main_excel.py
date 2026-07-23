@@ -916,7 +916,7 @@ def build_reference_block(urls: Iterable[str]) -> str:
             unique_urls.append(cleaned)
     if not unique_urls:
         return ""
-    return "\n\n请参考：\n" + "\n".join(unique_urls)
+    return "\n\n请参考：\n\n" + "\n".join(unique_urls)
 
 
 def ensure_terminal_punctuation(text: str) -> str:

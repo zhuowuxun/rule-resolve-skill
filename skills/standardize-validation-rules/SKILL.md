@@ -110,6 +110,7 @@ This skill is not for:
    - Reference blocks should stay multiline:
      ```text
      请参考：
+
      https://...
      ```
    - Remove disposable markdown/link placeholders and unwanted attribution tails.
@@ -148,7 +149,7 @@ This skill is not for:
    - no `_x000D_`
    - no old `变种-1` / `变种 1` title format
    - no URL mismatch between original and output for rows where URLs are preserved
-   - no reference links flattened onto the same line as `请参考：`
+   - no reference links flattened onto the same line as `请参考：`; reference blocks must be `请参考：` followed by one blank line and then the URL lines
    - no reference links may remain in `cn_notes`; if source `cn_desc` contains URLs, the standardized output must keep them at the end of `cn_desc` as a multiline `请参考：` block, while `cn_notes` should contain only execution/validator notes
    - no reference URL paths such as `/campaigns/...`, `/actors/...`, `/malware/...` inserted into C2 titles
    - no protected-token damage: dates, CVEs, paths, hostnames, filenames, extensions, functions, parameters, flags, versions, and product names
