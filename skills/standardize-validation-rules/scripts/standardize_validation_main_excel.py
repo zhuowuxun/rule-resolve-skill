@@ -1478,6 +1478,8 @@ def infer_file_type(name: str, desc: str) -> str:
         return "恶意 PowerShell 下载脚本"
     if "PowerShell 脚本" in text:
         return "恶意 PowerShell 脚本"
+    if re.search(r"(?:该文件是一个脚本|这是一个脚本)", text) and "TAMECAT" in full_text and "PowerShell 入口点" in full_text:
+        return "恶意 PowerShell 脚本"
     if "快捷方式文件" in text or "恶意快捷方式" in text:
         return "恶意快捷方式文件"
     if "恶意电子表格" in text:
@@ -1701,6 +1703,7 @@ def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
         "macOS 后门文件",
         "恶意 macOS 可执行文件",
         "恶意木马下载器",
+        "恶意快捷方式文件",
         "恶意 64 位可执行文件",
         "恶意 32 位可执行文件",
         "恶意可执行文件",
