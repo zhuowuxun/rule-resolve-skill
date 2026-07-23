@@ -72,7 +72,8 @@ This skill is not for:
    - In `Sequences`, keep scene numbering as trailing `#n` such as `恶意活动场景 - APT36 威胁组织攻击活动 #2`; do not use `，变种 #n` for scene titles.
    - OS suffixes use English parentheses such as `(Windows)` / `(Linux)` / `(macOS)`.
    - Place OS suffixes near the malware/tool/product segment, not after action verbs such as `执行` / `下载` / `投放`.
-   - For protected-sandbox and actor-led host-command rows, keep OS suffix placement stable: attach `(Windows)` / `(Linux)` to the concrete malware/tool/file/object name when present; do not leave OS after action phrases such as `数据聚合`, `C&C 渗透`, `C&C 信标`, `C&C 域名信标`, `DNS 泄露数据`, `执行`, `下载`, or `投放`.
+   - For protected-sandbox rows, keep OS suffix placement stable: attach `(Windows)` / `(Linux)` to the concrete malware/tool/file/object name when present; do not leave OS after action phrases such as `数据聚合`, `C&C 渗透`, `C&C 信标`, `C&C 域名信标`, `DNS 泄露数据`, `执行`, `下载`, or `投放`.
+   - For host-command rows, attach the OS suffix to the concrete command/action/object segment, not to the actor or malware family segment. For example, use `主机命令行 - APT42，TAMECAT，清除运行历史记录 (Windows)，变种 #1`, not `TAMECAT (Windows)，清除运行历史记录`.
    - For protected-sandbox rows, preserve English malware/tool names extracted from the description and do not translate them into Chinese. Examples: use `SANDCLOCK`, not `沙漏`; use `Stage Script释放器`, not `舞台脚本释放器`.
    - For protected-sandbox persistence rows, if the description names a task/service such as `ChromeUpdate`, insert that object before the action, for example `ChromeUpdate，持久化 (Windows)`.
    - Pure extension file types should keep the dot, for example `.EXE 文件` / `.MACHO 文件`; infer `(macOS)` for macOS-specific extensions such as `.MACHO` and `.SCPT`.

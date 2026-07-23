@@ -665,6 +665,8 @@ def append_os_suffix(name: str, notes: str) -> str:
     clean_name = re.sub(r"\s*\((?:Windows|Linux|macOS)(?:/(?:Windows|Linux|macOS))*\)", "", name).strip()
     if not suffix:
         return clean_name
+    if clean_name.startswith("主机命令行 - "):
+        return append_host_cmd_os_suffix(clean_name, suffix)
     parts = [part.strip() for part in clean_name.split("，")]
     for idx, part in enumerate(parts):
         if "释放器" in part and idx > 0:
@@ -723,6 +725,21 @@ def append_os_suffix(name: str, notes: str) -> str:
         tail = variant_match.group(1)
         return move_os_suffix_before_action(f"{head} {suffix}{tail}")
     return move_os_suffix_before_action(f"{clean_name} {suffix}")
+
+
+def append_host_cmd_os_suffix(clean_name: str, suffix: str) -> str:
+    parts = [part.strip() for part in clean_name.split("，")]
+    attach_idx = -1
+    for idx in range(len(parts) - 1, -1, -1):
+        if parts[idx].startswith("变种 #"):
+            continue
+        attach_idx = idx
+        break
+    if attach_idx < 0:
+        return f"{clean_name} {suffix}".strip()
+    if suffix not in parts[attach_idx]:
+        parts[attach_idx] = f"{parts[attach_idx]} {suffix}"
+    return "，".join(part for part in parts if part)
 
 
 def move_os_suffix_before_action(name: str) -> str:
