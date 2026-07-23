@@ -76,10 +76,12 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
 
 5. Create one translate project through the API.
    Use `source_type=xlsx`, `workflow=translate`, `target_lang=EN`, and one `source_col` list containing the indices for `cn_name`, `cn_desc`, and `cn_notes` when present. Attach the translation dictionaries and the combined replacement dictionary set (`基础字符校对`, `validation校对`, `validation note replacement`). `validation note replacement` must be scoped by backend `check_flow.py` so it only touches chunks whose Excel header is `cn_notes`.
+   Before upload, sanitize a temporary copy of the workbook when selected source column indices collide with non-source headers on other sheets. For example, if `Actions.cn_notes` shares a column index with `Sequences.created`, blank the non-source `created` data in the temporary upload copy only. Never modify the user's standardized source workbook for this workaround.
    Before creating the project, verify `backend/services/check_flow.py` contains the `validation note replacement` note-only guard. If it does not, stop and ask for the platform/backend to be updated. Do not create separate `-main` / `-notes` projects as a workaround.
 
 6. Translate all chunks.
    Call `/api/translate/<project_id>/translate-all` with `{"force": false}`. If a Google batch hits a transient auth error but fallback finishes with `errors: []`, continue.
+   If only a small subset of chunks fails with a transient Google auth/server error, retry `translate-all` with `force=false` before failing the run; the platform skips already translated chunks, so this safely fills only missing translations without duplicating work.
    If `translate-all` returns `502`, times out, reports any `errors`, translates `0` chunks, or translates fewer chunks than the project created, stop immediately. Report the project ID(s) and do not run replacement, proofreading, or export.
    Delete the newly created platform project on translation failure unless `--keep-failed-project` is explicitly used for debugging.
 
@@ -112,7 +114,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    - no Chinese leftovers in `en_*`
    - CVEs, URLs, endpoint paths, versions, and ISO dates are preserved
    - `Disclosure date: YYYY-MM-DD` format is used
-   - reference blocks are exactly multiline with one blank line before the marker: `<body text>\n\nPlease refer to:\nhttps://...`
+   - reference blocks are exactly multiline with one blank line before the marker and one blank line after the marker: `<body text>\n\nPlease refer to:\n\nhttps://...`
    - no `_x000D_`, `<br>`, `<span translate="no">`, or flattened reference block remains
    - `cn_desc` body ends with terminal punctuation before any reference block
    - no ATT&CK replacement bleed in descriptions, such as title-case `Malware`, `Persistence`, `Obfuscation`, `Exfiltration`, `Reconnaissance`, `Lateral movement`, `Privilege Escalation`, `Policy`, or `Phishing Email`
@@ -124,7 +126,7 @@ For standard validation workbooks, translate source columns `cn_name`, `cn_desc`
    - `Malicious File Transfer` titles use Title Case for attack/file-type descriptors such as `Malicious Remote Access Tool`, `Malicious Installer Package`, and `Malicious JavaScript Downloader`; keep action and variant fields lowercase, e.g. `download, variant -3`
 
 11. Export and verify the output.
-    Mark the project done, export with `format=xlsx&bilingual=true`, then open the output with `openpyxl` and verify expected `en_*` fill counts.
+    Mark the project done, then export by reading project chunks and writing `translated_text` back to the original standardized workbook using each chunk's `format_data.sheet`, `format_data.row`, and source header -> target header mapping (`cn_name` -> `en_name`, `cn_desc` -> `en_desc`, `cn_notes` -> `en_notes`, `cn_subject` -> `en_subject`, `cn_body` -> `en_body`). Do not rely on the platform's generic multi-column bilingual XLSX export for validation workbooks, because it can mis-map multi-sheet/multi-source-column output. Open the output with `openpyxl` and verify expected `en_*` fill counts.
 
 ## Repair Guidance
 - Fold repeatable safe fixes back into `tools/validation/check_and_fix.py`; keep rules narrow and deterministic.

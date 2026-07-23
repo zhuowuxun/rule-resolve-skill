@@ -7,6 +7,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +25,7 @@ DEFAULT_NOTE_REPLACEMENT_DICTS = ["基础字符校对", "validation校对", "val
 DEFAULT_MAIN_SOURCE_HEADERS = ["cn_name", "cn_desc"]
 DEFAULT_NOTE_SOURCE_HEADER = "cn_notes"
 CN_RE = re.compile(r"[\u4e00-\u9fff]")
+URL_RE = re.compile(r"https?://\S+")
 
 
 def parse_args():
@@ -173,6 +175,29 @@ def ensure_translation_completed(result, expected_count, context):
         )
 
 
+def translate_all_with_retries(session, api_base, project_id, expected_chunks, max_attempts=4):
+    last_result = None
+    for attempt in range(1, max_attempts + 1):
+        last_result = post_json(
+            session,
+            f"{api_base}/api/translate/{project_id}/translate-all",
+            {},
+            f"Translate all chunks attempt {attempt}",
+        )
+        translated = int(last_result.get("translated") or 0)
+        errors = last_result.get("errors") or []
+        if translated >= expected_chunks and not errors:
+            return last_result
+
+        # The platform skips chunks that already have translated_text, so a
+        # second call safely retries only the chunks that failed transiently.
+        if attempt < max_attempts:
+            continue
+
+    ensure_translation_completed(last_result or {}, expected_chunks, "Translate all chunks")
+    return last_result
+
+
 def verify_note_replacement_scope(repo_root, replacement_dict_names, api_base, platform_ssh, platform_root, ssh_command):
     note_dict_requested = any(name.strip().lower() == "validation note replacement" for name in replacement_dict_names)
     if not note_dict_requested:
@@ -227,6 +252,34 @@ def collect_sheet_headers(xlsx_path):
         sheet_headers[ws.title] = headers
     wb.close()
     return sheet_headers
+
+
+def prepare_platform_input_workbook(input_path, source_headers, source_cols):
+    wb = load_workbook(input_path)
+    selected_cols = set(source_cols)
+    source_header_set = set(source_headers)
+    blanked_cells = 0
+
+    for ws in wb.worksheets:
+        headers = [ws.cell(1, col_idx).value for col_idx in range(1, ws.max_column + 1)]
+        for col_idx_zero in selected_cols:
+            col_idx = col_idx_zero + 1
+            header = headers[col_idx_zero] if col_idx_zero < len(headers) else ""
+            if header in source_header_set:
+                continue
+            for row_idx in range(2, ws.max_row + 1):
+                cell = ws.cell(row_idx, col_idx)
+                if cell.value not in (None, ""):
+                    cell.value = None
+                    blanked_cells += 1
+
+    if not blanked_cells:
+        return input_path, None, 0
+
+    tmpdir = tempfile.TemporaryDirectory(prefix="validation-upload-")
+    upload_path = Path(tmpdir.name) / input_path.name
+    wb.save(upload_path)
+    return upload_path, tmpdir, blanked_cells
 
 
 def detect_stable_column(sheet_headers, header_name, limit_sheets=None):
@@ -391,21 +444,188 @@ def run_validation_proofread(repo_root, project_id, api_base, platform_ssh, plat
     }
 
 
-def export_bilingual(session, api_base, project_id, output_path):
-    resp = perform_request(
-        session,
-        "GET",
-        f"{api_base}/api/export/{project_id}?format=xlsx&bilingual=true",
-        "Export bilingual workbook",
-        timeout=1800,
-    )
+def target_header_for_source(header):
+    if isinstance(header, str) and header.startswith("cn_"):
+        return "en_" + header[3:]
+    return None
+
+
+def export_bilingual(session, api_base, project_id, input_path, output_path):
+    project = get_json(session, f"{api_base}/api/project/{project_id}", "Fetch project chunks for export")
+    chunks = project.get("chunks") or []
+    wb = load_workbook(input_path)
+
+    header_maps = {}
+    for ws in wb.worksheets:
+        headers = [ws.cell(1, col_idx).value for col_idx in range(1, ws.max_column + 1)]
+        header_maps[ws.title] = {header: col_idx + 1 for col_idx, header in enumerate(headers) if header}
+
+    applied = 0
+    skipped = []
+    for chunk in chunks:
+        translated = chunk.get("translated_text") or ""
+        fmt_raw = chunk.get("format_data") or ""
+        try:
+            meta = json.loads(fmt_raw) if isinstance(fmt_raw, str) else fmt_raw
+        except Exception:
+            skipped.append({"chunk": chunk.get("id"), "reason": "bad_format_data"})
+            continue
+        if not isinstance(meta, dict) or meta.get("type") != "xlsx_cell":
+            skipped.append({"chunk": chunk.get("id"), "reason": "not_xlsx_cell"})
+            continue
+        sheet = meta.get("sheet")
+        row = meta.get("row")
+        source_header = meta.get("header")
+        target_header = target_header_for_source(source_header)
+        if sheet not in wb.sheetnames or not target_header:
+            skipped.append({"chunk": chunk.get("id"), "reason": "no_target", "sheet": sheet, "header": source_header})
+            continue
+        target_col = header_maps.get(sheet, {}).get(target_header)
+        if not target_col:
+            skipped.append({"chunk": chunk.get("id"), "reason": "missing_target_col", "sheet": sheet, "target": target_header})
+            continue
+        wb[sheet].cell(int(row), target_col).value = translated
+        applied += 1
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(resp.content)
+    wb.save(output_path)
+    return {"applied_chunks": applied, "skipped_chunks": skipped}
+
+
+def _split_note_reference_block(text, markers):
+    if not isinstance(text, str) or not text.strip():
+        return None
+
+    marker_positions = [text.find(marker) for marker in markers if marker in text]
+    marker_positions = [pos for pos in marker_positions if pos != -1]
+    if not marker_positions:
+        return None
+
+    start = min(marker_positions)
+    note_body = text[:start].rstrip()
+    tail = text[start:]
+    urls = URL_RE.findall(tail)
+    if not urls:
+        return None
+
+    skeleton = tail
+    for url in urls:
+        skeleton = skeleton.replace(url, "", 1)
+    for marker in markers:
+        skeleton = skeleton.replace(marker, "")
+    skeleton = re.sub(r"[:：，,\s]+", "", skeleton)
+    if skeleton:
+        return None
+
+    return note_body, urls
+
+
+def _normalize_desc_reference_block(text, markers, preferred_marker):
+    if not isinstance(text, str) or not text.strip():
+        return text
+
+    marker_positions = [text.rfind(marker) for marker in markers if marker in text]
+    marker_positions = [pos for pos in marker_positions if pos != -1]
+    if not marker_positions:
+        return text
+
+    start = max(marker_positions)
+    prefix = text[:start].rstrip()
+    tail = text[start:]
+    urls = URL_RE.findall(tail)
+    if not urls:
+        return text
+
+    skeleton = tail
+    for url in urls:
+        skeleton = skeleton.replace(url, "", 1)
+    for marker in markers:
+        skeleton = skeleton.replace(marker, "")
+    skeleton = re.sub(r"[:：，,\s]+", "", skeleton)
+    if skeleton:
+        return text
+
+    ref_block = f"{preferred_marker}\n\n" + "\n".join(urls)
+    return f"{prefix}\n\n{ref_block}" if prefix else ref_block
+
+
+def relocate_reference_links_from_notes(output_path):
+    wb = load_workbook(output_path)
+    relocated_rows = 0
+    normalized_rows = 0
+
+    for ws in wb.worksheets:
+        header_row = next(ws.iter_rows(min_row=1, max_row=1), None)
+        if not header_row:
+            continue
+        headers = [str(cell.value).strip() if cell.value is not None else "" for cell in header_row]
+        required = {"cn_desc", "cn_notes", "en_desc", "en_notes"}
+        if not required.issubset(set(headers)):
+            continue
+
+        cn_desc_col = headers.index("cn_desc") + 1
+        cn_notes_col = headers.index("cn_notes") + 1
+        en_desc_col = headers.index("en_desc") + 1
+        en_notes_col = headers.index("en_notes") + 1
+
+        for row_idx in range(2, ws.max_row + 1):
+            cn_desc = ws.cell(row_idx, cn_desc_col).value or ""
+            cn_notes = ws.cell(row_idx, cn_notes_col).value or ""
+            en_desc = ws.cell(row_idx, en_desc_col).value or ""
+            en_notes = ws.cell(row_idx, en_notes_col).value or ""
+
+            cn_split = _split_note_reference_block(cn_notes, ["参考链接", "参考链接：", "参考链接:"])
+            en_split = _split_note_reference_block(
+                en_notes,
+                ["Please refer to", "Please refer to:", "Reference link", "Reference link:", "Reference links", "Reference links:"],
+            )
+            if not cn_split and not en_split:
+                continue
+
+            cn_note_body, cn_urls = cn_split if cn_split else (cn_notes.rstrip(), [])
+            en_note_body, en_urls = en_split if en_split else (en_notes.rstrip(), [])
+            urls = cn_urls or en_urls
+            if not urls:
+                continue
+
+            if not URL_RE.search(str(cn_desc)):
+                cn_desc = str(cn_desc).rstrip()
+                cn_desc = f"{cn_desc}\n\n参考链接：\n\n" + "\n".join(urls) if cn_desc else "参考链接：\n\n" + "\n".join(urls)
+                ws.cell(row_idx, cn_desc_col).value = cn_desc
+            if not URL_RE.search(str(en_desc)):
+                en_desc = str(en_desc).rstrip()
+                en_desc = f"{en_desc}\n\nPlease refer to:\n\n" + "\n".join(urls) if en_desc else "Please refer to:\n\n" + "\n".join(urls)
+                ws.cell(row_idx, en_desc_col).value = en_desc
+
+            ws.cell(row_idx, cn_notes_col).value = cn_note_body
+            ws.cell(row_idx, en_notes_col).value = en_note_body
+            relocated_rows += 1
+
+        for row_idx in range(2, ws.max_row + 1):
+            cn_desc = ws.cell(row_idx, cn_desc_col).value or ""
+            en_desc = ws.cell(row_idx, en_desc_col).value or ""
+            normalized_cn_desc = _normalize_desc_reference_block(cn_desc, ["参考链接", "参考链接：", "参考链接:"], "参考链接：")
+            normalized_en_desc = _normalize_desc_reference_block(
+                en_desc,
+                ["Please refer to", "Please refer to:", "Reference link", "Reference link:", "Reference links", "Reference links:"],
+                "Please refer to:",
+            )
+            if normalized_cn_desc != cn_desc:
+                ws.cell(row_idx, cn_desc_col).value = normalized_cn_desc
+                normalized_rows += 1
+            if normalized_en_desc != en_desc:
+                ws.cell(row_idx, en_desc_col).value = normalized_en_desc
+                normalized_rows += 1
+
+    wb.save(output_path)
+    wb.close()
+    return {"relocated_rows": relocated_rows, "normalized_rows": normalized_rows}
 
 
 def audit_workbook(path, manual_review_limit):
     wb = load_workbook(path, read_only=True, data_only=True)
     warnings = []
+    reference_note_rows = []
     title_headers = {"en_name", "en_subject", "name_en"}
     rows = defaultdict(dict)
 
@@ -415,14 +635,25 @@ def audit_workbook(path, manual_review_limit):
         if header_row:
             headers = [str(cell.value).strip() if cell.value is not None else "" for cell in header_row]
         for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            row_map = {}
             for idx, header in enumerate(headers):
                 hk = header.lower()
+                row_map[hk] = row[idx] if idx < len(row) else None
                 if not (hk.startswith("en_") or hk.endswith("_en")):
                     continue
                 text = row[idx]
                 if text in (None, ""):
                     continue
                 rows[(ws.title, row_idx)][hk] = str(text)
+            cn_notes_val = row_map.get("cn_notes")
+            en_notes_val = row_map.get("en_notes")
+            if (
+                isinstance(cn_notes_val, str)
+                and "参考链接" in cn_notes_val
+                or isinstance(en_notes_val, str)
+                and ("Reference link" in en_notes_val or "Please refer to" in en_notes_val)
+            ):
+                reference_note_rows.append({"sheet": ws.title, "row": row_idx})
 
     wb.close()
 
@@ -440,6 +671,11 @@ def audit_workbook(path, manual_review_limit):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "title_trailing_period", "text": text})
             if header in title_headers and re.search(r"\b(a|an|the)\b", text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "title_article", "text": text})
+            if header in {"en_desc", "en_notes"} and re.search(r"Please refer to:\nhttps?://", text):
+                warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "reference_link_missing_blank_line_after_marker", "text": text})
+
+    for item in reference_note_rows:
+        warnings.append({"sheet": item["sheet"], "row": item["row"], "header": "notes", "issue": "reference_link_left_in_notes"})
 
     return warnings[:manual_review_limit]
 
@@ -505,15 +741,24 @@ def main():
         source_headers.append(DEFAULT_NOTE_SOURCE_HEADER)
         source_cols.append(notes_col)
 
-    created = create_project(
-        session,
-        args.api_base,
+    platform_input_path, upload_tmpdir, blanked_upload_cells = prepare_platform_input_workbook(
         input_path,
-        project_name,
+        source_headers,
         source_cols,
-        translation_ids,
-        replacement_ids,
     )
+    try:
+        created = create_project(
+            session,
+            args.api_base,
+            platform_input_path,
+            project_name,
+            source_cols,
+            translation_ids,
+            replacement_ids,
+        )
+    finally:
+        if upload_tmpdir is not None:
+            upload_tmpdir.cleanup()
     project_id = created["id"]
     initial_project = get_json(
         session,
@@ -523,13 +768,7 @@ def main():
     expected_chunks = count_project_chunks(initial_project)
 
     try:
-        translate_result = post_json(
-            session,
-            f"{args.api_base}/api/translate/{project_id}/translate-all",
-            {},
-            "Translate all chunks",
-        )
-        ensure_translation_completed(translate_result, expected_chunks, "Translate all chunks")
+        translate_result = translate_all_with_retries(session, args.api_base, project_id, expected_chunks)
     except Exception:
         if not args.keep_failed_project:
             delete_project(session, args.api_base, project_id)
@@ -570,9 +809,13 @@ def main():
     project = get_json(session, f"{args.api_base}/api/project/{project_id}", "Fetch final project")
 
     warnings = []
+    export_stats = {"applied_chunks": 0, "skipped_chunks": []}
     if not args.skip_export:
-        export_bilingual(session, args.api_base, project_id, output_path)
+        export_stats = export_bilingual(session, args.api_base, project_id, input_path, output_path)
+        relocate_stats = relocate_reference_links_from_notes(output_path)
         warnings = audit_workbook(output_path, args.manual_review_limit)
+    else:
+        relocate_stats = {"relocated_rows": 0, "normalized_rows": 0}
 
     report = {
         "project_name": project_name,
@@ -595,6 +838,7 @@ def main():
             "source_headers": source_headers,
             "source_cols": source_cols,
             "notes_sheets": note_sheets,
+            "blanked_upload_cells": blanked_upload_cells,
             "translate_result": {
                 "translated": translate_result.get("translated"),
                 "errors": translate_result.get("errors", []),
@@ -603,9 +847,12 @@ def main():
             "chunk_count": project.get("chunk_count"),
             "verify_clean": proofread_result["verify_clean"],
             "verify_stdout": proofread_result["verify_stdout"],
+            "export_stats": export_stats,
         },
         "backup": str(backup_path),
         "manual_review_warnings": warnings,
+        "reference_rows_relocated": relocate_stats["relocated_rows"],
+        "reference_rows_normalized": relocate_stats["normalized_rows"],
     }
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -619,6 +866,8 @@ def main():
                 "output": None if args.skip_export else str(output_path),
                 "report": str(report_path),
                 "warnings": len(warnings),
+                "reference_rows_relocated": relocate_stats["relocated_rows"],
+                "reference_rows_normalized": relocate_stats["normalized_rows"],
                 "verify_clean": proofread_result["verify_clean"],
             },
             ensure_ascii=False,

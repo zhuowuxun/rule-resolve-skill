@@ -164,6 +164,8 @@ PROVINCE_NAMES = [
 NAME_ALIAS_MAP = {
     "神圣游戏": "SACREDGAME",
     "太空锤": "SPACEHAMMER",
+    "珍珠窃取者": "Pearl Stealer",
+    "Koi Stereer": "Koi Stealer",
 }
 
 ACTION_CONTEXTUAL_ALIAS_RULES = (
@@ -598,6 +600,7 @@ def normalize_cn_action_terms(text: str) -> str:
         ("Drops Backdoor", "投放后门"),
         ("Execution", "执行"),
         ("Drop Backdoor", "投放后门"),
+        ("放弃 Koi Stealer", "投放 Koi Stealer"),
         ("Drops ", "投放"),
         ("放置", "投放"),
     ]
@@ -1405,10 +1408,27 @@ def infer_file_type(name: str, desc: str) -> str:
     full_text = f"{name} {desc}"
     identity_text = extract_file_identity_text(desc)
     text = f"{name} {identity_text}" if identity_text else full_text
+    upper_name = name.upper()
+    if ".PS" in upper_name:
+        return "恶意 PowerShell 脚本"
+    if ".PY" in upper_name:
+        return "恶意 Python 脚本"
+    if ".MACHO" in upper_name and ("后门" in text or "backdoor" in text.lower()):
+        return "macOS 后门文件"
     if "Web Shell" in text or "JSP Web Shell" in text:
         return "Web Shell文件"
+    if "恶意 macOS 可执行文件" in text or "macOS 可执行文件" in text:
+        return "恶意 macOS 可执行文件"
+    if "macOS 后门程序" in text or "macOS 后门" in text or "多架构 macOS 后门" in text:
+        return "macOS 后门文件"
+    if "Mach-O 可执行文件" in text or "Mach-O 二进制文件" in text or "macOS 通用二进制文件" in text:
+        return "恶意 macOS 可执行文件"
     if "恶意且经过混淆处理的 .NET 可执行文件" in text or ".NET 可执行文件" in text:
         return ".NET 可执行文件"
+    if "恶意 .NET DLL" in text or ".NET DLL" in text:
+        return "恶意 .NET DLL文件"
+    if ".NET 程序集" in text:
+        return "恶意 .NET 程序集"
     if "恶意 Python 脚本" in text:
         return "恶意 Python 脚本"
     if "Python 脚本" in text:
@@ -1433,10 +1453,26 @@ def infer_file_type(name: str, desc: str) -> str:
         return "恶意批处理脚本文件"
     if "恶意配置文件" in text:
         return "恶意配置文件"
+    if "恶意 PowerShell 下载脚本" in text:
+        return "恶意 PowerShell 下载脚本"
+    if "PowerShell 脚本" in text:
+        return "恶意 PowerShell 脚本"
+    if "快捷方式文件" in text or "恶意快捷方式" in text:
+        return "恶意快捷方式文件"
+    if "恶意电子表格" in text:
+        return "恶意电子表格文件"
+    if "恶意网页" in text:
+        return "恶意网页文件"
+    if "恶意文档" in text:
+        return "恶意文档文件"
+    if "VBA 脚本" in text:
+        return "恶意 VBA 脚本"
     if "JavaScript 下载脚本" in text or "javascript 下载脚本" in text:
         return "恶意 JavaScript 下载脚本"
     if "JavaScript 下载器" in text or "javascript 下载器" in text:
         return "恶意 JavaScript 下载器"
+    if "JavaScript 木马" in text:
+        return "恶意 JavaScript 木马文件"
     if "JavaScript 脚本" in text or "javascript 脚本" in text or "JavaScript 文件" in text:
         return "恶意 JavaScript 脚本"
     if "64 位 Windows 可执行文件" in text or "64 位可执行文件" in text:
@@ -1463,6 +1499,10 @@ def infer_file_type(name: str, desc: str) -> str:
         return "恶意后门木马文件"
     if "后门程序" in text or "恶意后门" in text or "后门恶意软件" in text:
         return "恶意后门文件"
+    if "恶意库组件" in text:
+        return "恶意库组件文件"
+    if "恶意释放器应用程序" in text:
+        return "释放器"
     if "木马下载器" in text:
         return "恶意木马下载器"
     if "恶意快捷方式文件" in text or ".LNK 文件" in text or ".lnk 文件" in text:
@@ -1502,7 +1542,10 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
         "恶意混淆脚本文件",
         "恶意批处理脚本文件",
         "恶意配置文件",
+        "恶意 PowerShell 下载脚本",
         "恶意 JavaScript 脚本",
+        "恶意 Python 脚本",
+        "恶意 VBA 脚本",
         "恶意 64 位可执行文件",
         "恶意可执行文件",
         "恶意移动应用程序",
@@ -1518,10 +1561,15 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
         "恶意木马脚本文件",
         "恶意 JavaScript 下载脚本",
         "恶意 JavaScript 下载器",
+        "恶意 JavaScript 木马文件",
         "恶意脚本文件",
         "恶意 PowerShell 脚本",
         "恶意 VBScript 脚本",
+        "macOS 后门文件",
+        "恶意 macOS 可执行文件",
         ".NET 可执行文件",
+        "恶意 .NET DLL文件",
+        "恶意 .NET 程序集",
         "恶意 .NET 程序",
         "Python 脚本文件",
         "32 位 Windows .DLL文件",
@@ -1532,10 +1580,15 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
         "混淆脚本文件",
         "恶意 64 位 DLL 文件",
         "恶意 32 位可执行文件",
+        "恶意文档文件",
+        "恶意电子表格文件",
+        "恶意网页文件",
+        "恶意库组件文件",
         "压缩存档文件",
         "恶意 Windows Installer 程序包",
         "恶意安装程序包",
         "恶意安装程序",
+        "释放器",
     }
     for part in parts:
         if not part or part.startswith("APT-") or part.startswith("变种 #"):
@@ -1550,7 +1603,9 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
 def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
     if not inferred or inferred in parts:
         return False
-    if any(re.search(r"\b[A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}\b", part) for part in parts):
+    dotted_parts = [part for part in parts if re.search(r"\b[A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}\b", part)]
+    allow_dotted_family_type = any(part.upper().endswith((".MACHO", ".PS", ".PY")) for part in dotted_parts)
+    if dotted_parts and not allow_dotted_family_type:
         return False
     if not has_specific_transfer_name(parts):
         return True
@@ -1563,25 +1618,39 @@ def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
         "恶意混淆脚本文件",
         "恶意批处理脚本文件",
         "恶意配置文件",
+        "恶意 PowerShell 下载脚本",
         "恶意下载脚本",
         "恶意脚本文件",
         "恶意木马脚本文件",
+        "恶意 PowerShell 脚本",
+        "恶意 Python 脚本",
+        "恶意 VBA 脚本",
         "恶意 JavaScript 脚本",
         "恶意 JavaScript 下载脚本",
         "恶意 JavaScript 下载器",
+        "恶意 JavaScript 木马文件",
         "恶意远程访问工具",
         "恶意远程访问木马文件",
         "恶意远程访问可执行文件",
         "恶意后门木马文件",
         "恶意后门文件",
+        "macOS 后门文件",
+        "恶意 macOS 可执行文件",
         "恶意木马下载器",
         "恶意 64 位可执行文件",
         "恶意 32 位可执行文件",
         "恶意可执行文件",
+        "恶意文档文件",
+        "恶意电子表格文件",
+        "恶意网页文件",
         "恶意安装程序",
         "恶意安装程序包",
         "恶意 Windows Installer 程序包",
+        "恶意 .NET DLL文件",
+        "恶意 .NET 程序集",
+        "恶意库组件文件",
         "压缩存档文件",
+        "释放器",
     }
 
 
@@ -2095,6 +2164,11 @@ def derive_sequence_subject(name: str) -> str:
     raw = raw.replace("威胁组织活动恶意软件下载", "威胁组织恶意软件下载")
     raw = raw.replace("供应链攻击活动恶意软件下载攻击活动", "供应链攻击活动恶意软件下载")
     raw = raw.replace("供应链攻击活动恶意软件下载威胁", "供应链攻击活动恶意软件下载")
+    raw = raw.replace("投放 Koi Stealer 活动", "投放 Koi Stealer 攻击活动")
+    raw = raw.replace("放弃 Koi Stealer 活动", "投放 Koi Stealer 攻击活动")
+    raw = re.sub(r"(恶意软件家族)活动\s*攻击活动$", r"\1攻击活动", raw)
+    raw = re.sub(r"(恶意软件家族)活动$", r"\1攻击活动", raw)
+    raw = re.sub(r"\s+活动\s*攻击活动$", " 攻击活动", raw)
     raw = re.sub(r"(APT-U\d+)\s*攻击活动", r"\1 攻击活动", raw)
     raw = re.sub(r"\s*攻击活动\s*$", "攻击活动", raw)
     raw = re.sub(r"(APT-U\d+)攻击活动", r"\1 攻击活动", raw)
@@ -2358,23 +2432,13 @@ def standardize_sequences_row(name: str, desc: str, aliases: Optional[Dict[str, 
 
 
 def apply_added_prefix_highlights(output_path: Path, added_prefix_cells: List[Dict[str, object]]) -> None:
-    if not added_prefix_cells:
-        return
-    try:
-        from openpyxl import load_workbook
-        from openpyxl.styles import PatternFill
-    except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("openpyxl is required to mark added validation prefixes") from exc
+    """Keep compatibility with older reports without visually marking output cells.
 
-    wb = load_workbook(output_path)
-    fill = PatternFill(fill_type="solid", fgColor="FFFF00")
-    for item in added_prefix_cells:
-        sheet_name = str(item["sheet"])
-        row_idx = int(item["row"])
-        col_idx = int(item["column"])
-        if sheet_name in wb.sheetnames:
-            wb[sheet_name].cell(row=row_idx, column=col_idx).fill = fill
-    wb.save(output_path)
+    Standardized deliverables should be clean Excel files. The report JSON still records
+    changed cells for audit, but we do not paint the workbook because full-column yellow
+    fills are easy to misread as user annotations.
+    """
+    return
 
 
 def rewrite_xlsx_for_excel_compatibility(output_path: Path) -> None:

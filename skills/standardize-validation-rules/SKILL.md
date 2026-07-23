@@ -68,6 +68,7 @@ This skill is not for:
    - Host command titles must not stop at appending an OS suffix. Rewrite verbose forms like `主机命令行 - 使用“CMD”命令显示XXX` into `主机命令行 - CMD，XXX显示 (Windows)` or the closest concise action form.
    - In `Sequences`, normalize residual `下载威胁` wording to `下载攻击活动` so the final title does not become `下载威胁 攻击活动`.
    - In `Sequences`, if the subject already ends with `恶意软件活动`, normalize it to `恶意软件攻击活动` rather than appending another `攻击活动`.
+   - In `Sequences`, correct machine-translated actor/malware names and verbs when the description makes the English original clear, for example `珍珠窃取者` -> `Pearl Stealer`, `Koi Stereer` -> `Koi Stealer`, and `放弃 Koi Stealer 活动` -> `投放 Koi Stealer 攻击活动`.
    - In `Sequences`, keep scene numbering as trailing `#n` such as `恶意活动场景 - APT36 威胁组织攻击活动 #2`; do not use `，变种 #n` for scene titles.
    - OS suffixes use English parentheses such as `(Windows)` / `(Linux)` / `(macOS)`.
    - Place OS suffixes near the malware/tool/product segment, not after action verbs such as `执行` / `下载` / `投放`.
@@ -79,7 +80,7 @@ This skill is not for:
    - If a malicious file-transfer description gives a precise file type such as `.NET 木马` or `恶意 .NET 可执行文件`, add that precise malicious-file type to the title even when the malware family name is already present, for example `REGALSPICE，恶意 .NET 木马文件，下载`.
    - If a malicious file-transfer title only says `下载`, infer and add the downloaded file/tool type from the description, for example `远程访问工具` -> `恶意远程访问工具`.
    - Keep inferred malicious file-transfer types concise, such as `恶意远程访问工具`, `恶意远程访问木马文件`, `恶意安装程序`, `恶意 Windows Installer 程序包`, `恶意 JavaScript 下载器`, and do not backfill long URL paths into titles.
-   - For malicious file-transfer rows, infer precise file/container types from the description when the title only says `下载`, including `.NET 可执行文件`, `Python 脚本文件`, `32 位 Windows .DLL文件`, `恶意 Windows .DLL文件`, `恶意动态链接库文件`, `恶意软件组件文件`, `木马化的软件组件文件`, `混淆脚本文件`, `恶意配置脚本文件`, `恶意混淆脚本文件`, `恶意批处理脚本文件`, `恶意脚本文件`, `恶意配置文件`, and `压缩存档文件`.
+   - For malicious file-transfer rows, infer precise file/container types from the description when the title only says `下载`, including `.NET 可执行文件`, `恶意 .NET DLL文件`, `恶意 .NET 程序集`, `Python 脚本文件`, `恶意 PowerShell 下载脚本`, `恶意 PowerShell 脚本`, `恶意 VBA 脚本`, `macOS 后门文件`, `恶意 macOS 可执行文件`, `32 位 Windows .DLL文件`, `恶意 Windows .DLL文件`, `恶意动态链接库文件`, `恶意软件组件文件`, `恶意库组件文件`, `木马化的软件组件文件`, `混淆脚本文件`, `恶意配置脚本文件`, `恶意混淆脚本文件`, `恶意批处理脚本文件`, `恶意脚本文件`, `恶意 JavaScript 木马文件`, `恶意文档文件`, `恶意电子表格文件`, `恶意网页文件`, `恶意配置文件`, `释放器`, and `压缩存档文件`.
    - In malicious file-transfer names, shorten redundant malware nouns such as `Dindoor后门恶意软件` to `Dindoor后门` and `恶意软件释放器` to `释放器`, while descriptions may retain the fuller object wording.
    - For command-and-control rows, preserve URI paths from the description in `cn_name`, for example `/api/auth/login` or `/api/home/status`.
    - For Web / AI / application vulnerability rows, if the description contains a more complete endpoint path than the raw title and it contains the title path's tail, use the complete description path in both `cn_name` and the opening sentence.
@@ -140,6 +141,7 @@ This skill is not for:
 
 9. Run delivery QA and manual sampling before final response.
    A workbook is not final just because the script completed. Required gates:
+   - do not visually mark all rewritten names or prefixes with yellow fill; keep standardized Excel deliverables clean unless the user explicitly asks for highlighted diffs
    - no `YYYY MM DD` date fragments anywhere
    - no `披露时间:`; must be `披露时间：YYYY-MM-DD`
    - no loose CVE such as `CVE 2026 46364`
@@ -147,6 +149,7 @@ This skill is not for:
    - no old `变种-1` / `变种 1` title format
    - no URL mismatch between original and output for rows where URLs are preserved
    - no reference links flattened onto the same line as `请参考：`
+   - no reference links may remain in `cn_notes`; if source `cn_desc` contains URLs, the standardized output must keep them at the end of `cn_desc` as a multiline `请参考：` block, while `cn_notes` should contain only execution/validator notes
    - no reference URL paths such as `/campaigns/...`, `/actors/...`, `/malware/...` inserted into C2 titles
    - no protected-token damage: dates, CVEs, paths, hostnames, filenames, extensions, functions, parameters, flags, versions, and product names
    - no defanged-domain damage such as turning `telen[.]example[.]com` into `telen example com`
