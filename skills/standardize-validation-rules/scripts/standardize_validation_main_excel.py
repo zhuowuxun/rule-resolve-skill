@@ -711,6 +711,10 @@ def append_os_suffix(name: str, notes: str) -> str:
         if part.startswith("变种 #"):
             continue
         if any(keyword in part for keyword in action_keywords):
+            if clean_name.startswith("受保护的沙盘 - ") and "投放随机命名的有效载荷" in part:
+                if suffix not in parts[idx]:
+                    parts[idx] = f"{parts[idx]} {suffix}"
+                return "，".join(part for part in parts if part)
             attach_idx = idx - 1 if idx - 1 >= 0 else idx
             if attach_idx > 0 and "释放器" in parts[attach_idx]:
                 attach_idx -= 1

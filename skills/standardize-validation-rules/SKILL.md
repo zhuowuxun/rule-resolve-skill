@@ -73,6 +73,7 @@ This skill is not for:
    - OS suffixes use English parentheses such as `(Windows)` / `(Linux)` / `(macOS)`.
    - Place OS suffixes near the malware/tool/product segment, not after action verbs such as `执行` / `下载` / `投放`.
    - For protected-sandbox rows, keep OS suffix placement stable: attach `(Windows)` / `(Linux)` to the concrete malware/tool/file/object name when present; do not leave OS after action phrases such as `数据聚合`, `C&C 渗透`, `C&C 信标`, `C&C 域名信标`, `DNS 泄露数据`, `执行`, `下载`, or `投放`.
+   - For protected-sandbox rows where the action segment itself carries the concrete object, attach the OS suffix to that segment. For example, use `METASPLOIT，投放随机命名的有效载荷 (Windows)` rather than `METASPLOIT (Windows)，投放随机命名的有效载荷`.
    - For host-command rows, attach the OS suffix to the concrete command/action/object segment, not to the actor or malware family segment. For example, use `主机命令行 - APT42，TAMECAT，清除运行历史记录 (Windows)，变种 #1`, not `TAMECAT (Windows)，清除运行历史记录`.
    - For protected-sandbox rows, preserve English malware/tool names extracted from the description and do not translate them into Chinese. Examples: use `SANDCLOCK`, not `沙漏`; use `Stage Script释放器`, not `舞台脚本释放器`.
    - For protected-sandbox persistence rows, if the description names a task/service such as `ChromeUpdate`, insert that object before the action, for example `ChromeUpdate，持久化 (Windows)`.
