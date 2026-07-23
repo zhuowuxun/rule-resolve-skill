@@ -659,6 +659,89 @@ def infer_os_suffix_from_extension(name: str) -> str:
     return "(" + "/".join(systems) + ")"
 
 
+def append_sandbox_os_suffix(clean_name: str, suffix: str) -> str:
+    parts = [part.strip() for part in clean_name.split("，") if part.strip()]
+    if not parts:
+        return clean_name
+    if any(suffix in part for part in parts):
+        return "，".join(parts)
+
+    bare_actions = {
+        "执行",
+        "下载",
+        "投放",
+        "释放",
+        "安装",
+        "卸载",
+        "创建",
+        "删除",
+        "清除",
+        "设置",
+        "使用",
+        "隐藏",
+        "注册",
+        "签入",
+        "签到",
+    }
+    action_detail_markers = (
+        "PowerShell",
+        "Execute",
+        "Stager",
+        "C&C",
+        "DNS",
+        "数据",
+        "聚合",
+        "泄露",
+        "渗透",
+        "信标",
+        "通信",
+        "连接",
+        "联系",
+        "持久化",
+        "计划任务",
+        "运行键",
+        "执行",
+        "投放",
+        "下载",
+        "安装",
+        "卸载",
+        "创建",
+        "删除",
+        "清除",
+        "设置",
+        "隐藏",
+    )
+
+    # Bare `释放器，执行` should keep the OS on the concrete malware/tool object.
+    for idx, part in enumerate(parts):
+        if "释放器" in part and idx > 0:
+            next_part = parts[idx + 1] if idx + 1 < len(parts) else ""
+            if next_part in bare_actions:
+                attach_idx = idx if re.search(r"[A-Za-z0-9].*释放器", part) else idx - 1
+                while attach_idx > 0 and parts[attach_idx].startswith("APT-"):
+                    attach_idx -= 1
+                parts[attach_idx] = f"{parts[attach_idx]} {suffix}"
+                return "，".join(parts)
+
+    for idx in range(len(parts) - 1, -1, -1):
+        part = parts[idx]
+        if part.startswith("变种 #") or re.match(r"^(?:受保护的沙盘|APT-)", part):
+            continue
+        if part not in bare_actions and any(marker in part for marker in action_detail_markers):
+            parts[idx] = f"{part} {suffix}"
+            return "，".join(parts)
+
+    for idx in range(len(parts) - 1, -1, -1):
+        if parts[idx].startswith("变种 #"):
+            continue
+        attach_idx = idx
+        while attach_idx > 0 and parts[attach_idx].startswith("APT-"):
+            attach_idx -= 1
+        parts[attach_idx] = f"{parts[attach_idx]} {suffix}"
+        return "，".join(parts)
+    return f"{clean_name} {suffix}".strip()
+
+
 def append_os_suffix(name: str, notes: str) -> str:
     existing_match = re.search(r"\((?:Windows|Linux|macOS)(?:/(?:Windows|Linux|macOS))*\)", name)
     suffix = extract_os_suffix(notes) or (existing_match.group(0) if existing_match else "") or infer_os_suffix_from_extension(name)
@@ -667,6 +750,8 @@ def append_os_suffix(name: str, notes: str) -> str:
         return clean_name
     if clean_name.startswith("主机命令行 - "):
         return append_host_cmd_os_suffix(clean_name, suffix)
+    if clean_name.startswith("受保护的沙盘 - "):
+        return append_sandbox_os_suffix(clean_name, suffix)
     parts = [part.strip() for part in clean_name.split("，")]
     for idx, part in enumerate(parts):
         if "释放器" in part and idx > 0:
@@ -2000,6 +2085,8 @@ def titleize_sandbox(name: str, desc: str) -> str:
     raw = normalize_cn_action_terms(name)
     raw = raw.replace("受保护的剧场", "受保护的沙盘").replace("受保护剧场", "受保护的沙盘")
     raw = raw.replace(" Execution", "，执行")
+    raw = raw.replace("联系人 C&C", "连接 C&C")
+    raw = raw.replace("联系 C&C", "连接 C&C")
     raw = raw.replace("C&C域信标", "C&C 域名信标")
     raw = raw.replace("C&C 域信标", "C&C 域名信标")
     raw = re.sub(r"\bDns\b", "DNS", raw, flags=re.IGNORECASE)
