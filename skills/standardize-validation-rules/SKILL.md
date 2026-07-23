@@ -98,6 +98,7 @@ This skill is not for:
    - Prefer the opening `此验证动作还原了...`.
    - Every `cn_desc` body must end with terminal punctuation (`。` / `！` / `？`) before any reference block.
    - Host command descriptions must describe the validation action, not merely restate the tool help text. For example, `“tasklist”显示...` should become `此验证动作还原了在 Windows 主机上执行 tasklist /svc 命令以显示...的行为。`
+   - If `Actions.cn_desc` is still English, especially host-command text beginning with `In this action...`, translate it into the approved Chinese validation style during standardization; do not leave English in Chinese delivery columns for the later translation step to inherit.
    - Normalize `网络钓鱼电子邮件` to `钓鱼邮件` in descriptions as well as titles.
    - File-transfer descriptions should use `此验证动作还原了主机尝试下载...。` and should not append `的过程` at the end of the first sentence.
    - File-transfer descriptions should use one consistent actor/object association format: `恶意软件或工具 (APT-U####)`; do not mix this with `恶意软件或工具，APT-U####`. When there are multiple objects, attach the APT ID to the first malware/tool object, for example `REMCOS (APT-U5487) 和 SHADOWLADDER`.
@@ -161,6 +162,7 @@ This skill is not for:
    - no protected-token damage: dates, CVEs, paths, hostnames, filenames, extensions, functions, parameters, flags, versions, and product names
    - no defanged-domain damage such as turning `telen[.]example[.]com` into `telen example com`
    - no source-described Actions row may have an empty output `cn_desc`
+   - no `Actions.cn_desc` may remain as English source text such as `In this action...`, `In this process...`, or `This validation...`
    - no residual `攻击技巧`; use `攻击手法`
    - no residual FireEye attribution noise such as `归属于 FireEye 跟踪的未分类威胁组织的指标或活动`
    - no `系统变种` when the row describes GetVersionExW or OS version discovery; use `系统版本`

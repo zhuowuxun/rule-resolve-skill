@@ -2127,6 +2127,7 @@ def titleize_phishing_email(name: str) -> str:
 
 def titleize_host_cmd(name: str, desc: str = "") -> str:
     raw = normalize_variant(normalize_cn_action_terms(name))
+    raw = raw.replace("Archieve/zip", "archive/zip")
     raw = re.sub(
         r"^(主机命令行\s*-\s*使用\s+Wevtutil\s+工具)\s+变种\s*#(\d+)\s+(清除系统事件日志)(?:\s*\((Windows|Linux|macOS)\))?$",
         lambda m: f"{m.group(1)}{m.group(3)}" + (f" ({m.group(4)})" if m.group(4) else "") + f"，变种 #{m.group(2)}",
@@ -2152,10 +2153,83 @@ def titleize_host_cmd(name: str, desc: str = "") -> str:
     return raw
 
 
+def looks_like_english_validation_desc(desc: str) -> bool:
+    value = normalize_common_text(desc).lstrip().lower()
+    return value.startswith(
+        (
+            "in this action",
+            "in this process",
+            "during this process",
+            "this action",
+            "this validation",
+        )
+    )
+
+
+def fallback_host_cmd_desc_from_title(name: str) -> str:
+    body = re.sub(r"^主机命令行\s*-\s*", "", normalize_common_text(name)).strip()
+    body = re.sub(r"\s*\((?:Windows|Linux|macOS)\)\s*", "", body).strip(" ，")
+    if not body:
+        return ""
+    return f"此验证动作还原了{body}的行为。"
+
+
+def translate_known_english_host_cmd_desc(name: str, desc: str) -> str:
+    if not looks_like_english_validation_desc(desc):
+        return ""
+
+    clean_name = normalize_common_text(name).replace("Archieve/zip", "archive/zip")
+    mapping = [
+        (
+            "发现通信应用程序文件",
+            "此验证动作还原了攻击者通过搜索配置文件，发现 Discord、Telegram 等已安装通信应用程序文件的行为。",
+        ),
+        (
+            "使用 archive/zip 库归档目录",
+            "此验证动作还原了攻击者使用 Go 语言 archive/zip 库归档文件或目录的行为。",
+        ),
+        (
+            "发现浏览器配置文件和加密钱包扩展",
+            "此验证动作还原了攻击者通过检查已安装的扩展 ID，发现浏览器配置文件和加密货币钱包扩展的行为。",
+        ),
+        (
+            "使用 Perl LWP 模块下载文件",
+            "此验证动作还原了攻击者使用 Perl LWP 模块下载文件的行为。",
+        ),
+        (
+            "通过 launchctl 加载 com.apple.inc.plist 文件",
+            "此验证动作还原了攻击者通过 launchctl 加载 com.apple.inc.plist 文件以启动代理的行为。",
+        ),
+        (
+            "从所有计算机用户复制敏感浏览器文件",
+            "此验证动作还原了攻击者从本地系统所有用户目录复制敏感浏览器文件的行为。",
+        ),
+        (
+            "通过 Perlvar 变量发现操作系统信息",
+            "此验证动作还原了攻击者通过 Perl 的 Perlvar 变量枚举本机操作系统信息的行为。",
+        ),
+        (
+            "通过混淆的 Perl 脚本读取 passwd 文件",
+            "此验证动作还原了攻击者通过混淆的 Perl 脚本读取 /etc/passwd 文件的行为。",
+        ),
+        (
+            "发现加密货币应用程序",
+            "此验证动作还原了攻击者通过检查潜在文件系统目录，发现已安装加密货币钱包应用程序的行为。",
+        ),
+    ]
+    for marker, cn_desc in mapping:
+        if marker in clean_name:
+            return cn_desc
+    return fallback_host_cmd_desc_from_title(clean_name)
+
+
 def standardize_host_cmd_desc(name: str, desc: str) -> str:
     clean_name = normalize_common_text(name)
     clean_desc = normalize_common_text(desc)
     lower_name = clean_name.lower()
+    translated_desc = translate_known_english_host_cmd_desc(clean_name, clean_desc)
+    if translated_desc:
+        return translated_desc
     if "net config" in lower_name:
         return "此验证动作还原了在 Windows 主机上执行 Net config 命令以显示正在运行的可配置服务列表的行为。该命令也可用于显示和更改服务器服务或工作站服务的设置。"
     if "tasklist /svc" in lower_name:
