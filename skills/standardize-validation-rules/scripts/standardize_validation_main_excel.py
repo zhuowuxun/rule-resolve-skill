@@ -1600,6 +1600,49 @@ def has_specific_transfer_name(parts: List[str]) -> bool:
     return False
 
 
+def extract_named_transfer_object(desc: str, parts: List[str]) -> str:
+    if has_specific_transfer_name(parts):
+        return ""
+    text = URL_RE.sub(" ", normalize_common_text(desc))
+    existing = {part.upper() for part in parts}
+    exclusions = {
+        "API",
+        "C2",
+        "C&C",
+        "CSS",
+        "CVE",
+        "DNS",
+        "GET",
+        "HTML",
+        "HTTP",
+        "HTTPS",
+        "JSON",
+        "JWT",
+        "POST",
+        "RCE",
+        "SQL",
+        "SSRF",
+        "URI",
+        "URL",
+    }
+    patterns = (
+        r"\b([A-Z][A-Z0-9_.-]{2,})\b\s*(?:感染程序|恶意软件|木马|下载器|后门|样本|家族|组件|文件)",
+        r"(?:下载|投放|执行|部署)\s*(?:的)?\s*\b([A-Z][A-Z0-9_.-]{2,})\b",
+    )
+    for pattern in patterns:
+        for match in re.finditer(pattern, text):
+            candidate = match.group(1).strip(" .，,。；;:：")
+            upper = candidate.upper()
+            if upper in existing or upper in exclusions:
+                continue
+            if upper.startswith(("APT-", "CVE-")):
+                continue
+            if "." in candidate and not re.search(r"[A-Z]{2,}", candidate):
+                continue
+            return candidate
+    return ""
+
+
 def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
     if not inferred or inferred in parts:
         return False
@@ -1766,6 +1809,10 @@ def titleize_malicious_transfer(name: str, desc: str) -> str:
     parts = [normalize_file_extension_part(part) for part in re.split(r"[，,]", raw) if part.strip()]
     if parts and not parts[0].startswith("APT"):
         parts.insert(0, parts.pop(0))
+    named_object = extract_named_transfer_object(desc, parts)
+    if named_object:
+        insert_at = parts.index("下载") if "下载" in parts else min(len(parts), 2)
+        parts.insert(insert_at, named_object)
     inferred = infer_file_type(name, desc)
     if should_add_inferred_file_type(parts, inferred):
         insert_at = parts.index("下载") if "下载" in parts else min(len(parts), 2)
