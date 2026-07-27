@@ -55,6 +55,7 @@ Use this skill when the user wants to translate a detection workbook through AI 
    If the Chinese source columns contain precise entry points such as `qcld_wb_chatbot_conversation_save AJAX Action` or `/workflow/docs/:componentName`, the English `name_en` and `desc_en` must use the same precise entry point rather than a shorter title token.
    If the Chinese source columns contain a precise vulnerability family such as `ClickHouse SQL注入漏洞`, the English fields must say `ClickHouse SQL Injection Vulnerability`, not generic `SQL Injection Vulnerability`.
    Remove duplicate English vulnerability-restatement sentences after the opening sentence when the Chinese standardized source has already removed the duplicate and kept only version context plus attack method.
+   For Ghost Bits rows, translate the first sentence as a bypass technique, for example `using a Ghost Bits Loose Normalization bypass, Variant #3`; do not translate it as a standalone vulnerability or as vague `using Ghost Bits with...`. In English descriptions, vulnerability types inside full sentences should be lowercase natural prose, such as `remote code execution vulnerability`, while `name_en` keeps Title Case.
    Authentication semantics must match the Chinese source row exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, and `已获得登录权限` map to authenticated wording; `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证` map to unauthenticated/unauthorized wording. Do not infer the opposite from vulnerability type names such as authentication bypass.
 
 ## Standard Detection Settings

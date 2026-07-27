@@ -726,6 +726,51 @@ def postprocess_exported_workbook(output_path):
                             }
                         )
 
+                if header == "desc_en":
+                    desc_case_patterns = [
+                        (r"\ba remote Code Execution Vulnerability\b", "a remote code execution vulnerability"),
+                        (r"\bthe remote Code Execution Vulnerability\b", "the remote code execution vulnerability"),
+                        (r"\ba file Upload Vulnerability\b", "a file upload vulnerability"),
+                        (r"\ban arbitrary File Upload Vulnerability\b", "an arbitrary file upload vulnerability"),
+                        (r"\ban arbitrary File Read Vulnerability\b", "an arbitrary file read vulnerability"),
+                        (r"\ban arbitrary File Write Vulnerability\b", "an arbitrary file write vulnerability"),
+                        (r"\ban SSRF Vulnerability\b", "an SSRF vulnerability"),
+                        (r"\ba SQL Injection Vulnerability\b", "a SQL injection vulnerability"),
+                    ]
+                    for pattern, replacement in desc_case_patterns:
+                        value, changed = regex_replace_text(value, pattern, replacement)
+                        if changed:
+                            fixes.append(
+                                {
+                                    "sheet": ws.title,
+                                    "row": row,
+                                    "header": header,
+                                    "from": pattern,
+                                    "to": replacement,
+                                }
+                            )
+
+                    ghost_bypass_patterns = [
+                        (r"using Ghost Bits with a loose normalization, (Variant #\d+)", r"using a Ghost Bits Loose Normalization bypass, \1"),
+                        (r"using Ghost Bits loose normalization, (Variant #\d+)", r"using a Ghost Bits Loose Normalization bypass, \1"),
+                        (r"using Ghost Bits combined with, (Variant #\d+)", r"using a Ghost Bits Composite bypass, \1"),
+                        (r"using Ghost Bits composite, (Variant #\d+)", r"using a Ghost Bits Composite bypass, \1"),
+                        (r"using Ghost Bits truncated, (Variant #\d+)", r"using a Ghost Bits Truncation bypass, \1"),
+                        (r"using Ghost Bits truncation, (Variant #\d+)", r"using a Ghost Bits Truncation bypass, \1"),
+                    ]
+                    for pattern, replacement in ghost_bypass_patterns:
+                        value, changed = regex_replace_text(value, pattern, replacement)
+                        if changed:
+                            fixes.append(
+                                {
+                                    "sheet": ws.title,
+                                    "row": row,
+                                    "header": header,
+                                    "from": pattern,
+                                    "to": replacement,
+                                }
+                            )
+
                 value, changed = regex_replace_text(value, r"(^|[\s(])(/[^`\s]+)`(?=[,.;])", r"\1\2")
                 if changed:
                     fixes.append(

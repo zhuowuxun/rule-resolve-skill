@@ -331,6 +331,35 @@ def normalize_title_vulnerability(vuln: str) -> str:
     return normalized
 
 
+def build_desc_intro(target: str, vuln: str) -> str:
+    """Build a fluent opening; express Ghost Bits style details as bypass methods."""
+    text = normalize_title_vulnerability(vuln)
+    intro_target = format_target_for_intro(target)
+    if not text:
+        return f"此检测规则还原了针对{intro_target}的利用尝试"
+    parts = [part.strip() for part in text.split("，") if part.strip()]
+    core_vuln = ""
+    variant = ""
+    methods: List[str] = []
+    for part in parts:
+        if re.fullmatch(r"变种\s*#\d+", part):
+            variant = part
+        elif any(keyword in part for keyword in ("漏洞", "缺陷", "注入", "读取", "上传", "执行", "泄露")):
+            core_vuln = core_vuln or part
+        else:
+            methods.append(part)
+
+    if core_vuln and methods:
+        method = "，".join(methods)
+        if "绕过" not in method:
+            method = f"{method}绕过"
+        variant_text = f"，{variant}" if variant else ""
+        return f"此检测规则还原了针对{intro_target}{format_vulnerability_for_intro(core_vuln)}的 {method}{variant_text} 的利用尝试"
+    if core_vuln:
+        return f"此检测规则还原了针对{intro_target}存在的{format_vulnerability_for_intro(core_vuln)}的利用尝试"
+    return f"此检测规则还原了针对{intro_target}的{format_vulnerability_for_intro(text)}利用尝试"
+
+
 def extract_paths(text: str) -> List[str]:
     paths: List[str] = []
     for match in PATH_RE.finditer(clean_text(text)):
@@ -849,12 +878,7 @@ def build_standardized_desc(
     attack_text = normalize_attack_text("".join(attack_sentences))
     attack_text = remove_redundant_attack_prefix(attack_text, product, endpoint, vuln)
     target = " ".join(part for part in (product, endpoint) if part).strip()
-    intro_target = format_target_for_intro(target)
-    intro = (
-        f"此检测规则还原了针对{intro_target}存在的{format_vulnerability_for_intro(vuln)}的利用尝试"
-        if vuln
-        else f"此检测规则还原了针对{intro_target}的利用尝试"
-    )
+    intro = build_desc_intro(target, vuln)
 
     parts: List[str] = [intro]
     if attack_text:
