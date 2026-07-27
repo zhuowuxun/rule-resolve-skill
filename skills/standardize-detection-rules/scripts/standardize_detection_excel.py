@@ -328,6 +328,11 @@ def normalize_title_vulnerability(vuln: str) -> str:
     normalized = re.sub(r"\s*，\s*", "，", normalized)
     normalized = re.sub(r"\b变种\s*[-#]\s*(\d+)\b", r"变种 #\1", normalized)
     normalized = re.sub(r"(?<![，,])\s+变种\s*#(\d+)\b", r"，变种 #\1", normalized)
+    normalized = re.sub(
+        r"\b(Ghost Bits\s*(?:截断|复合|宽松归一化|折叠))(?!绕过)",
+        r"\1绕过",
+        normalized,
+    )
     return normalized
 
 

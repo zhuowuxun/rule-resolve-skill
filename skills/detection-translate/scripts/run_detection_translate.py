@@ -676,6 +676,12 @@ def postprocess_exported_workbook(output_path):
                         (r"\bGhost Bits truncated variant\b", "Ghost Bits Truncation Variant"),
                         (r"\bGhost Bits composite variant\b", "Ghost Bits Composite Variant"),
                         (r"\bGhost Bits loose normalization variant\b", "Ghost Bits Loose Normalization Variant"),
+                        (r"\bGhost Bits Truncation(?=,\s*Variant #)", "Ghost Bits Truncation Bypass"),
+                        (r"\bGhost Bits Composite(?=,\s*Variant #)", "Ghost Bits Composite Bypass"),
+                        (r"\bGhost Bits Loose Normalization(?=,\s*Variant #)", "Ghost Bits Loose Normalization Bypass"),
+                        (r"\bGhost Bits Folding(?=,\s*Variant #)", "Ghost Bits Folding Bypass"),
+                        (r"\bGhost Bits Folded(?=,\s*Variant #)", "Ghost Bits Folding Bypass"),
+                        (r"\bGhost Bits Collapsed(?=,\s*Variant #)", "Ghost Bits Folding Bypass"),
                     ]
                     for pattern, replacement in name_case_patterns:
                         value, changed = regex_replace_text(value, pattern, replacement)
