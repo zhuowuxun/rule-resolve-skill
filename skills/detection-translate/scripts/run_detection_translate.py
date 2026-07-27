@@ -691,7 +691,7 @@ def postprocess_exported_workbook(output_path):
                             )
 
                 if variant_match:
-                    variant_label = f"Variant #{variant_match.group(1)}"
+                    variant_label = f"Variant -{variant_match.group(1)}"
                     value, changed = regex_replace_text(value, r"variant\s*-\s*-?\s*\d*", variant_label)
                     if changed:
                         fixes.append(
@@ -703,7 +703,7 @@ def postprocess_exported_workbook(output_path):
                                 "to": variant_label,
                             }
                         )
-                    value, changed = regex_replace_text(value, r"(?<![,，])\s+Variant\s+#(\d+)", r", Variant #\1")
+                    value, changed = regex_replace_text(value, r"(?<![,，])\s+Variant\s*(?:-\s*)?#?(\d+)", r", Variant -\1")
                     if changed:
                         fixes.append(
                             {
@@ -711,7 +711,7 @@ def postprocess_exported_workbook(output_path):
                                 "row": row,
                                 "header": header,
                                 "from": "missing comma before Variant",
-                                "to": ", Variant #n",
+                                "to": ", Variant -n",
                             }
                         )
                     value, changed = regex_replace_text(value, r"variant\s*#\s*\d+", variant_label)
