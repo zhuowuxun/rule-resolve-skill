@@ -93,6 +93,7 @@ description: Use when proofreading detection translation projects in the AI Tran
   `Server Side Request Forgery Vulnerability`
   `Server Side Request Forgery (SSRF) Vulnerability`
 - Whenever the word `Vulnerability` appears in a title field, it must use uppercase `V`. Treat lowercase `vulnerability` in titles as a proofreading failure every time.
+- In detection English title fields, variant markers must be `Variant -1` with no `#` and no space between `-` and the number. Treat `Variant #1`, `Variant - #1`, and `Variant - 1` as proofreading failures every time; repair them to `Variant -1`.
 - Do not mechanically append or remove `Vulnerability` for mixed-style titles. For `Command Injection`, `Path Traversal`, `File Inclusion (LFI/RFI)`, `XML External Entity Injection (XXE)`, and `Server Side Request Forgery (SSRF)`, preserve the original approved wording exactly, while still keeping the attack phrase itself in title-style casing even when no `Vulnerability` suffix is present. Use `Cross-Site` with a hyphen, but keep `Server Side` without a hyphen when that is the approved wording.
 - For framework-tagged payload titles such as `double quote bypass (Flask)`, title-case the attack phrase before the framework tag: `Double Quote Bypass (Flask)`.
 - In title fields, do not add articles before filenames, interface names, method names, or paths. Keep technical identifiers source-aligned, for example `/download.ashx`, `postquerypublic`, `RESTFulServiceForWeb/Do`, `config.ini`.
