@@ -333,6 +333,7 @@ def normalize_title_vulnerability(vuln: str) -> str:
         r"\1绕过",
         normalized,
     )
+    normalized = re.sub(r"(绕过)\s*变种\s*#(\d+)", r"\1，变种 #\2", normalized)
     return normalized
 
 
