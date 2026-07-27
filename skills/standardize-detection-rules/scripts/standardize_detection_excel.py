@@ -337,6 +337,25 @@ def normalize_title_vulnerability(vuln: str) -> str:
     return normalized
 
 
+def normalize_name_vulnerability(vuln: str) -> str:
+    """Keep rule names concise: core vulnerability plus optional variant only."""
+    text = normalize_title_vulnerability(vuln)
+    if not text:
+        return ""
+    parts = [part.strip() for part in text.split("，") if part.strip()]
+    core_vuln = ""
+    variant = ""
+    for part in parts:
+        if re.fullmatch(r"变种\s*#\d+", part):
+            variant = part
+        elif any(keyword in part for keyword in ("漏洞", "缺陷", "注入", "读取", "上传", "执行", "泄露")):
+            core_vuln = core_vuln or part
+
+    if core_vuln:
+        return "，".join(part for part in (core_vuln, variant) if part)
+    return text
+
+
 def build_desc_intro(target: str, vuln: str) -> str:
     """Build a fluent opening; express Ghost Bits style details as bypass methods."""
     text = normalize_title_vulnerability(vuln)
@@ -469,7 +488,7 @@ def build_standardized_name(name: str, desc: str = "") -> Tuple[str, bool]:
     product, endpoint, vuln, cve = parse_rule_name(name)
     endpoint, path_mismatch, _ = resolve_endpoint_from_desc(endpoint, desc)
     vuln = refine_vulnerability_from_desc(vuln, desc)
-    vuln = normalize_title_vulnerability(vuln)
+    vuln = normalize_name_vulnerability(vuln)
     parts = [product]
     if cve:
         parts.append(cve)
