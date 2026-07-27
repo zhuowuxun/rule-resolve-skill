@@ -477,6 +477,7 @@ def postprocess_exported_workbook(output_path):
             source_lower = source_text.lower()
             urls = " ".join(URL_RE.findall(source_text)).lower()
             replacements = []
+            variant_match = re.search(r"变种\s*#\s*(\d+)", source_text)
 
             if "fangmail.net" in urls:
                 replacements.extend(
@@ -620,6 +621,11 @@ def postprocess_exported_workbook(output_path):
             replacements.append(("Privilege Escalation漏洞", "Privilege Escalation Vulnerability"))
             replacements.extend(
                 [
+                    ("RCE (Real-Time Execution)", "RCE"),
+                    ("Wordpress", "WordPress"),
+                    ("/api/.V2", "/api/v2"),
+                    ("This detection rule simulate ", "This detection rule simulates "),
+                    ("adversary 's", "adversary's"),
                     ("敏感Information Exfiltration Vulnerability", "Sensitive Information Exfiltration Vulnerability"),
                     ("敏感Information Exfiltration", "Sensitive Information Exfiltration"),
                     ("write trojan to the server", "write trojan into the server"),
@@ -631,6 +637,14 @@ def postprocess_exported_workbook(output_path):
                     ("using the injection path traversal", "by injecting path traversal characters"),
                 ]
             )
+            if "远程代码执行" in source_text:
+                replacements.extend(
+                    [
+                        ("remote command execution vulnerability", "remote code execution vulnerability"),
+                        ("remote command execution (RCE)", "remote code execution (RCE)"),
+                        ("remote command execution Exploitation", "remote code execution exploitation"),
+                    ]
+                )
 
             for header in english_headers:
                 cell = ws.cell(row, header_index[header])
@@ -651,6 +665,53 @@ def postprocess_exported_workbook(output_path):
                                 "header": header,
                                 "from": "stored XSS Vulnerability",
                                 "to": "Stored XSS Vulnerability",
+                            }
+                        )
+                    name_case_patterns = [
+                        (r"\bfile upload Vulnerability\b", "File Upload Vulnerability"),
+                        (r"\barbitrary file write Vulnerability\b", "Arbitrary File Write Vulnerability"),
+                        (r"\binformation exfiltration Vulnerability\b", "Information Exfiltration Vulnerability"),
+                        (r"\binformation disclosure Vulnerability\b", "Information Disclosure Vulnerability"),
+                        (r"\bGhost Bits truncation variant\b", "Ghost Bits Truncation Variant"),
+                        (r"\bGhost Bits truncated variant\b", "Ghost Bits Truncation Variant"),
+                        (r"\bGhost Bits composite variant\b", "Ghost Bits Composite Variant"),
+                        (r"\bGhost Bits loose normalization variant\b", "Ghost Bits Loose Normalization Variant"),
+                    ]
+                    for pattern, replacement in name_case_patterns:
+                        value, changed = regex_replace_text(value, pattern, replacement)
+                        if changed:
+                            fixes.append(
+                                {
+                                    "sheet": ws.title,
+                                    "row": row,
+                                    "header": header,
+                                    "from": pattern,
+                                    "to": replacement,
+                                }
+                            )
+
+                if variant_match:
+                    variant_label = f"Variant #{variant_match.group(1)}"
+                    value, changed = regex_replace_text(value, r"variant\s*-\s*-?\s*\d*", variant_label)
+                    if changed:
+                        fixes.append(
+                            {
+                                "sheet": ws.title,
+                                "row": row,
+                                "header": header,
+                                "from": "variant - n",
+                                "to": variant_label,
+                            }
+                        )
+                    value, changed = regex_replace_text(value, r"variant\s*#\s*\d+", variant_label)
+                    if changed:
+                        fixes.append(
+                            {
+                                "sheet": ws.title,
+                                "row": row,
+                                "header": header,
+                                "from": "variant # n",
+                                "to": variant_label,
                             }
                         )
 

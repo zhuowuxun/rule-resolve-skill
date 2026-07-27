@@ -312,11 +312,22 @@ def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
         tokens = left.split()
         if len(tokens) >= 2:
             tail = tokens[-1]
-            if re.fullmatch(r"[A-Za-z0-9._?=&:/$-]+", tail):
+            if re.fullmatch(r"[A-Za-z0-9._?=&:/$-]+", tail) and not re.fullmatch(r"v?\d+(?:\.\d+)+", tail, flags=re.IGNORECASE):
                 product = " ".join(tokens[:-1]).strip()
                 endpoint = tail
 
     return normalize_product_name(product or left), endpoint, vuln, cve
+
+
+def normalize_title_vulnerability(vuln: str) -> str:
+    """Normalize only title-side punctuation/variant markers, not source evidence."""
+    normalized = clean_text(vuln)
+    if not normalized:
+        return ""
+    normalized = normalized.replace(",", "，")
+    normalized = re.sub(r"\s*，\s*", "，", normalized)
+    normalized = re.sub(r"\b变种\s*[-#]\s*(\d+)\b", r"变种 #\1", normalized)
+    return normalized
 
 
 def extract_paths(text: str) -> List[str]:
@@ -422,6 +433,7 @@ def build_standardized_name(name: str, desc: str = "") -> Tuple[str, bool]:
     product, endpoint, vuln, cve = parse_rule_name(name)
     endpoint, path_mismatch, _ = resolve_endpoint_from_desc(endpoint, desc)
     vuln = refine_vulnerability_from_desc(vuln, desc)
+    vuln = normalize_title_vulnerability(vuln)
     parts = [product]
     if cve:
         parts.append(cve)
@@ -569,7 +581,10 @@ def format_target_for_intro(target: str) -> str:
 
 
 def format_vulnerability_for_intro(vuln: str) -> str:
-    return clean_text(vuln)
+    text = clean_text(vuln)
+    if re.search(r"[A-Za-z0-9]$", text):
+        return f"{text} "
+    return text
 
 
 def normalize_software_description(text: str) -> str:
@@ -806,6 +821,7 @@ def build_standardized_desc(
 ) -> str:
     product, endpoint, vuln, _ = parse_rule_name(name)
     vuln = refine_vulnerability_from_desc(vuln, desc)
+    vuln = normalize_title_vulnerability(vuln)
     if endpoint_override is not None:
         endpoint = endpoint_override
     main_text, disclosure = split_disclosure_time(desc)
