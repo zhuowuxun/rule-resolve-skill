@@ -47,7 +47,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    Guardrails:
    - do not remove `披露时间`; normalize the label to `披露时间：` while preserving the original date value, including single-digit days such as `2026-01-3`
    - do not invent exploit details that are absent from the source
-   - if the vulnerability phrase contains an extra technique detail such as `Ghost Bits 截断`, `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, or `Ghost Bits 折叠`, keep the technique in `desc` as a bypass method, not as another vulnerability name; use `核心漏洞的 Ghost Bits XXX 绕过，变种 #n 的利用尝试`
+   - if the vulnerability phrase contains an extra technique detail such as `Ghost Bits 截断`, `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, or `Ghost Bits 折叠`, do not include the technique or `变种 #n` in the description opening; the opening should be only `针对 产品/入口 核心漏洞的利用尝试`, while technique details stay in the following attack-method explanation if present in the source
    - preserve technical path and filename casing inside the attack-method text, such as `/api/...` and `ModuleGridSource.aspx`
    - preserve authentication semantics exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, `已获得登录权限`, `未授权`, `未认证`, `未经认证`, `未经身份认证/验证`, and `无需任何认证` must match the source row; do not guess or add/remove `未`
    - after the opening sentence already says `针对 产品/入口 存在的漏洞类型`, remove an immediately repeated attack-method prefix like `产品/入口 接口存在漏洞类型，` and keep the remaining attacker condition / impact

@@ -375,11 +375,7 @@ def build_desc_intro(target: str, vuln: str) -> str:
             methods.append(part)
 
     if core_vuln and methods:
-        method = "，".join(methods)
-        if "绕过" not in method:
-            method = f"{method}绕过"
-        variant_text = f"，{variant}" if variant else ""
-        return f"此检测规则还原了针对{intro_target}{format_vulnerability_for_intro(core_vuln)}的 {method}{variant_text} 的利用尝试"
+        return f"此检测规则还原了针对{intro_target}{format_vulnerability_for_intro(core_vuln)}的利用尝试"
     if core_vuln:
         return f"此检测规则还原了针对{intro_target}存在的{format_vulnerability_for_intro(core_vuln)}的利用尝试"
     return f"此检测规则还原了针对{intro_target}的{format_vulnerability_for_intro(text)}利用尝试"

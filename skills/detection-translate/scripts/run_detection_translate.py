@@ -750,26 +750,40 @@ def postprocess_exported_workbook(output_path):
                                 }
                             )
 
-                    ghost_bypass_patterns = [
-                        (r"using Ghost Bits with a loose normalization, (Variant #\d+)", r"using a Ghost Bits Loose Normalization bypass, \1"),
-                        (r"using Ghost Bits loose normalization, (Variant #\d+)", r"using a Ghost Bits Loose Normalization bypass, \1"),
-                        (r"using Ghost Bits combined with, (Variant #\d+)", r"using a Ghost Bits Composite bypass, \1"),
-                        (r"using Ghost Bits composite, (Variant #\d+)", r"using a Ghost Bits Composite bypass, \1"),
-                        (r"using Ghost Bits truncated, (Variant #\d+)", r"using a Ghost Bits Truncation bypass, \1"),
-                        (r"using Ghost Bits truncation, (Variant #\d+)", r"using a Ghost Bits Truncation bypass, \1"),
-                    ]
-                    for pattern, replacement in ghost_bypass_patterns:
-                        value, changed = regex_replace_text(value, pattern, replacement)
-                        if changed:
-                            fixes.append(
-                                {
-                                    "sheet": ws.title,
-                                    "row": row,
-                                    "header": header,
-                                    "from": pattern,
-                                    "to": replacement,
-                                }
-                            )
+                    name_en_value = ""
+                    if "name_en" in header_index:
+                        name_en_value = str(ws.cell(row, header_index["name_en"]).value or "")
+                    if "Ghost Bits" in str(value) and name_en_value:
+                        body = name_en_value.split(" - ", 1)[1] if " - " in name_en_value else name_en_value
+                        parts = [part.strip() for part in body.split(",") if part.strip()]
+                        core_index = None
+                        for index, part in enumerate(parts):
+                            if "Vulnerability" in part or "Injection" in part or "Execution" in part:
+                                core_index = index
+                                break
+                        if core_index is not None:
+                            target = " ".join(parts[:core_index]).strip()
+                            core = parts[core_index].strip()
+                            core_lower = core.lower()
+                            core_lower = core_lower.replace("sql", "SQL").replace("ssrf", "SSRF").replace("xss", "XSS")
+                            article = "an" if core_lower[:1].lower() in "aeiou" and not core_lower.startswith(("SQL", "SSRF")) else "a"
+                            rest_index = str(value).find("Ghost Bits")
+                            if target and rest_index >= 0:
+                                rebuilt = (
+                                    f"This detection rule simulates an attempt to exploit {article} "
+                                    f"{core_lower} in {target}. {str(value)[rest_index:].strip()}"
+                                )
+                                if rebuilt != value:
+                                    value = rebuilt
+                                    fixes.append(
+                                        {
+                                            "sheet": ws.title,
+                                            "row": row,
+                                            "header": header,
+                                            "from": "Ghost Bits details in first sentence",
+                                            "to": "core-vulnerability opening plus Ghost Bits method explanation",
+                                        }
+                                    )
 
                 value, changed = regex_replace_text(value, r"(^|[\s(])(/[^`\s]+)`(?=[,.;])", r"\1\2")
                 if changed:
