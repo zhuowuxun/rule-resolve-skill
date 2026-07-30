@@ -493,8 +493,12 @@ def normalize_exported_validation_text(text, target_header=""):
     if target_header in {"en_name", "en_subject"}:
         value = re.sub(r"\bchecked in\b", "Check-in", value, flags=re.IGNORECASE)
         value = re.sub(r"\bcheck-in\b", "Check-in", value, flags=re.IGNORECASE)
-        value = value.replace(", Execution", ", Execute")
-        value = value.replace(", execution", ", Execute")
+        if value.startswith("Host Command Line - "):
+            value = value.replace(", Execution", ", Execute")
+            value = value.replace(", execution", ", Execute")
+        if value.startswith("Protected Sandbox - "):
+            value = re.sub(r",\s*Execute(?=,|$)", ", Execution", value)
+            value = re.sub(r",\s*execution(?=,|$)", ", Execution", value)
         value = value.replace(" backdoor", " Backdoor")
         value = value.replace(" trojan", " Trojan")
         value = value.replace(" loader", " Loader")
