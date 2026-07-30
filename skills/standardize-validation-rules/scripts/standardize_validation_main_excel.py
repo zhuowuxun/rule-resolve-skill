@@ -1028,7 +1028,7 @@ def build_reference_block(urls: Iterable[str]) -> str:
             unique_urls.append(cleaned)
     if not unique_urls:
         return ""
-    return "\n\n请参考：\n\n" + "\n".join(unique_urls)
+    return "\n\n请参考：\n" + "\n".join(unique_urls)
 
 
 def ensure_terminal_punctuation(text: str) -> str:
@@ -1233,7 +1233,50 @@ def normalize_web_name(name: str, desc: str) -> str:
         parts.append(entry)
     if vuln_type:
         parts.append(vuln_type)
-    return f"{prefix} - " + "，".join(part for part in parts if part)
+    return finalize_vulnerability_title_order(f"{prefix} - " + "，".join(part for part in parts if part))
+
+
+def finalize_vulnerability_title_order(name: str) -> str:
+    """Keep vulnerability titles readable: product/CVE/path, attack label, vuln type, variant."""
+    value = normalize_common_text(name)
+    match = re.match(r"^(Web应用程序漏洞|AI应用程序漏洞|应用程序漏洞|工控安全|OT安全)\s*-\s*(.+)$", value)
+    if not match:
+        return value
+    prefix = match.group(1)
+    parts = [part.strip() for part in match.group(2).split("，") if part.strip()]
+    parts = [part for part in parts if part.upper() != "PCAP"]
+    if len(parts) <= 1:
+        return f"{prefix} - " + "，".join(parts)
+
+    product = parts[0]
+    cves: List[str] = []
+    paths: List[str] = []
+    techniques: List[str] = []
+    vulns: List[str] = []
+    variants: List[str] = []
+    others: List[str] = []
+
+    for part in parts[1:]:
+        normalized_part = normalize_variant(part).strip()
+        if CVE_RE.fullmatch(normalized_part):
+            cves.append(normalized_part.upper())
+        elif normalized_part.startswith("/"):
+            paths.append(normalized_part)
+        elif re.fullmatch(r"变种\s*#\d+", normalized_part):
+            variants.append(normalized_part)
+        elif "漏洞" in normalized_part:
+            vulns.append(normalized_part)
+        elif re.search(r"(Ghost Bits|Stream NACK|双重释放|折叠|复合|宽松归一化|绕过)$", normalized_part, flags=re.IGNORECASE):
+            techniques.append(normalized_part)
+        else:
+            others.append(normalized_part)
+
+    ordered: List[str] = [product] + cves + paths + techniques + others + vulns + variants
+    deduped: List[str] = []
+    for part in ordered:
+        if part and part not in deduped:
+            deduped.append(part)
+    return f"{prefix} - " + "，".join(deduped)
 
 
 def has_validation_title_prefix(name: str) -> bool:
@@ -1453,6 +1496,10 @@ def standardize_web_desc(name: str, desc: str) -> str:
     product, entry, vuln_type, _ = parse_web_name(name)
     entry = prefer_desc_web_entry(entry, desc)
     attack_sentences = dedupe_web_attack_sentences(attack_sentences, product, entry, vuln_type)
+    attack_sentences = [
+        re.sub(r"^此验证动作(?:还原了|中还原了)攻击者", "攻击者", sentence).strip()
+        for sentence in attack_sentences
+    ]
 
     target = product
     if entry:
@@ -2674,7 +2721,8 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
             standardize_web_desc(clean_name, clean_desc),
             clean_notes or WEB_NOTE_DEFAULT,
         )
-    if re.match(r"^Web\s*应用程序漏洞\s*-\s*", clean_name):
+    if re.match(r"^(?:Web|AI)\s*应用程序漏洞\s*-\s*", clean_name) or re.match(r"^(?:应用程序漏洞|工控安全|OT安全)\s*-\s*", clean_name):
+        clean_name = finalize_vulnerability_title_order(clean_name)
         return clean_name, standardize_web_desc(clean_name, clean_desc), clean_notes or WEB_NOTE_DEFAULT
     if clean_name.startswith("恶意文件传输 - "):
         title = titleize_malicious_transfer(clean_name, clean_desc)

@@ -91,6 +91,7 @@ This skill is not for:
    - For command-and-control rows, preserve URI paths from the description in `cn_name`, for example `/api/auth/login` or `/api/home/status`.
    - For command-and-control rows, do not use `渗透` when the description is about data exfiltration/leakage, stolen reconnaissance data, PUT requests carrying Base64-encoded data, or status updates sent to C&C infrastructure. Use `数据泄漏` instead. Keep malware names such as `AEROSTAT` in English; do not translate them into words such as `浮空器`.
    - For Web / AI / application vulnerability rows, if the description contains a more complete endpoint path than the raw title and it contains the title path's tail, use the complete description path in both `cn_name` and the opening sentence.
+   - For Web / AI / application vulnerability rows, do not keep capture/container labels such as `PCAP` in `cn_name`; if an attack technique label such as `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, `Ghost Bits 折叠`, or `Stream NACK 双重释放` appears with a vulnerability type, place the technique before the vulnerability type and before `变种 #n`.
    - Normalize `电报` to `Telegram` in command-and-control names.
    - Collapse duplicated C2 wording such as `C&C 或 C&C` to a single `C&C`.
    - For phishing-email malicious-link rows, keep the existing Email subject and do not backfill long URL paths from the `Email` body into the action title; `恶意链接` is enough unless the title/description already contains a concise payload family or file type.
@@ -113,12 +114,12 @@ This skill is not for:
      - reference block, when present
    - Web descriptions must be fluent Chinese, not only structurally correct.
    - Remove duplicate vulnerability wording: after the opening `此验证动作还原了针对...存在的...漏洞的利用尝试。`, the next attack sentence should not mechanically repeat `接口存在...漏洞，...`; rewrite it to the actual attacker action/impact.
+   - After the opening Web vulnerability sentence, do not start the next sentence with another `此验证动作还原了攻击者...`; rewrite that follow-up as a direct attacker-action sentence such as `攻击者...`.
    - Trim promotional product-copy phrases in software descriptions, especially broad claims such as helping users manage leads, guide sales follow-up, or improve team sales capability; keep only concise product identity and necessary feature context.
    - Disclosure time format is fixed: `披露时间：YYYY-MM-DD。`
    - Reference blocks should stay multiline:
      ```text
      请参考：
-
      https://...
      ```
    - Remove disposable markdown/link placeholders and unwanted attribution tails.
@@ -157,7 +158,7 @@ This skill is not for:
    - no `_x000D_`
    - no old `变种-1` / `变种 1` title format
    - no URL mismatch between original and output for rows where URLs are preserved
-   - no reference links flattened onto the same line as `请参考：`; reference blocks must be `请参考：` followed by one blank line and then the URL lines
+   - no reference links flattened onto the same line as `请参考：`; reference blocks must be `请参考：` followed immediately by the URL lines, without a blank line in between
    - no reference links may remain in `cn_notes`; if source `cn_desc` contains URLs, the standardized output must keep them at the end of `cn_desc` as a multiline `请参考：` block, while `cn_notes` should contain only execution/validator notes
    - no reference URL paths such as `/campaigns/...`, `/actors/...`, `/malware/...` inserted into C2 titles
    - no C2 title may use `渗透` when the description clearly says `数据外泄` / `数据泄露` / `窃取` / Base64 data sent through C&C; use `数据泄漏`
@@ -172,6 +173,8 @@ This skill is not for:
    - no protected-sandbox row may mix OS suffix placement for the same structure; action-object/method segments get the OS suffix, while bare verbs such as `执行` do not
    - no known bad readability fragments such as broken product descriptions, missing spaces around common English identifiers, or `可以自动化、可视性...`
    - Web / AI / application vulnerability rows must pass the duplicate-vulnerability check described above
+   - Web / AI / application vulnerability descriptions must not contain repeated `此验证动作还原了...。此验证动作还原了攻击者...` openings
+   - Web / AI / application vulnerability titles must not keep `PCAP`, and technique labels such as `Ghost Bits ...` must appear before the vulnerability type, not after `远程代码执行漏洞`
    - rows with explicit Web endpoint paths must not be downgraded from `Web应用程序漏洞` to generic `应用程序漏洞`
    - AI products with endpoint paths must remain `AI应用程序漏洞`, not `Web应用程序漏洞`
    - industrial-control products with endpoint paths must remain `工控安全`, not `Web应用程序漏洞`
