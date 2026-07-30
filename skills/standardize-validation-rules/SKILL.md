@@ -121,6 +121,7 @@ This skill is not for:
    - Remove duplicate vulnerability wording: after the opening `此验证动作还原了针对...存在的...漏洞的利用尝试。`, the next attack sentence should not mechanically repeat `接口存在...漏洞，...`; rewrite it to the actual attacker action/impact.
    - After the opening Web vulnerability sentence, do not start the next sentence with another `此验证动作还原了攻击者...`; rewrite that follow-up as a direct attacker-action sentence such as `攻击者...`.
    - Trim promotional product-copy phrases in software descriptions, especially broad claims such as helping users manage leads, guide sales follow-up, or improve team sales capability; keep only concise product identity and necessary feature context.
+   - Trim generic praise and marketing-style product claims such as `凭借其高性能`, `占据主导地位`, `功能强大`, and similar superiority language. Keep neutral identity and usage context instead.
    - Disclosure time format is fixed: `披露时间：YYYY-MM-DD。`
    - Reference blocks should stay multiline:
      ```text
@@ -128,6 +129,8 @@ This skill is not for:
      https://...
      ```
    - Remove disposable markdown/link placeholders and unwanted attribution tails.
+   - Remove political/geopolitical and promotional actor-background tails from descriptions, such as `伊朗背景`, `地缘政治`, `精准钓鱼美国，以色列及阿联酋`, `中东冲突`, `极高的行动节奏`, and `较强的技术研发能力`, while preserving concrete technical behavior, malware/tool names, URLs, paths, files, CVEs, versions, and dates.
+   - Fix obvious machine-translation residue such as `该变种后面是...` to fluent Chinese such as `该变种是...`.
    - Remove province/city prefixes from company introductions when they are only geographic qualifiers.
    - Keep raw `notes` and `Pipelines` URLs intact; do not run mitigation reference-block logic on validation main-rule workbooks.
    - Preserve all protected technical evidence in descriptions: URL, path, hostname, filename, extension, function, method, parameter, CLI flag, CVE, version, and date.
@@ -167,6 +170,7 @@ This skill is not for:
    - no reference links may remain in `cn_notes`; if source `cn_desc` contains URLs, the standardized output must keep them at the end of `cn_desc` as a multiline `请参考：` block, while `cn_notes` should contain only execution/validator notes
    - no reference URL paths such as `/campaigns/...`, `/actors/...`, `/malware/...` inserted into C2 titles
    - no C2 title may use `渗透` when the description clearly says `数据外泄` / `数据泄露` / `窃取` / Base64 data sent through C&C; use `数据泄漏`
+   - no C2 title may use `数据泄露` / `数据外泄`; use `数据泄漏`
    - no command-and-control DNS-query title may include concrete domain IOCs such as `example[.]com` or `example.com`
    - no protected-token damage: dates, CVEs, paths, hostnames, filenames, extensions, functions, parameters, flags, versions, and product names
    - no defanged-domain damage such as turning `telen[.]example[.]com` into `telen example com`
@@ -174,6 +178,8 @@ This skill is not for:
    - no `Actions.cn_desc` may remain as English source text such as `In this action...`, `In this process...`, or `This validation...`
    - no residual `攻击技巧`; use `攻击手法`
    - no residual FireEye attribution noise such as `归属于 FireEye 跟踪的未分类威胁组织的指标或活动`
+   - no political/geopolitical actor-background residue such as `伊朗背景`, `地缘政治`, `精准钓鱼美国`, `中东冲突`, `极高的行动节奏`, or machine residue such as `该变种后面是`
+   - no promotional or exaggerated product-copy residue such as `凭借其高性能`, `占据主导地位`, `极高的行动节奏`, or `完整且高隐蔽性`
    - no `系统变种` when the row describes GetVersionExW or OS version discovery; use `系统版本`
    - no `cn_desc` body may end without terminal punctuation before a reference block
    - no protected-sandbox row may mix OS suffix placement for the same structure; action-object/method segments get the OS suffix, while bare verbs such as `执行` do not

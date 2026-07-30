@@ -1071,9 +1071,44 @@ def split_sentences(text: str) -> List[str]:
     return sentences
 
 
-def cleanup_unwanted_attribution(text: str) -> str:
+POLITICAL_ATTRIBUTION_MARKERS = (
+    "伊朗背景",
+    "地缘政治",
+    "地缘冲突",
+    "中东冲突",
+    "精准钓鱼",
+    "美国，以色列及阿联酋",
+    "以色列及阿联酋",
+    "极高的行动节奏",
+    "技术研发能力",
+)
+
+
+def normalize_attribution_noise_phrases(text: str) -> str:
+    value = normalize_common_text(text)
+    value = value.replace("该变种后面是", "该变种是")
+    value = re.sub(
+        r"Screening Serpens\s*(?:组织|威胁组织)在中东及美国地缘冲突前后频繁部署的",
+        "Screening Serpens 威胁组织部署的",
+        value,
+    )
+    value = re.sub(r"在中东及美国地缘冲突前后频繁部署的", "部署的", value)
+    return normalize_common_text(value)
+
+
+def is_unwanted_political_attribution_sentence(sentence: str) -> bool:
+    value = normalize_common_text(sentence)
+    if not any(marker in value for marker in POLITICAL_ATTRIBUTION_MARKERS):
+        return False
+    return bool(
+        re.search(r"(?:是一个|是一个自|其攻击行动|主要通过冒充|该组织拥有|行动节奏|地缘政治)", value)
+    )
+
+
+def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
     if not text:
         return ""
+    text = normalize_attribution_noise_phrases(text)
     blocked_markers = (
         "与中国有关联",
         "中国有关联",
@@ -1088,6 +1123,7 @@ def cleanup_unwanted_attribution(text: str) -> str:
         "犯罪团伙",
         "归属于 FireEye 跟踪的未分类威胁组织的指标或活动",
         "归属于 FireEye 跟踪的未分类威胁组织",
+        *POLITICAL_ATTRIBUTION_MARKERS,
     )
     sentences = split_sentences(text)
     kept = []
@@ -1099,6 +1135,8 @@ def cleanup_unwanted_attribution(text: str) -> str:
         r".*FireEye.*未分类威胁组织.*",
     )
     for sentence in sentences:
+        if is_unwanted_political_attribution_sentence(sentence):
+            continue
         if any(marker in sentence for marker in blocked_markers):
             continue
         if any(re.match(pattern, sentence) for pattern in blocked_patterns):
@@ -1111,7 +1149,7 @@ def cleanup_unwanted_attribution(text: str) -> str:
     cleaned = re.sub(r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", cleaned)
     cleaned = cleaned.replace("*", "")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    if not cleaned and text.strip():
+    if not cleaned and text.strip() and allow_fallback:
         # Do not let attribution cleanup erase valid validation-action evidence.
         cleaned = normalize_common_text(text)
     return cleaned
@@ -1501,6 +1539,20 @@ def dedupe_web_attack_sentences(
     return deduped
 
 
+def trim_promotional_product_copy(text: str) -> str:
+    value = normalize_common_text(text)
+    value = value.replace(
+        "Fastjson 是阿里巴巴开源的 Java JSON 解析库，凭借其高性能和简洁的 API 在 Java 生态中占据主导地位，广泛应用于企业后端服务，微服务网关，数据接口层等核心场景。",
+        "Fastjson 是阿里巴巴开源的 Java JSON 解析库，常用于 Java 应用中的 JSON 序列化与反序列化。",
+    )
+    value = value.replace(
+        "Redis 是一款开源的，基于内存并可持久化的高性能 Key-Value 数据库，使用 ANSI C 语言编写，支持网络访问，并提供多种编程语言的 API。凭借读写高效，数据结构丰富的特性，Redis 被广泛用于缓存，消息队列，会话存储等业务场景。",
+        "Redis 是一款开源的内存型 Key-Value 数据库，支持持久化和网络访问，常用于缓存、消息队列、会话存储等业务场景。",
+    )
+    value = value.replace("构建了完整且高隐蔽性的攻击闭环", "形成完整攻击链")
+    return normalize_common_text(value)
+
+
 def standardize_web_desc(name: str, desc: str) -> str:
     body, urls = split_references(desc)
     clean_body = cleanup_unwanted_attribution(normalize_geo_company_text(body))
@@ -1584,6 +1636,7 @@ def standardize_web_desc(name: str, desc: str) -> str:
         "帮助企业用好自己的客户资源，管好商机跟进过程，引导好业务员跟单行为，促进团队销售能力的提升；",
         "",
     )
+    text = trim_promotional_product_copy(text)
     return ensure_terminal_punctuation(text) + build_reference_block(urls)
 
 
@@ -2365,6 +2418,8 @@ def titleize_c2(name: str) -> str:
     raw = raw.replace("，任务，", "，任务流量，")
     raw = raw.replace("，签到，", "，签入，")
     raw = raw.replace("，外泄，", "，泄漏，")
+    raw = raw.replace("，数据外泄，", "，数据泄漏，")
+    raw = raw.replace("，数据泄露，", "，数据泄漏，")
     raw = raw.replace("，利用，", "，利用请求，")
     return strip_c2_dns_ioc_from_title(raw)
 
@@ -2590,6 +2645,7 @@ def standardize_generic_desc(desc: str) -> str:
     text = normalize_common_text(text.strip())
     text = re.sub(r"([。！？])\s+(?=[A-Za-z0-9\u4e00-\u9fff])", r"\1", text)
     text = text.replace("Shellcode 注入工具 传播", "Shellcode 注入工具，传播")
+    text = trim_promotional_product_copy(text)
     return ensure_terminal_punctuation(text) + build_reference_block(urls)
 
 
@@ -2753,10 +2809,14 @@ def normalize_sequence_desc_text(text: str) -> str:
 def recover_sequence_extra_sentences(body: str, clean: str) -> str:
     if len(split_sentences(clean)) > 1:
         return clean
-    raw = normalize_actor_spacing(normalize_geo_company_text(normalize_cn_action_terms(body)))
+    raw = normalize_actor_spacing(
+        normalize_attribution_noise_phrases(normalize_geo_company_text(normalize_cn_action_terms(body)))
+    )
     extras: List[str] = []
     for sentence in split_sentences(raw)[1:]:
         if sentence in clean:
+            continue
+        if is_unwanted_political_attribution_sentence(sentence):
             continue
         if any(marker in sentence for marker in ("[**", "CAMP.", "FireEye", "与中国有关联", "中国相关", "中国支持", "分发集群")):
             continue
@@ -2784,7 +2844,9 @@ def standardize_sequence_desc(name: str, desc: str) -> str:
     subject = derive_sequence_subject(name)
     desc_subject = sequence_desc_subject(subject)
     body, urls = split_references(desc)
-    clean = normalize_actor_spacing(cleanup_unwanted_attribution(normalize_geo_company_text(normalize_cn_action_terms(body))))
+    clean = normalize_actor_spacing(
+        cleanup_unwanted_attribution(normalize_geo_company_text(normalize_cn_action_terms(body)), allow_fallback=False)
+    )
     clean = recover_sequence_extra_sentences(body, clean)
     if clean.startswith("此验证场景包括了"):
         text = clean
@@ -2803,6 +2865,7 @@ def standardize_sequence_desc(name: str, desc: str) -> str:
     text = re.sub(r"包括了\s*APT[\s-]*U\s*(\d+)", r"包括了 APT-U\1", text)
     text = text.replace("包括了 ", "包括了 ")
     text = normalize_common_text(text.strip())
+    text = trim_promotional_product_copy(text)
     return ensure_terminal_punctuation(text) + build_reference_block(urls)
 
 
