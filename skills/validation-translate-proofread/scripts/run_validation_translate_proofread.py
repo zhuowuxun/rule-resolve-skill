@@ -23,6 +23,7 @@ DEFAULT_TRANSLATION_DICTS = ["专业名称翻译", "software翻译"]
 DEFAULT_MAIN_REPLACEMENT_DICTS = ["基础字符校对", "validation校对"]
 DEFAULT_NOTE_REPLACEMENT_DICTS = ["基础字符校对", "validation校对", "validation note replacement"]
 DEFAULT_MAIN_SOURCE_HEADERS = ["cn_name", "cn_desc"]
+DEFAULT_EMAIL_SOURCE_HEADERS = ["cn_subject", "cn_body"]
 DEFAULT_NOTE_SOURCE_HEADER = "cn_notes"
 CN_RE = re.compile(r"[\u4e00-\u9fff]")
 URL_RE = re.compile(r"https?://\S+")
@@ -160,6 +161,13 @@ def count_project_chunks(project):
         return int(project.get("chunk_count") or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def count_non_empty_source_chunks(project):
+    chunks = project.get("chunks")
+    if not isinstance(chunks, list):
+        return count_project_chunks(project)
+    return sum(1 for chunk in chunks if str(chunk.get("source_text") or "").strip())
 
 
 def ensure_translation_completed(result, expected_count, context):
@@ -450,6 +458,53 @@ def target_header_for_source(header):
     return None
 
 
+def normalize_exported_validation_text(text, target_header=""):
+    if not isinstance(text, str) or not text:
+        return text
+    value = text
+    value = value.replace("MiniJunk .V2", "MiniJunk V2")
+    value = value.replace("Threat group 's", "threat group's")
+    value = value.replace("Threat Group 's", "Threat Group's")
+    value = value.replace("threat group 's", "threat group's")
+    value = value.replace("Threat group", "Threat Group")
+    value = value.replace("from Screening Serpens threat Group", "from the Screening Serpens Threat Group")
+    value = value.replace("from Screening Serpens threat group", "from the Screening Serpens Threat Group")
+    value = value.replace("deployed by Screening Serpens threat Group", "deployed by the Screening Serpens Threat Group")
+    value = value.replace("deployed by Screening Serpens threat group", "deployed by the Screening Serpens Threat Group")
+    value = value.replace("defense Evasion", "defense evasion")
+    value = value.replace("Python .", "Python.")
+    value = value.replace("LaunchedURLClass loader )", "LaunchedURLClass loader)")
+    value = re.sub(r"\bupgraded version malware\b", "upgraded malware variant", value, flags=re.IGNORECASE)
+    value = re.sub(r"\bFastjson 1\.2\.83 Exploitation\b", "Fastjson 1.2.83 exploitation", value)
+    value = re.sub(r"\bremote code execution Exploitation\b", "remote code execution exploitation", value)
+    value = re.sub(
+        r"Once Fastjson parser parses and simulate into the original dangerous characters",
+        "Once the Fastjson parser parses and restores the original dangerous characters",
+        value,
+    )
+    value = re.sub(
+        r"Once Fastjson parser parses and simulate into the original dangerous character",
+        "Once the Fastjson parser parses and restores the original dangerous character",
+        value,
+    )
+    value = re.sub(r"\bsimulate into the original\b", "restore the original", value, flags=re.IGNORECASE)
+    value = re.sub(r"\bparser parses and simulate\b", "parser parses and restores", value, flags=re.IGNORECASE)
+    value = re.sub(r"(?<!\ban )\badversary can\b", "an adversary can", value)
+    if target_header in {"en_name", "en_subject"}:
+        value = value.replace(", Execution", ", Execute")
+        value = value.replace(", execution", ", Execute")
+        value = value.replace(" backdoor", " Backdoor")
+        value = value.replace(" trojan", " Trojan")
+        value = value.replace(" loader", " Loader")
+        value = value.replace(" dropper", " Dropper")
+        value = value.replace(" executable file", " Executable File")
+        value = value.replace(" file,", " File,")
+        value = value.replace(" .DLL File", " .DLL File")
+        value = value.replace(" .ZIP File", " .ZIP File")
+        value = re.sub(r"\bmalicious\b", "Malicious", value)
+    return value
+
+
 def export_bilingual(session, api_base, project_id, input_path, output_path):
     project = get_json(session, f"{api_base}/api/project/{project_id}", "Fetch project chunks for export")
     chunks = project.get("chunks") or []
@@ -484,6 +539,7 @@ def export_bilingual(session, api_base, project_id, input_path, output_path):
         if not target_col:
             skipped.append({"chunk": chunk.get("id"), "reason": "missing_target_col", "sheet": sheet, "target": target_header})
             continue
+        translated = normalize_exported_validation_text(translated, target_header)
         wb[sheet].cell(int(row), target_col).value = translated
         applied += 1
 
@@ -561,6 +617,20 @@ def relocate_reference_links_from_notes(output_path):
             continue
         headers = [str(cell.value).strip() if cell.value is not None else "" for cell in header_row]
         header_map = {header: idx + 1 for idx, header in enumerate(headers) if header}
+        if "en_desc" in header_map:
+            en_desc_col_any = header_map["en_desc"]
+            for row_idx in range(2, ws.max_row + 1):
+                en_desc_any = ws.cell(row_idx, en_desc_col_any).value
+                if isinstance(en_desc_any, str):
+                    fixed_en_desc_any = _normalize_desc_reference_block(
+                        en_desc_any,
+                        ["Please refer to", "Please refer to:", "Reference link", "Reference link:", "Reference links", "Reference links:"],
+                        "Please refer to:",
+                    )
+                    fixed_en_desc_any = re.sub(r"(Please refer to:)\n(https?://)", r"\1\n\n\2", fixed_en_desc_any)
+                    if fixed_en_desc_any != en_desc_any:
+                        ws.cell(row_idx, en_desc_col_any).value = fixed_en_desc_any
+                        normalized_rows += 1
         if {"cn_name", "en_name"}.issubset(header_map):
             cn_name_col = header_map["cn_name"]
             en_name_col = header_map["en_name"]
@@ -640,6 +710,12 @@ def relocate_reference_links_from_notes(output_path):
             if normalized_en_desc != en_desc:
                 ws.cell(row_idx, en_desc_col).value = normalized_en_desc
                 normalized_rows += 1
+            en_desc_after = ws.cell(row_idx, en_desc_col).value
+            if isinstance(en_desc_after, str):
+                fixed_en_desc = re.sub(r"(Please refer to:)\n(https?://)", r"\1\n\n\2", en_desc_after)
+                if fixed_en_desc != en_desc_after:
+                    ws.cell(row_idx, en_desc_col).value = fixed_en_desc
+                    normalized_rows += 1
 
     wb.save(output_path)
     wb.close()
@@ -735,13 +811,16 @@ def main():
 
     sheet_headers = collect_sheet_headers(input_path)
     main_cols = []
-    for header in DEFAULT_MAIN_SOURCE_HEADERS:
+    for header in [*DEFAULT_MAIN_SOURCE_HEADERS, *DEFAULT_EMAIL_SOURCE_HEADERS]:
         col_idx, found_sheets = detect_stable_column(sheet_headers, header)
-        if col_idx is None:
+        if col_idx is None and header in DEFAULT_MAIN_SOURCE_HEADERS:
             raise RuntimeError(f"Missing required validation header: {header}")
+        if col_idx is None:
+            continue
         if not found_sheets:
             raise RuntimeError(f"Header '{header}' was not found in any sheet")
-        main_cols.append(col_idx)
+        if col_idx not in main_cols:
+            main_cols.append(col_idx)
 
     notes_col, note_sheets = detect_stable_column(sheet_headers, DEFAULT_NOTE_SOURCE_HEADER)
 
@@ -771,9 +850,16 @@ def main():
 
     source_headers = list(DEFAULT_MAIN_SOURCE_HEADERS)
     source_cols = list(main_cols)
+    for header in DEFAULT_EMAIL_SOURCE_HEADERS:
+        col_idx, found_sheets = detect_stable_column(sheet_headers, header)
+        if col_idx is not None and found_sheets:
+            source_headers.append(header)
+            if col_idx not in source_cols:
+                source_cols.append(col_idx)
     if notes_col is not None and note_sheets:
         source_headers.append(DEFAULT_NOTE_SOURCE_HEADER)
-        source_cols.append(notes_col)
+        if notes_col not in source_cols:
+            source_cols.append(notes_col)
 
     platform_input_path, upload_tmpdir, blanked_upload_cells = prepare_platform_input_workbook(
         input_path,
@@ -799,7 +885,7 @@ def main():
         f"{args.api_base}/api/project/{project_id}",
         "Fetch created project",
     )
-    expected_chunks = count_project_chunks(initial_project)
+    expected_chunks = count_non_empty_source_chunks(initial_project)
 
     try:
         translate_result = translate_all_with_retries(session, args.api_base, project_id, expected_chunks)

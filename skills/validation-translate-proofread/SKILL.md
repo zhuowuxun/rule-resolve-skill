@@ -60,6 +60,8 @@ PY
 ```
 
 For standard validation workbooks, translate source columns `cn_name`, `cn_desc`, and `cn_notes`; export should populate adjacent `en_name`, `en_desc`, and `en_notes`. Do not translate `uuid`, `vid`, `created`, or already-English columns.
+If an `Email` sheet exists, also translate `cn_subject` and `cn_body` into `en_subject` and `en_body`. Keep existing Chinese subjects unchanged in `cn_subject`; only fill the English target columns.
+Because AI Translation Studio selects source columns by column index across every sheet, temporary upload copies may intentionally blank non-source cells whose column index collides with a source column on another sheet, such as `Sequences.created` sharing the `cn_notes` column index. Empty source chunks created from those intentionally blank cells must not count as translation failures, but real non-empty source chunks must all be translated before replacement/proofreading/export.
 
 ## Workflow
 1. Confirm platform translation readiness before creating any project.
