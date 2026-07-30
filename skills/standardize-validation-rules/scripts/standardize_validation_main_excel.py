@@ -1824,6 +1824,8 @@ def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
         return False
     if any(is_redundant_transfer_type(part, inferred) for part in parts):
         return False
+    if inferred == "恶意远程访问木马文件" and has_explicit_container_type(parts) and has_specific_transfer_name(parts):
+        return False
     dotted_parts = [part for part in parts if re.search(r"\b[A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}\b", part)]
     allow_dotted_family_type = any(part.upper().endswith((".MACHO", ".PS", ".PY")) for part in dotted_parts)
     if dotted_parts and not allow_dotted_family_type:
@@ -1875,6 +1877,13 @@ def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
         "压缩存档文件",
         "释放器",
     }
+
+
+def has_explicit_container_type(parts: List[str]) -> bool:
+    return any(
+        re.search(r"(?:\.[A-Z0-9]{2,8}\s*文件|压缩存档文件|ZIP 文件|DLL文件|\.DLL文件)", part, flags=re.IGNORECASE)
+        for part in parts
+    )
 
 
 def transfer_type_core(part: str) -> str:
