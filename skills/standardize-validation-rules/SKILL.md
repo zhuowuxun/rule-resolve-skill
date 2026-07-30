@@ -70,6 +70,8 @@ This skill is not for:
    - In `Sequences`, normalize residual `下载威胁` wording to `下载攻击活动` so the final title does not become `下载威胁 攻击活动`.
    - In `Sequences`, if the subject already ends with `恶意软件活动`, normalize it to `恶意软件攻击活动` rather than appending another `攻击活动`.
    - In `Sequences`, correct machine-translated actor/malware names and verbs when the description makes the English original clear, for example `珍珠窃取者` -> `Pearl Stealer`, `Koi Stereer` -> `Koi Stealer`, and `放弃 Koi Stealer 活动` -> `投放 Koi Stealer 攻击活动`.
+   - In `Sequences`, do not force every scene into `恶意活动场景`. Vulnerability scenario subjects containing markers such as `漏洞`, `CVE-`, `SQL注入`, `SSRF`, `任意文件`, `权限提升`, `认证绕过`, `信息泄露/信息泄漏`, `文件上传`, or `文件读取` should use `应用程序漏洞场景` unless an explicit more specific prefix such as `Web应用程序漏洞场景`, `AI应用程序漏洞场景`, or `工控安全场景` is already present.
+   - For non-malicious vulnerability scenarios, descriptions should start with the vulnerability-scenario wording such as `此验证场景包括了针对 XXX 的利用尝试。`; do not write `在攻击活动中使用过的相关攻击手法`.
    - In `Sequences`, keep scene numbering as trailing `#n` such as `恶意活动场景 - APT36 威胁组织攻击活动 #2`; do not use `，变种 #n` for scene titles.
    - OS suffixes use English parentheses such as `(Windows)` / `(Linux)` / `(macOS)`.
    - If the target product itself is an OS such as `Windows`, `Linux`, or `macOS` in a vulnerability title, do not append another `(Windows)` / `(Linux)` / `(macOS)` suffix to the title.

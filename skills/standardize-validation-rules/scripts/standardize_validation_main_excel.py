@@ -2694,10 +2694,40 @@ def derive_sequence_subject(name: str) -> str:
     return normalize_common_text(raw.strip())
 
 
+def classify_sequence_scene_prefix(name: str, subject: str) -> str:
+    raw = normalize_common_text(name)
+    explicit = re.match(r"^(Web\s*应用程序漏洞|AI应用程序漏洞|应用程序漏洞|工控安全|OT安全)场景\s*-", raw)
+    if explicit:
+        return explicit.group(1).replace("Web 应用程序漏洞", "Web应用程序漏洞") + "场景"
+    vuln_markers = (
+        "漏洞",
+        "CVE-",
+        "远程代码执行",
+        "远程命令执行",
+        "SQL注入",
+        "SSRF",
+        "任意文件",
+        "权限提升",
+        "认证绕过",
+        "身份验证绕过",
+        "信息泄露",
+        "信息泄漏",
+        "文件上传",
+        "文件读取",
+    )
+    if any(marker in subject for marker in vuln_markers):
+        return "应用程序漏洞场景"
+    return "恶意活动场景"
+
+
 def standardize_sequence_name(name: str) -> str:
     subject = derive_sequence_subject(name)
     if not subject:
         subject = "验证对象"
+    scene_prefix = classify_sequence_scene_prefix(name, subject)
+    if scene_prefix != "恶意活动场景":
+        subject = re.sub(r"\s*攻击活动\s*$", "", subject).strip()
+        return f"{scene_prefix} - {subject}"
     if "攻击活动" in subject:
         return f"恶意活动场景 - {subject}"
     return f"恶意活动场景 - {subject} 攻击活动"
@@ -2767,6 +2797,18 @@ def sequence_desc_intro(desc_subject: str) -> str:
     else:
         clause = join_sequence_subject_clause(desc_subject, "在攻击活动中使用过的相关攻击手法")
     return f"{join_sequence_prefix('此验证场景包括了', clause)}。"
+
+
+def sequence_vulnerability_desc_intro(desc_subject: str, clean: str) -> str:
+    clean = clean.strip()
+    clean = re.sub(r"^此验证场景包括了[^。]{1,120}?在攻击活动中使用过的相关攻击手法。", "", clean)
+    first_sentence = split_sentences(clean)[:1]
+    if first_sentence and first_sentence[0].startswith("针对") and "利用尝试" in first_sentence[0]:
+        sentence = first_sentence[0].rstrip("。！？")
+        remainder = clean[len(first_sentence[0]):].lstrip("。！？")
+        return f"此验证场景包括了{sentence}。" + remainder
+    subject = re.sub(r"\s*攻击活动\s*$", "", desc_subject).strip() or "验证对象"
+    return f"此验证场景包括了针对 {subject} 的利用尝试。{clean}"
 
 
 def should_drop_sequence_original_body(desc_subject: str, clean: str) -> bool:
@@ -2843,12 +2885,15 @@ def standardize_pipeline_desc(desc: str) -> str:
 def standardize_sequence_desc(name: str, desc: str) -> str:
     subject = derive_sequence_subject(name)
     desc_subject = sequence_desc_subject(subject)
+    scene_prefix = classify_sequence_scene_prefix(name, subject)
     body, urls = split_references(desc)
     clean = normalize_actor_spacing(
         cleanup_unwanted_attribution(normalize_geo_company_text(normalize_cn_action_terms(body)), allow_fallback=False)
     )
     clean = recover_sequence_extra_sentences(body, clean)
-    if clean.startswith("此验证场景包括了"):
+    if scene_prefix != "恶意活动场景":
+        text = sequence_vulnerability_desc_intro(desc_subject, clean)
+    elif clean.startswith("此验证场景包括了"):
         text = clean
     elif clean:
         if should_drop_sequence_original_body(desc_subject, clean):
