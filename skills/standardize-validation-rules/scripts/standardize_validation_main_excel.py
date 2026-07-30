@@ -31,7 +31,7 @@ NS = {
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 SHEET_MAIN_NS = NS["a"]
 
-URL_RE = re.compile(r"https?://[^\s<>\]]+")
+URL_RE = re.compile(r"https?://[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]+")
 MARKDOWN_LINK_RE = re.compile(r"\[.*?\]\((https?://[^)]+)\)")
 CVE_RE = re.compile(r"\bCVE[-\s]*(\d{4})[-\s]*(\d{4,})\b", re.IGNORECASE)
 VARIANT_RE = re.compile(r"(?i)(?:variant|变种|方法)\s*[-# ]?\s*(\d+)")
@@ -53,6 +53,7 @@ VALIDATION_TITLE_PREFIXES = (
     "Web 安全验证 - ",
     "web安全验证 - ",
     "Web应用程序漏洞 - ",
+    "Web 应用程序漏洞 - ",
     "应用程序漏洞 - ",
     "AI应用程序漏洞 - ",
     "工控安全 - ",
@@ -388,6 +389,7 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("威胁威胁组织", "威胁组织")
     value = value.replace("攻击技巧", "攻击手法")
     value = value.replace("系统变种", "系统版本")
+    value = value.replace("Web 应用程序漏洞", "Web应用程序漏洞")
     value = value.replace("活动集群", "威胁组织")
     value = value.replace("敌对集群", "威胁组织")
     value = value.replace("集群", "威胁组织")
@@ -417,12 +419,15 @@ def normalize_common_text(text: str) -> str:
     value = re.sub(r"C\+\+语言", "C++ 语言", value)
     value = re.sub(r"([A-Za-z0-9+#)])(?=[\u4e00-\u9fff])", r"\1 ", value)
     value = re.sub(r"(?<=[\u4e00-\u9fff])([A-Za-z0-9(])", r" \1", value)
+    value = value.replace("Web 应用程序漏洞", "Web应用程序漏洞")
     value = normalize_variant(value)
     value = re.sub(r"(?<!\d)(20\d{2})\s+(\d{2})\s+(\d{2})(?!\d)", r"\1-\2-\3", value)
     value = re.sub(r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", value)
     value = value.replace("。，", "。")
     value = re.sub(r"\b([A-Z][A-Z0-9_.-]{2,})。\s+\1。", r"\1。", value)
     value = re.sub(r"([。！？])\s+(?=[A-Za-z0-9\u4e00-\u9fff])", r"\1", value)
+    value = re.sub(r",(?=[A-Za-z\u4e00-\u9fff])", "，", value)
+    value = value.replace("利用尝试，", "利用尝试。")
     value = re.sub(r"-\s*\[\*\]\s*-", "", value)
     value = re.sub(r"[ \t]+\n", "\n", value)
     value = re.sub(r"\n{3,}", "\n\n", value)
@@ -1002,6 +1007,7 @@ def split_references(text: str) -> Tuple[str, List[str]]:
             urls.append(cleaned)
     body = MARKDOWN_LINK_RE.sub("", sanitized)
     body = URL_RE.sub("", body)
+    body = re.sub(r"(?:参考链接|请参考|官方修复\s*PR)\s*[:：]\s*[。.]?", " ", body, flags=re.IGNORECASE)
     body = re.sub(r"\[\*\*(" + CAMPAIGN_CODE_RE.pattern + r")\*\*\]\s*-\s*", "攻击活动。", body, flags=re.IGNORECASE)
     body = re.sub(r"\[\*\*(" + CAMPAIGN_CODE_RE.pattern + r")\*\*\]", "攻击活动", body, flags=re.IGNORECASE)
     body = CAMPAIGN_CODE_RE.sub("攻击活动", body)
@@ -1102,7 +1108,7 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
     raw = CVE_RE.sub("", raw).strip()
     raw = re.sub(r"[（(]\s*[）)]", "", raw).strip()
     raw = re.sub(r"(?i)^web\s*安全验证\s*-\s*", "", raw).strip()
-    raw = re.sub(r"^Web应用程序漏洞\s*-\s*", "", raw).strip()
+    raw = re.sub(r"^Web\s*应用程序漏洞\s*-\s*", "", raw).strip()
     raw = re.sub(r"^应用程序漏洞\s*-\s*", "", raw).strip()
     raw = re.sub(r"^AI应用程序漏洞\s*-\s*", "", raw).strip()
     raw = re.sub(r"^工控安全\s*-\s*", "", raw).strip()
@@ -1112,6 +1118,18 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
     vuln_type = parts[1] if len(parts) > 1 else ""
     product = target
     entry = ""
+    if len(parts) == 1 and "，" in target:
+        comma_parts = [part.strip() for part in target.split("，") if part.strip()]
+        if comma_parts:
+            product = comma_parts[0]
+            for part in comma_parts[1:]:
+                if not entry and is_web_entry_path(part):
+                    entry = part
+                    continue
+                if not vuln_type and "漏洞" in part:
+                    vuln_type = part
+                    continue
+            return product.strip(), entry.strip(), vuln_type.strip(), cve
     if " /" in target:
         product, entry = target.rsplit(" /", 1)
         entry = "/" + entry.strip()
@@ -2411,6 +2429,7 @@ def derive_sequence_subject(name: str) -> str:
     raw = normalize_cn_action_terms(name)
     raw = normalize_variant(raw)
     raw = raw.replace("恶意软件场景 - ", "").replace("恶意活动场景 - ", "")
+    raw = re.sub(r"^(?:Web\s*应用程序漏洞|应用程序漏洞|AI应用程序漏洞|工控安全|OT安全)场景\s*-\s*", "", raw)
     raw = raw.replace("APT-APT-", "APT-")
     variant = ""
     variant_match = re.search(r"(?:变种\s*#(\d+)|#(\d+)|-\s*(\d+))\s*$", raw)
@@ -2655,6 +2674,8 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
             standardize_web_desc(clean_name, clean_desc),
             clean_notes or WEB_NOTE_DEFAULT,
         )
+    if re.match(r"^Web\s*应用程序漏洞\s*-\s*", clean_name):
+        return clean_name, standardize_web_desc(clean_name, clean_desc), clean_notes or WEB_NOTE_DEFAULT
     if clean_name.startswith("恶意文件传输 - "):
         title = titleize_malicious_transfer(clean_name, clean_desc)
         return append_os_suffix(title, clean_notes), standardize_malicious_transfer_desc(title, clean_desc), clean_notes
