@@ -491,6 +491,8 @@ def normalize_exported_validation_text(text, target_header=""):
     value = re.sub(r"\bparser parses and simulate\b", "parser parses and restores", value, flags=re.IGNORECASE)
     value = re.sub(r"(?<!\ban )\badversary can\b", "an adversary can", value)
     if target_header in {"en_name", "en_subject"}:
+        value = re.sub(r"\bchecked in\b", "Check-in", value, flags=re.IGNORECASE)
+        value = re.sub(r"\bcheck-in\b", "Check-in", value, flags=re.IGNORECASE)
         value = value.replace(", Execution", ", Execute")
         value = value.replace(", execution", ", Execute")
         value = value.replace(" backdoor", " Backdoor")

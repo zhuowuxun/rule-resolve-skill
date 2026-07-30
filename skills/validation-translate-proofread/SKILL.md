@@ -141,6 +141,7 @@ Because AI Translation Studio selects source columns by column index across ever
   - generic `应用程序漏洞` must not become `Web Application Vulnerability` unless Chinese says `Web应用程序漏洞`
 - Preserve prior validation glossary decisions: use `TTPs` for `攻击手法` in scenario descriptions, use `OT Security` for `工控安全`, and replace `#` with `-` in exported English title names.
 - For `数据聚合` in validation titles, use `Data Aggregation`, not `Data Aggregator`.
+- In `Command and Control` titles, translate `签入` as `Check-in`, not `checked in`; keep it consistent with the `validation校对` dictionary and historical validation titles.
 - Do not add marketing, attribution, or business-value claims that are not present in the Chinese source. Remove invented trailing claims such as `helping enterprises achieve digital transformation and efficient management`.
 - For product background sentences, preserve the Chinese information boundary. If the Chinese only says a product is for an industry, do not add launch parties, vendors, cities, or provinces. Example: `律师 e 通是一款律师行业协同办公云平台产品。` -> `Lawyer e-Pass is a collaborative office cloud platform product for the legal industry.` Do not append `jointly launched by China Telecom and Bizhi`.
 - Preserve source sentence order in vulnerability descriptions: exploit/vulnerability impact and `Disclosure date: YYYY-MM-DD` should appear before general product background when the Chinese source has that order. Do not move product background ahead of vulnerability cause or impact sentences.
