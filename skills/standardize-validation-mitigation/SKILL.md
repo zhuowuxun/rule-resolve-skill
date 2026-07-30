@@ -31,6 +31,7 @@ This skill is not for:
    - `cve`
    - `cn_notes`
    - `en_notes`
+   - Only sheets whose first row starts with `uuid` / `tag_cn` are mitigation data sheets. Leave helper sheets without this header unchanged.
 
 2. Preserve existing remediation text unless it is empty.
    - Existing `cn_notes` / `en_notes` should be standardized in place.
@@ -42,6 +43,7 @@ This skill is not for:
      - Do not use historical `name` values to standardize `Actions / Sequences / Playbook` naming.
    - Prefer exact `tag_cn` dictionary matches; if no exact key exists, use the dictionary entry with the smallest MITRE-tag set difference and highest overlap as a fallback fill, only for empty or `#N/A` remediation fields.
    - For dictionary fills, do not rely on the mitigation tag alone. Re-check `cn_name`, `rule_type`, and `os_scope` before writing the final remediation text.
+   - For `主机命令行`, never allow exact or approximate tag matching to fill mail gateway, phishing, C&C/network-only, or malicious-file-transfer templates; force a host-command remediation template and then normalize the OS-specific product scope.
    - If a filled row is `命令与控制`, prefer the network/C&C remediation template over endpoint execution templates, even when the tag match is exact.
    - If a filled row is `恶意文件传输`, prefer the network malicious-file-transfer Hash template over endpoint execution templates.
    - If a filled row is `钓鱼邮件`, prefer the mail-security-gateway template; choose Hash wording for malicious files and URL wording for malicious links.

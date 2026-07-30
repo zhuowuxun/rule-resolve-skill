@@ -322,6 +322,18 @@ def lookup_dictionary(dictionary: Dict[str, Tuple[str, str]], tag_cn: str) -> Tu
     return "", "", "字典未命中待补"
 
 
+def is_mitigation_data_sheet(root: ET.Element, shared_strings: List[str]) -> bool:
+    """Only process sheets with the mitigation table header; leave helper sheets untouched."""
+    first_row = root.find(".//a:sheetData/a:row[@r='1']", NS)
+    if first_row is None:
+        return False
+    cells = row_cells_by_col(first_row)
+    return (
+        read_cell_value(cells.get(1), shared_strings).strip() == "uuid"
+        and read_cell_value(cells.get(2), shared_strings).strip() == "tag_cn"
+    )
+
+
 def add_update(
     updates: Dict[Tuple[str, int, int], Dict[str, object]],
     sheet: str,
@@ -536,6 +548,18 @@ def apply_fill_context(
     fill_reason: str,
 ) -> Tuple[str, str, str]:
     _ = (name, os_scope)
+    if rule_type == "主机命令行" and (
+        fill_reason.startswith("字典")
+        or "邮件安全网关" in base_cn
+        or "email security gateway" in base_en.lower()
+        or "网络安全产品" in base_cn
+    ):
+        host_cn, host_en = dictionary.get("M1018M1028", ("", ""))
+        if not host_cn or not host_en:
+            host_cn, host_en = select_dictionary_by_cn_phrase(dictionary, tag_cn, "监测可疑命令执行", "M1018M1028")
+        if host_cn and host_en:
+            return host_cn, host_en, append_reason(fill_reason, "规则类型二次判断：主机命令行改用主机命令模板")
+
     if rule_type == "命令与控制" and "C&C服务器" not in base_cn:
         c2_cn, c2_en = select_dictionary_by_cn_phrase(dictionary, tag_cn, "C&C服务器", "M1021M1031")
         if c2_cn and c2_en:
@@ -547,6 +571,33 @@ def apply_fill_context(
             return transfer_cn, transfer_en, append_reason(fill_reason, "规则类型二次判断：恶意文件传输改用文件传输模板")
 
     return base_cn, base_en, fill_reason
+
+
+def host_command_notes_need_replacement(cn: str, en: str) -> bool:
+    cn_tokens = (
+        "邮件安全网关",
+        "钓鱼邮件",
+        "C&C服务器",
+        "网络安全产品",
+        "网络流量",
+        "NIPS",
+        "DNS安全解决方案",
+        "互联网边界",
+        "安全区域之间",
+    )
+    en_lower = (en or "").lower()
+    en_tokens = (
+        "email security gateway",
+        "phishing email",
+        "c2 server",
+        "network security products",
+        "malicious network traffic",
+        "nips",
+        "dns security",
+        "internet border",
+        "security zone",
+    )
+    return any(token in (cn or "") for token in cn_tokens) or any(token in en_lower for token in en_tokens)
 
 
 def infer_os_scope(name: str, os_scope: str) -> str:
@@ -956,6 +1007,8 @@ def transform_base_notes(
     cn, en = cleanup_os_mismatch(cn, en, inferred_os, rule_type)
     cn, en = normalize_host_command_product_scope(cn, en, inferred_os, rule_type)
     en = en.replace("Digidations", "digiDations")
+    en = en.replace("theendpoint", "the endpoint")
+    en = en.replace("Productsare", "Products are")
 
     return cn.strip(), en.strip()
 
@@ -1019,6 +1072,8 @@ def main() -> None:
 
     for sheet_name, target in workbook_sheet_targets(archive.files):
         root = ET.fromstring(archive.files[target])
+        if not is_mitigation_data_sheet(root, shared):
+            continue
         changed = False
         for row in root.findall(".//a:sheetData/a:row", NS):
             row_idx = int(row.attrib.get("r", "0"))
@@ -1081,6 +1136,20 @@ def main() -> None:
                     filled_cn_reason = contextual_reason
                 if filled_en_reason:
                     filled_en_reason = contextual_reason
+            forced_host_reason = ""
+            if rule_type == "主机命令行" and host_command_notes_need_replacement(base_cn, base_en):
+                host_cn, host_en = dictionary.get("M1018M1028", ("", ""))
+                if not host_cn or not host_en:
+                    host_cn, host_en = select_dictionary_by_cn_phrase(
+                        dictionary,
+                        tag_cn,
+                        "监测可疑命令执行",
+                        "M1018M1028",
+                    )
+                if host_cn and host_en:
+                    base_cn, base_en = host_cn, host_en
+                    forced_host_reason = "规则类型二次判断：主机命令行改用主机命令模板"
+
             pre_transform_cn = base_cn
             pre_transform_en = base_en
             transformed_cn, transformed_en = transform_base_notes(base_cn, base_en, rule_type, product, name, os_scope, cve)
@@ -1088,6 +1157,8 @@ def main() -> None:
                 set_inline_string(ensure_cell(row, 7, row_idx), transformed_cn)
                 set_inline_string(ensure_cell(row, 8, row_idx), transformed_en)
                 transform_reasons: List[str] = []
+                if forced_host_reason:
+                    transform_reasons.append(forced_host_reason)
                 if is_cloud_system_or_software(product, name, rule_type):
                     transform_reasons.append("云上系统/软件口径调整")
                 if build_vendor_contact_notes(product, rule_type, name)[0] and "联络" in transformed_cn:
