@@ -91,6 +91,7 @@ This skill is not for:
    - Do not keep both a generic malicious-file type and its file-form expansion in the same title. For example, use `恶意脚本，下载` or `恶意脚本文件，下载`, not `恶意脚本，恶意脚本文件，下载`; use `JavaScript 木马，下载`, not `JavaScript 木马，恶意 JavaScript 木马文件，下载`; use `包含嵌入式代码恶意电子表格文件，下载`, not `包含嵌入式代码恶意电子表格文件，恶意电子表格文件，下载`.
    - In malicious file-transfer names, shorten redundant malware nouns such as `Dindoor后门恶意软件` to `Dindoor后门` and `恶意软件释放器` to `释放器`, while descriptions may retain the fuller object wording.
    - For command-and-control rows, preserve URI paths from the description in `cn_name`, for example `/api/auth/login` or `/api/home/status`.
+   - For command-and-control DNS-query rows such as `恶意域名 DNS 查询`, do not place concrete domain IOCs or defanged domains in `cn_name`; keep them in `cn_desc` only.
    - For command-and-control rows, do not use `渗透` when the description is about data exfiltration/leakage, stolen reconnaissance data, PUT requests carrying Base64-encoded data, or status updates sent to C&C infrastructure. Use `数据泄漏` instead. Keep malware names such as `AEROSTAT` in English; do not translate them into words such as `浮空器`.
    - For Web / AI / application vulnerability rows, if the description contains a more complete endpoint path than the raw title and it contains the title path's tail, use the complete description path in both `cn_name` and the opening sentence.
    - For Web / AI / application vulnerability rows, do not keep capture/container labels such as `PCAP` in `cn_name`; if an attack technique label such as `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, `Ghost Bits 折叠`, or `Stream NACK 双重释放` appears with a vulnerability type, place the technique before the vulnerability type and before `变种 #n`.
@@ -164,6 +165,7 @@ This skill is not for:
    - no reference links may remain in `cn_notes`; if source `cn_desc` contains URLs, the standardized output must keep them at the end of `cn_desc` as a multiline `请参考：` block, while `cn_notes` should contain only execution/validator notes
    - no reference URL paths such as `/campaigns/...`, `/actors/...`, `/malware/...` inserted into C2 titles
    - no C2 title may use `渗透` when the description clearly says `数据外泄` / `数据泄露` / `窃取` / Base64 data sent through C&C; use `数据泄漏`
+   - no command-and-control DNS-query title may include concrete domain IOCs such as `example[.]com` or `example.com`
    - no protected-token damage: dates, CVEs, paths, hostnames, filenames, extensions, functions, parameters, flags, versions, and product names
    - no defanged-domain damage such as turning `telen[.]example[.]com` into `telen example com`
    - no source-described Actions row may have an empty output `cn_desc`
