@@ -705,7 +705,6 @@ def append_sandbox_os_suffix(clean_name: str, suffix: str) -> str:
         "持久化",
         "计划任务",
         "运行键",
-        "执行",
         "投放",
         "下载",
         "安装",
@@ -739,7 +738,7 @@ def append_sandbox_os_suffix(clean_name: str, suffix: str) -> str:
     for idx in range(len(parts) - 1, -1, -1):
         if parts[idx].startswith("变种 #"):
             continue
-        attach_idx = idx
+        attach_idx = idx - 1 if parts[idx] in bare_actions and idx > 0 else idx
         while attach_idx > 0 and parts[attach_idx].startswith("APT-"):
             attach_idx -= 1
         parts[attach_idx] = f"{parts[attach_idx]} {suffix}"
@@ -752,6 +751,8 @@ def append_os_suffix(name: str, notes: str) -> str:
     suffix = extract_os_suffix(notes) or (existing_match.group(0) if existing_match else "") or infer_os_suffix_from_extension(name)
     clean_name = re.sub(r"\s*\((?:Windows|Linux|macOS)(?:/(?:Windows|Linux|macOS))*\)", "", name).strip()
     if not suffix:
+        return clean_name
+    if vulnerability_title_has_os_product(clean_name):
         return clean_name
     if clean_name.startswith("主机命令行 - "):
         return append_host_cmd_os_suffix(clean_name, suffix)
@@ -819,6 +820,29 @@ def append_os_suffix(name: str, notes: str) -> str:
         tail = variant_match.group(1)
         return move_os_suffix_before_action(f"{head} {suffix}{tail}")
     return move_os_suffix_before_action(f"{clean_name} {suffix}")
+
+
+def strip_validation_prefix_for_reclassification(name: str) -> str:
+    value = normalize_common_text(name).strip()
+    return re.sub(r"^(?:主机命令行|命令与控制|恶意文件传输|受保护的沙盘|应用程序漏洞|Web应用程序漏洞|AI应用程序漏洞|工控安全|OT安全)\s*-\s*", "", value)
+
+
+def remove_redundant_os_suffix_for_vulnerability_title(title: str) -> str:
+    if not re.match(r"^(?:Web应用程序漏洞|AI应用程序漏洞|应用程序漏洞|工控安全|OT安全)\s*-\s*", title):
+        return title
+    parts = [part.strip() for part in title.split(" - ", 1)[1].split("，") if part.strip()]
+    product = parts[0] if parts else ""
+    if re.search(r"^(?:Windows|Linux|macOS|Mac OS)(?:\b|\s|$)", product, flags=re.IGNORECASE):
+        return re.sub(r"\s*\((?:Windows|Linux|macOS)\)\s*$", "", title).strip()
+    return title
+
+
+def vulnerability_title_has_os_product(title: str) -> bool:
+    if not re.match(r"^(?:Web应用程序漏洞|AI应用程序漏洞|应用程序漏洞|工控安全|OT安全)\s*-\s*", title):
+        return False
+    parts = [part.strip() for part in title.split(" - ", 1)[1].split("，") if part.strip()]
+    product = parts[0] if parts else ""
+    return bool(re.search(r"^(?:Windows|Linux|macOS|Mac OS)(?:\b|\s|$)", product, flags=re.IGNORECASE))
 
 
 def append_host_cmd_os_suffix(clean_name: str, suffix: str) -> str:
@@ -1284,16 +1308,18 @@ def has_validation_title_prefix(name: str) -> bool:
 
 
 def standardize_raw_vulnerability_name(name: str, desc: str, notes: str) -> str:
-    raw = normalize_variant(normalize_cn_action_terms(name)).strip(" ，,。")
+    raw = normalize_variant(normalize_cn_action_terms(strip_validation_prefix_for_reclassification(name))).strip(" ，,。")
     if "漏洞" not in raw:
         return ""
     cve = extract_cve(f"{raw} {desc}")
     raw = CVE_RE.sub("", raw).strip(" ，,。")
+    raw = re.sub(r"[，,]\s*[，,]+", "，", raw).strip(" ，,。")
     raw = re.sub(r"[（(]\s*[）)]", "", raw).strip(" ，,。")
 
     product = ""
     vuln = raw
     specific_patterns = [
+        (r"^(Windows|Linux|macOS|Mac OS)[，,]\s*(.+?漏洞)$", r"\1", r"\2"),
         (r"^(Linux\s*PackageKit)\s*(权限提升漏洞)$", r"\1", r"\2"),
         (r"^(Linux\s*内核)(.+?权限提升漏洞)$", r"\1", r"\2"),
         (r"^(Windows\s*Defender)\s+(.+?权限提升漏洞)$", r"\1", r"\2"),
@@ -1333,7 +1359,7 @@ def standardize_raw_vulnerability_name(name: str, desc: str, notes: str) -> str:
     if cve:
         parts.append(cve)
     parts.append(vuln)
-    return f"{prefix} - " + "，".join(part for part in parts if part)
+    return remove_redundant_os_suffix_for_vulnerability_title(f"{prefix} - " + "，".join(part for part in parts if part))
 
 
 def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str) -> str:

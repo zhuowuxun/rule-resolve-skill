@@ -56,6 +56,7 @@ This skill is not for:
    - Product-specific application/appliance classification has higher priority than generic Web-path classification. For products such as Infoblox NETMRI and 深信服运维安全管理系统, use `应用程序漏洞` even when the entry contains a Web path.
    - Normalize loose CVE forms such as `CVE 2026 2441` to `CVE-2026-2441`; when a raw vulnerability title lacks the CVE but the description contains it, extract the normalized CVE into the title before the vulnerability type.
    - If an Actions row lacks a validation prefix, infer the prefix from `cn_name`, `cn_desc`, and `cn_notes`; double-robot notes with vulnerability names should not be classified as `主机命令行`.
+   - When a row is reclassified into a different validation prefix, remove the old prefix from the title body; never produce names such as `应用程序漏洞 - 主机命令行 - ...`.
    - If a title mentions malicious files but the note is a single-machine execution note rather than a source/target robot note, classify it as `主机命令行`, not `恶意文件传输`.
    - If a raw vulnerability title describes an executable exploit program/file and the notes use source/target robots, classify it as `恶意文件传输`, not `应用程序漏洞`.
    - Mark rows where a missing prefix was added so the inferred prefix can be manually reviewed.
@@ -71,9 +72,10 @@ This skill is not for:
    - In `Sequences`, correct machine-translated actor/malware names and verbs when the description makes the English original clear, for example `珍珠窃取者` -> `Pearl Stealer`, `Koi Stereer` -> `Koi Stealer`, and `放弃 Koi Stealer 活动` -> `投放 Koi Stealer 攻击活动`.
    - In `Sequences`, keep scene numbering as trailing `#n` such as `恶意活动场景 - APT36 威胁组织攻击活动 #2`; do not use `，变种 #n` for scene titles.
    - OS suffixes use English parentheses such as `(Windows)` / `(Linux)` / `(macOS)`.
+   - If the target product itself is an OS such as `Windows`, `Linux`, or `macOS` in a vulnerability title, do not append another `(Windows)` / `(Linux)` / `(macOS)` suffix to the title.
    - Place OS suffixes on the nearest concrete semantic segment for that rule type: malware/tool/product for bare-object rows, or the action-object/action-method segment when the action phrase itself carries the concrete object.
    - For protected-sandbox rows, keep OS suffix placement stable across the same structure. If a concrete action-object or action-method segment exists, attach `(Windows)` / `(Linux)` to that segment, for example `TAMECAT，PowerShell 执行 (Windows)`, `TAMECAT，连接 C&C 服务器 (Windows)`, `WAVESHAPER.V2，通过注册表运行键持久化 (Windows)`, `METASPLOIT，投放随机命名的有效载荷 (Windows)`, and `METASPLOIT，Execute Stager (Windows)`.
-   - For protected-sandbox rows with only a bare action such as `释放器，执行`, keep the OS suffix on the concrete malware/tool/releaser object instead of the bare verb.
+   - For protected-sandbox rows with only a bare action such as `执行`, `释放器，执行`, or `后门，执行`, keep the OS suffix on the concrete malware/tool/releaser object instead of the bare verb.
    - For host-command rows, attach the OS suffix to the concrete command/action/object segment, not to the actor or malware family segment. For example, use `主机命令行 - APT42，TAMECAT，清除运行历史记录 (Windows)，变种 #1`, not `TAMECAT (Windows)，清除运行历史记录`.
    - For protected-sandbox rows, preserve English malware/tool names extracted from the description and do not translate them into Chinese. Examples: use `SANDCLOCK`, not `沙漏`; use `Stage Script释放器`, not `舞台脚本释放器`.
    - For protected-sandbox persistence rows, if the description names a task/service such as `ChromeUpdate`, insert that object before the action, for example `ChromeUpdate，持久化 (Windows)`.
@@ -175,6 +177,7 @@ This skill is not for:
    - no `系统变种` when the row describes GetVersionExW or OS version discovery; use `系统版本`
    - no `cn_desc` body may end without terminal punctuation before a reference block
    - no protected-sandbox row may mix OS suffix placement for the same structure; action-object/method segments get the OS suffix, while bare verbs such as `执行` do not
+   - no vulnerability title whose product segment is already `Windows` / `Linux` / `macOS` may also end with `(Windows)` / `(Linux)` / `(macOS)`
    - no known bad readability fragments such as broken product descriptions, missing spaces around common English identifiers, or `可以自动化、可视性...`
    - Web / AI / application vulnerability rows must pass the duplicate-vulnerability check described above
    - Web / AI / application vulnerability descriptions must not contain repeated `此验证动作还原了...。此验证动作还原了攻击者...` openings
