@@ -31,7 +31,9 @@ This skill is not for:
    - `cve`
    - `cn_notes`
    - `en_notes`
-   - Only sheets whose first row starts with `uuid` / `tag_cn` are mitigation data sheets. Leave helper sheets without this header unchanged.
+   - Process normal mitigation sheets whose first row starts with `uuid` / `tag_cn`.
+   - Also process headerless mitigation sub-sheets when rows clearly use columns A-E as `uuid` / `tag_cn` / `cn_name` / `rule_type` / `os_scope`; fill `cn_notes` / `en_notes` into G/H and record the changes.
+   - Leave sheets unchanged only when neither the header nor the row shape matches mitigation data.
 
 2. Preserve existing remediation text unless it is empty.
    - Existing `cn_notes` / `en_notes` should be standardized in place.
@@ -46,6 +48,7 @@ This skill is not for:
    - For `主机命令行`, never allow exact or approximate tag matching to fill mail gateway, phishing, C&C/network-only, or malicious-file-transfer templates; force a host-command remediation template and then normalize the OS-specific product scope.
    - If a filled row is `命令与控制`, prefer the network/C&C remediation template over endpoint execution templates, even when the tag match is exact.
    - If a filled row is `恶意文件传输`, prefer the network malicious-file-transfer Hash template over endpoint execution templates.
+   - If a filled row is `受保护的沙盘`, prefer endpoint/sandbox remediation wording, not generic network-security-product wording, even when its MITRE tags overlap with C&C or network rules.
    - If a filled row is `钓鱼邮件`, prefer the mail-security-gateway template; choose Hash wording for malicious files and URL wording for malicious links.
    - If a filled row is data leakage/DLP, prefer the `网络DLP产品` remediation template instead of generic network or host templates.
    - If a filled row is `容器安全`, prefer the `容器或主机安全产品` remediation template.
@@ -87,10 +90,11 @@ This skill is not for:
 4. Apply mitigation-specific cleanup rules.
    - The destructive wording `此攻击手法是具有破坏性的` is only allowed in `受保护的沙盘` rows, but `受保护的沙盘` does not automatically mean destructive. Remove it from other rule types such as `命令与控制` or `恶意文件传输`.
    - Do not add or keep the destructive wording merely because the row is `受保护的沙盘`. If the sandbox rule name indicates cleanup/rollback-difficult but non-destructive behavior, remove the whole destructive/dangerous sentence head and start from `如果...`.
-   - Non-destructive sandbox indicators include persistence/retention, C&C or C2 communication, beaconing, connecting/contacting C&C, scheduled tasks, registry/Run Key changes, Windows service/service persistence, auto-start/startup/logon items, log collection artifacts, and similar stay-resident or callback behavior. Typical Chinese/English tokens include `持久化`, `C&C`, `C2`, `信标`, `连接至`, `联络`, `通信`, `计划任务`, `任务计划`, `注册表`, `Run Key`, `采集日志`, `日志采集`, `自启动`, `启动项`, `登录项`, and `驻留`.
+   - Non-destructive sandbox indicators include persistence/retention, C&C or C2 communication, beaconing, connecting/contacting C&C, scheduled tasks, registry/Run Key changes, Windows service/service persistence, auto-start/startup/logon items, log collection artifacts, generic PowerShell/command/script execution, and similar stay-resident or callback behavior. Typical Chinese/English tokens include `持久化`, `C&C`, `C2`, `信标`, `连接至`, `联络`, `通信`, `计划任务`, `任务计划`, `注册表`, `Run Key`, `采集日志`, `日志采集`, `自启动`, `启动项`, `登录项`, `驻留`, `PowerShell`, `执行`, `命令执行`, and `脚本执行`.
    - Keep destructive wording for sandbox rules whose names explicitly indicate destructive effects such as host/file destruction, stopping security protection, disabling data services, deleting shadow copies, wiping, encryption, ransomware, or destroy behavior.
    - When a sandbox row is filled from dictionary/history and the remediation starts directly with `如果...` / `If ...`, add the destructive sentence head only if the rule name has explicit destructive indicators such as stopping security protection, disabling data services, deleting shadow copies, wiping, encryption, ransomware, or destroy behavior. Do not add it merely for generic execution, loaders, file movement, or payload drop wording.
    - Treat `此攻击手法是具有危险性的` / `This attack method is dangerous` as old wording. For sandbox rows with destructive semantics, normalize it to `此攻击手法是具有破坏性的` / `This attack method is destructive`; otherwise remove the whole destructive/dangerous sentence head.
+   - Sandbox product scope is endpoint/terminal oriented. Do not leave sandbox rows starting with `如果网络安全产品对此攻击漏检` / `If the network security products miss this attack`.
    - For hardware-style product groups currently identified by validated rules, remove:
      - `或主机安全产品`
      - `通过优化WAF产品的检测规则实现防御或评估RSAP产品在贵司的适用性`

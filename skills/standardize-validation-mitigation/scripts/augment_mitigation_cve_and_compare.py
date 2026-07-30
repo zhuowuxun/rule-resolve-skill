@@ -323,15 +323,35 @@ def lookup_dictionary(dictionary: Dict[str, Tuple[str, str]], tag_cn: str) -> Tu
 
 
 def is_mitigation_data_sheet(root: ET.Element, shared_strings: List[str]) -> bool:
-    """Only process sheets with the mitigation table header; leave helper sheets untouched."""
+    """Process headered mitigation sheets and headerless mitigation sub-sheets."""
     first_row = root.find(".//a:sheetData/a:row[@r='1']", NS)
-    if first_row is None:
-        return False
-    cells = row_cells_by_col(first_row)
-    return (
-        read_cell_value(cells.get(1), shared_strings).strip() == "uuid"
-        and read_cell_value(cells.get(2), shared_strings).strip() == "tag_cn"
-    )
+    if first_row is not None:
+        cells = row_cells_by_col(first_row)
+        if (
+            read_cell_value(cells.get(1), shared_strings).strip() == "uuid"
+            and read_cell_value(cells.get(2), shared_strings).strip() == "tag_cn"
+        ):
+            return True
+
+    for row in root.findall(".//a:sheetData/a:row", NS)[:12]:
+        row_idx = int(row.attrib.get("r", "0"))
+        if row_idx <= 1:
+            continue
+        cells = row_cells_by_col(row)
+        uuid = read_cell_value(cells.get(1), shared_strings).strip()
+        tag_cn = read_cell_value(cells.get(2), shared_strings).strip()
+        name = read_cell_value(cells.get(3), shared_strings).strip()
+        rule_type = read_cell_value(cells.get(4), shared_strings).strip()
+        os_scope = read_cell_value(cells.get(5), shared_strings).strip()
+        if (
+            re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,}", uuid)
+            and re.fullmatch(r"(?:M\d{4})+", tag_cn)
+            and " - " in name
+            and rule_type
+            and os_scope
+        ):
+            return True
+    return False
 
 
 def add_update(
@@ -548,6 +568,11 @@ def apply_fill_context(
     fill_reason: str,
 ) -> Tuple[str, str, str]:
     _ = (name, os_scope)
+    if "受保护的沙盘" in rule_type and sandbox_notes_need_replacement(base_cn, base_en):
+        sandbox_cn, sandbox_en = select_dictionary_by_cn_phrase(dictionary, tag_cn, "终端安全产品", "M1031M1050")
+        if sandbox_cn and sandbox_en:
+            return sandbox_cn, sandbox_en, append_reason(fill_reason, "规则类型二次判断：受保护的沙盘改用终端沙盘模板")
+
     if rule_type == "主机命令行" and (
         fill_reason.startswith("字典")
         or "邮件安全网关" in base_cn
@@ -598,6 +623,16 @@ def host_command_notes_need_replacement(cn: str, en: str) -> bool:
         "security zone",
     )
     return any(token in (cn or "") for token in cn_tokens) or any(token in en_lower for token in en_tokens)
+
+
+def sandbox_notes_need_replacement(cn: str, en: str) -> bool:
+    en_lower = (en or "").lower()
+    return (
+        "终端安全产品" not in (cn or "")
+        or "网络安全产品" in (cn or "")
+        or "network security products" in en_lower
+        or "endpoint security products" not in en_lower
+    )
 
 
 def infer_os_scope(name: str, os_scope: str) -> str:
@@ -754,6 +789,12 @@ def sandbox_should_omit_destructive_head(name: str) -> bool:
         "启动项",
         "登录项",
         "驻留",
+        "powershell",
+        "执行",
+        "命令执行",
+        "脚本执行",
+        "execute",
+        "execution",
     )
     return any(token in normalized for token in non_destructive_tokens) and not sandbox_has_explicit_destructive_effect(
         name
@@ -1137,6 +1178,18 @@ def main() -> None:
                 if filled_en_reason:
                     filled_en_reason = contextual_reason
             forced_host_reason = ""
+            forced_sandbox_reason = ""
+            if "受保护的沙盘" in rule_type and sandbox_notes_need_replacement(base_cn, base_en):
+                sandbox_cn, sandbox_en = select_dictionary_by_cn_phrase(
+                    dictionary,
+                    tag_cn,
+                    "终端安全产品",
+                    "M1031M1050",
+                )
+                if sandbox_cn and sandbox_en:
+                    base_cn, base_en = sandbox_cn, sandbox_en
+                    forced_sandbox_reason = "规则类型二次判断：受保护的沙盘改用终端沙盘模板"
+
             if rule_type == "主机命令行" and host_command_notes_need_replacement(base_cn, base_en):
                 host_cn, host_en = dictionary.get("M1018M1028", ("", ""))
                 if not host_cn or not host_en:
@@ -1157,6 +1210,8 @@ def main() -> None:
                 set_inline_string(ensure_cell(row, 7, row_idx), transformed_cn)
                 set_inline_string(ensure_cell(row, 8, row_idx), transformed_en)
                 transform_reasons: List[str] = []
+                if forced_sandbox_reason:
+                    transform_reasons.append(forced_sandbox_reason)
                 if forced_host_reason:
                     transform_reasons.append(forced_host_reason)
                 if is_cloud_system_or_software(product, name, rule_type):
