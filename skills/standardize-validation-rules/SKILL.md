@@ -87,6 +87,7 @@ This skill is not for:
    - If a malicious file-transfer title has only an actor plus a generic file/tool type, but the description names a concrete malware family/tool such as `CORNFLAKE 感染程序`, insert that concrete name before the generic type and before `下载`; do not insert generic technical words such as `API`, `URL`, `GET`, or `POST`.
    - Keep inferred malicious file-transfer types concise, such as `恶意远程访问工具`, `恶意远程访问木马文件`, `恶意安装程序`, `恶意 Windows Installer 程序包`, `恶意 JavaScript 下载器`, and do not backfill long URL paths into titles.
    - For malicious file-transfer rows, infer precise file/container types from the description when the title only says `下载`, including `.NET 可执行文件`, `恶意 .NET DLL文件`, `恶意 .NET 程序集`, `Python 脚本文件`, `恶意 PowerShell 下载脚本`, `恶意 PowerShell 脚本`, `恶意 VBA 脚本`, `macOS 后门文件`, `恶意 macOS 可执行文件`, `32 位 Windows .DLL文件`, `恶意 Windows .DLL文件`, `恶意动态链接库文件`, `恶意软件组件文件`, `恶意库组件文件`, `木马化的软件组件文件`, `混淆脚本文件`, `恶意配置脚本文件`, `恶意混淆脚本文件`, `恶意批处理脚本文件`, `恶意脚本文件`, `恶意 JavaScript 木马文件`, `恶意文档文件`, `恶意电子表格文件`, `恶意网页文件`, `恶意配置文件`, `释放器`, and `压缩存档文件`.
+   - Do not keep both a generic malicious-file type and its file-form expansion in the same title. For example, use `恶意脚本，下载` or `恶意脚本文件，下载`, not `恶意脚本，恶意脚本文件，下载`; use `JavaScript 木马，下载`, not `JavaScript 木马，恶意 JavaScript 木马文件，下载`; use `包含嵌入式代码恶意电子表格文件，下载`, not `包含嵌入式代码恶意电子表格文件，恶意电子表格文件，下载`.
    - In malicious file-transfer names, shorten redundant malware nouns such as `Dindoor后门恶意软件` to `Dindoor后门` and `恶意软件释放器` to `释放器`, while descriptions may retain the fuller object wording.
    - For command-and-control rows, preserve URI paths from the description in `cn_name`, for example `/api/auth/login` or `/api/home/status`.
    - For command-and-control rows, do not use `渗透` when the description is about data exfiltration/leakage, stolen reconnaissance data, PUT requests carrying Base64-encoded data, or status updates sent to C&C infrastructure. Use `数据泄漏` instead. Keep malware names such as `AEROSTAT` in English; do not translate them into words such as `浮空器`.
@@ -175,6 +176,7 @@ This skill is not for:
    - Web / AI / application vulnerability rows must pass the duplicate-vulnerability check described above
    - Web / AI / application vulnerability descriptions must not contain repeated `此验证动作还原了...。此验证动作还原了攻击者...` openings
    - Web / AI / application vulnerability titles must not keep `PCAP`, and technique labels such as `Ghost Bits ...` must appear before the vulnerability type, not after `远程代码执行漏洞`
+   - malicious file-transfer titles must not contain semantic duplicate types such as `恶意脚本，恶意脚本文件`, `恶意文档，恶意文档文件`, `JavaScript 木马，恶意 JavaScript 木马文件`, or `恶意电子表格文件，恶意电子表格文件`
    - rows with explicit Web endpoint paths must not be downgraded from `Web应用程序漏洞` to generic `应用程序漏洞`
    - AI products with endpoint paths must remain `AI应用程序漏洞`, not `Web应用程序漏洞`
    - industrial-control products with endpoint paths must remain `工控安全`, not `Web应用程序漏洞`

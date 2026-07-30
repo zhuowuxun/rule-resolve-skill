@@ -1822,6 +1822,8 @@ def extract_named_transfer_object(desc: str, parts: List[str]) -> str:
 def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
     if not inferred or inferred in parts:
         return False
+    if any(is_redundant_transfer_type(part, inferred) for part in parts):
+        return False
     dotted_parts = [part for part in parts if re.search(r"\b[A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}\b", part)]
     allow_dotted_family_type = any(part.upper().endswith((".MACHO", ".PS", ".PY")) for part in dotted_parts)
     if dotted_parts and not allow_dotted_family_type:
@@ -1873,6 +1875,73 @@ def should_add_inferred_file_type(parts: List[str], inferred: str) -> bool:
         "压缩存档文件",
         "释放器",
     }
+
+
+def transfer_type_core(part: str) -> str:
+    value = normalize_common_text(part)
+    value = re.sub(r"\s+", "", value).lower()
+    value = re.sub(r"^(?:恶意|包含嵌入式代码|包含嵌入式宏)+", "", value)
+    value = re.sub(r"(?:文件|程序|样本)$", "", value)
+    return value
+
+
+def is_redundant_transfer_type(existing: str, candidate: str) -> bool:
+    if not existing or not candidate:
+        return False
+    if existing == candidate:
+        return True
+    type_markers = (
+        "文件",
+        "脚本",
+        "文档",
+        "电子表格",
+        "木马",
+        "后门",
+        "程序",
+        "工具",
+        "组件",
+        "存档",
+        "下载器",
+        "释放器",
+        "DLL",
+        ".NET",
+        "JavaScript",
+        "PowerShell",
+        "VBA",
+        "Python",
+    )
+    if not any(marker in existing for marker in type_markers) or not any(marker in candidate for marker in type_markers):
+        return False
+    existing_core = transfer_type_core(existing)
+    candidate_core = transfer_type_core(candidate)
+    if not existing_core or not candidate_core:
+        return False
+    if existing_core == candidate_core:
+        return True
+    return candidate_core in existing_core or existing_core in candidate_core
+
+
+def dedupe_malicious_transfer_parts(parts: List[str]) -> List[str]:
+    cleaned: List[str] = []
+    for part in parts:
+        if not part:
+            continue
+        if part.startswith("APT-") or part == "下载" or part.startswith("变种 #"):
+            if part not in cleaned:
+                cleaned.append(part)
+            continue
+        redundant_index = next(
+            (idx for idx, existing in enumerate(cleaned) if is_redundant_transfer_type(existing, part)),
+            None,
+        )
+        if redundant_index is None:
+            cleaned.append(part)
+            continue
+        existing = cleaned[redundant_index]
+        # Keep the more specific phrase, e.g. embedded spreadsheet type over generic spreadsheet type.
+        if len(part) > len(existing):
+            cleaned[redundant_index] = part
+    return cleaned
 
 
 def normalize_actor_name(name: str) -> str:
@@ -2000,6 +2069,7 @@ def titleize_malicious_transfer(name: str, desc: str) -> str:
             parts.insert(min(len(parts), 2), "下载")
         else:
             parts.append("下载")
+    parts = dedupe_malicious_transfer_parts(parts)
     return "恶意文件传输 - " + "，".join(parts)
 
 
