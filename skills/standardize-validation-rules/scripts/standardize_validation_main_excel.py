@@ -2421,30 +2421,7 @@ def titleize_c2(name: str) -> str:
     raw = raw.replace("，数据外泄，", "，数据泄漏，")
     raw = raw.replace("，数据泄露，", "，数据泄漏，")
     raw = raw.replace("，利用，", "，利用请求，")
-    return strip_c2_dns_ioc_from_title(raw)
-
-
-def is_domain_ioc(part: str) -> bool:
-    value = normalize_common_text(part).strip(" ，,。")
-    if "/" in value:
-        return False
-    return bool(
-        re.fullmatch(
-            r"(?i)[A-Za-z0-9_-]+(?:\.|\[\.\])[A-Za-z0-9_-]+(?:(?:\.|\[\.\])[A-Za-z0-9_-]+)*",
-            value,
-        )
-    )
-
-
-def strip_c2_dns_ioc_from_title(title: str) -> str:
-    if "恶意域名 DNS 查询" not in title:
-        return title
-    if " - " not in title:
-        return title
-    prefix, rest = title.split(" - ", 1)
-    parts = [part.strip() for part in rest.split("，") if part.strip()]
-    cleaned = [part for part in parts if not is_domain_ioc(part)]
-    return f"{prefix} - " + "，".join(cleaned)
+    return raw
 
 
 def c2_desc_indicates_data_exfiltration(desc: str) -> bool:
