@@ -346,18 +346,19 @@ def run_detection_proofread(repo_root, project_id, api_base, platform_ssh, platf
     if not is_local_api(api_base):
         root = shlex.quote(platform_root.rstrip("/"))
         project_id_q = shlex.quote(str(project_id))
+        project_api_base = shlex.quote(f"{api_base.rstrip('/')}/api/project")
         remote_py = "./backend/venv/bin/python3"
         remote_script = "tools/detection/check_and_fix.py"
         repair = run_remote(
             platform_ssh,
             ssh_command,
-            f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q} --repair",
+            f"set -e; cd {root}; AI_TRANSLATION_API_BASE={project_api_base} {remote_py} {remote_script} {project_id_q} --repair",
             "Remote detection proofreading repair",
         )
         verify = run_remote(
             platform_ssh,
             ssh_command,
-            f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q}",
+            f"set -e; cd {root}; AI_TRANSLATION_API_BASE={project_api_base} {remote_py} {remote_script} {project_id_q}",
             "Remote detection proofreading verify",
         )
         return {
