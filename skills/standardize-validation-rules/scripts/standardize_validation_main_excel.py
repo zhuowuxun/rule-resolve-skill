@@ -97,8 +97,6 @@ AI_APPLICATION_PRODUCTS = (
 )
 
 AI_APPLICATION_DESC_MARKERS = (
-    "AI 驱动",
-    "AI驱动",
     "AI 编程智能体",
     "AI编程智能体",
     "AI Agent",
@@ -377,6 +375,7 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("AdaptixC&C", "AdaptixC2")
     value = value.replace("Bluenoroff", "BlueNoroff")
     value = value.replace("Axios供应链", "Axios 供应链")
+    value = value.replace("NWHSteale r", "NWHStealer")
     value = value.replace("电报", "Telegram")
     value = value.replace("CJIAJIA", "C++").replace("C+JIAJIA", "C++")
     value = re.sub(r"C&C\s*或\s*C&C", "C&C", value)
@@ -390,9 +389,10 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("攻击技巧", "攻击手法")
     value = value.replace("系统变种", "系统版本")
     value = value.replace("Web 应用程序漏洞", "Web应用程序漏洞")
+    value = value.replace("AI 应用程序漏洞", "AI应用程序漏洞")
     value = value.replace("活动集群", "威胁组织")
     value = value.replace("敌对集群", "威胁组织")
-    value = value.replace("集群", "威胁组织")
+    value = re.sub(r"(?:(?:威胁|恶意软件|攻击|APT|网络间谍)集群)", "威胁组织", value)
     value = value.replace("网络间谍组织", "威胁组织")
     value = value.replace("网络间谍活动集群", "威胁组织")
     value = value.replace("网络钓鱼电子邮件", "钓鱼邮件")
@@ -420,6 +420,7 @@ def normalize_common_text(text: str) -> str:
     value = re.sub(r"([A-Za-z0-9+#)])(?=[\u4e00-\u9fff])", r"\1 ", value)
     value = re.sub(r"(?<=[\u4e00-\u9fff])([A-Za-z0-9(])", r" \1", value)
     value = value.replace("Web 应用程序漏洞", "Web应用程序漏洞")
+    value = value.replace("AI 应用程序漏洞", "AI应用程序漏洞")
     value = normalize_variant(value)
     value = re.sub(r"(?<!\d)(20\d{2})\s+(\d{2})\s+(\d{2})(?!\d)", r"\1-\2-\3", value)
     value = re.sub(r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", value)
@@ -1036,7 +1037,7 @@ def split_references(text: str) -> Tuple[str, List[str]]:
     body = re.sub(r"\[\*\*(" + CAMPAIGN_CODE_RE.pattern + r")\*\*\]", "攻击活动", body, flags=re.IGNORECASE)
     body = CAMPAIGN_CODE_RE.sub("攻击活动", body)
     body = re.sub(r"\[\*\*.*?\*\*\]", " ", body)
-    body = re.sub(r"\[[^\]]+\]", " ", body)
+    body = re.sub(r"(?<![A-Za-z0-9_])\[(?:\*|任意值|[^\]]{0,80}?https?://[^\]]+)\](?![A-Za-z0-9_])", " ", body)
     body = re.sub(r"\s+-\s+\[\*\*.*?\*\*\]\s+-\s*", " ", body)
     body = re.sub(r"\s+-\s+\[.*?\]\s+-\s*", " ", body)
     body = re.sub(r"\s+-\s+", " ", body)
@@ -1541,6 +1542,18 @@ def dedupe_web_attack_sentences(
 
 def trim_promotional_product_copy(text: str) -> str:
     value = normalize_common_text(text)
+    value = value.replace(
+        "泛微 E-Cology9 是一款针对中大型组织设计的高效协同办公 OA（Office Automation）系统，它融合了最新的技术理念和管理思想，旨在为用户提供智能化，平台化，全程数字化的办公体验。",
+        "泛微 E-Cology9 是一款面向中大型组织的协同办公 OA（Office Automation）系统。",
+    )
+    value = value.replace(
+        "Adobe ColdFusion 是一个高性能，企业级的动态应用服务器平台，它通过其专有的 CFML 脚本语言，将后端系统集成，现代 API 管理与 AI 驱动开发能力相结合，用于快速构建，部署和扩展安全的 Web 及移动应用程序。",
+        "Adobe ColdFusion 是一款基于 CFML 脚本语言的动态应用服务器平台，用于构建、部署和扩展 Web 及移动应用程序。",
+    )
+    value = value.replace(
+        "天问互联科技有限公司以软件开发和技术服务为基础，建立物业 ERP 应用系统，向物管公司提供旨在降低成本，保障品质，提升效能为目标的智慧物管整体解决方案，实现物管公司的管理升级；以平台搭建和资源整合为基础，建立社区 O2O 服务平台，向物管公司提供旨在完善服务，方便业主，增加收益为目标的智慧小区综合服务平台，实现物业公司的服务转型。",
+        "天问物业 ERP 系统是一款面向物业管理业务的 ERP 应用系统。",
+    )
     value = value.replace(
         "Fastjson 是阿里巴巴开源的 Java JSON 解析库，凭借其高性能和简洁的 API 在 Java 生态中占据主导地位，广泛应用于企业后端服务，微服务网关，数据接口层等核心场景。",
         "Fastjson 是阿里巴巴开源的 Java JSON 解析库，常用于 Java 应用中的 JSON 序列化与反序列化。",
@@ -2739,7 +2752,9 @@ def is_sequence_download_subject(subject: str) -> bool:
 
 
 def is_sequence_sample_download_subject(subject: str) -> bool:
-    return any(token in subject for token in ("恶意软件下载", "恶意软件", "勒索软件下载", "加载器下载", "后门下载", "释放器下载"))
+    if any(token in subject for token in ("漏洞", "CVE-", "SQL 注入", "SSRF", "远程代码执行")):
+        return False
+    return any(token in subject for token in ("恶意软件下载", "恶意软件", "勒索软件下载", "加载器下载", "加载器 下载", "后门下载", "后门 下载", "释放器下载", "释放器 下载", "Botnet 下载"))
 
 
 def sequence_sample_download_intro(desc_subject: str) -> str:

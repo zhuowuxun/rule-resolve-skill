@@ -44,6 +44,7 @@ This skill is not for:
    - Remove campaign identifiers such as `CAMP.26.029` from rule names; in descriptions, replace such identifiers with `攻击活动` if they need to remain semantically visible.
    - Standardize `变种 #n`.
    - Standardize actor wording such as `行为体` / `威胁集群` / `恶意软件集群` to the approved wording.
+   - Do not globally replace technical `集群` with `威胁组织`; only actor/threat contexts such as `威胁集群`, `恶意软件集群`, `活动集群`, or `敌对集群` should become `威胁组织`. Product/runtime phrases such as `Kafka 集群` must remain technical cluster wording.
    - Standardize `攻击技巧` to `攻击手法`.
    - Preserve organization hierarchy when present, using `子组织` rather than flattening the relationship.
 
@@ -52,6 +53,7 @@ This skill is not for:
    - Normalize `Web安全验证 -` / `web安全验证 -` to `Web应用程序漏洞 -`.
    - If a title contains an explicit Web endpoint path such as `/api/...`, `.ashx`, `.php`, `.jsp`, or another URL-path-like entry, keep/classify it as `Web应用程序漏洞` even when the product name contains application words such as `ERP` or `管理系统`.
    - AI product classification has higher priority than Web endpoint classification. If the product or description identifies the target as an AI application, LLM platform, AI coding agent, MCP/Model Context Protocol server/tool, or AI workflow product, use `AI应用程序漏洞` even when the vulnerability entry contains a Web path such as `/session/`.
+   - Do not classify a product as `AI应用程序漏洞` only because a generic product description contains marketing phrases such as `AI 驱动`; the product itself must be an AI/LLM/MCP/AI-workflow target.
    - Industrial-control / OT product classification has higher priority than Web endpoint classification and lower priority than AI classification. If the product or description identifies MES, SCADA, manufacturing execution, production-process management, data acquisition/monitoring, scheduling, warehouse, or equipment-fixture management systems, use `工控安全` even when the vulnerable entry is a Web path such as `.ashx`.
    - Product-specific application/appliance classification has higher priority than generic Web-path classification. For products such as Infoblox NETMRI and 深信服运维安全管理系统, use `应用程序漏洞` even when the entry contains a Web path.
    - Normalize loose CVE forms such as `CVE 2026 2441` to `CVE-2026-2441`; when a raw vulnerability title lacks the CVE but the description contains it, extract the normalized CVE into the title before the vulnerability type.
@@ -131,6 +133,7 @@ This skill is not for:
      https://...
      ```
    - Remove disposable markdown/link placeholders and unwanted attribution tails.
+   - When deleting disposable markdown/link placeholders, preserve technical bracket tokens such as parameters and IOC markers, for example `jform[file]`, `array[index]`, and `example[.]com`.
    - Remove political/geopolitical and promotional actor-background tails from descriptions, such as `伊朗背景`, `地缘政治`, `精准钓鱼美国，以色列及阿联酋`, `中东冲突`, `极高的行动节奏`, and `较强的技术研发能力`, while preserving concrete technical behavior, malware/tool names, URLs, paths, files, CVEs, versions, and dates.
    - Fix obvious machine-translation residue such as `该变种后面是...` to fluent Chinese such as `该变种是...`.
    - Remove province/city prefixes from company introductions when they are only geographic qualifiers.
