@@ -58,8 +58,9 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - if a historical standardized software description exists, reuse or shorten toward that wording
    - keep the application description at the end
    - treat product-introduction phrasing such as `自主研发`, `是…一款`, `核心价值`, `核心使命`, `不仅具有`, and `专业产品` as software description, not attack-method explanation
+   - do not treat product-introduction terms such as `PostgreSQL`, `MySQL`, or generic database/platform wording as attack-method text merely because they contain `SQL`; software introductions must still be moved to the end
    - trim marketing/praise wording from software descriptions, such as `功能全面`, `性能稳定`, `扩展性强`, `核心竞争力`, `护城河`, and `开放、互联、融合、智能`; keep only neutral product purpose or category
-   - remove political, policy, or official-planning endorsement wording from software descriptions, such as `依据国家...规范`, `国家“十三五”`, `十三五`, and `经过充分的客户需求调研`; keep only neutral product-purpose wording
+   - remove political, policy, official-planning, and endorsement wording from software descriptions, such as `依据国家...规范`, `符合国家...规范`, `国家工信部`, `国家“十三五”`, `十三五`, `官方认可`, `最广泛使用`, and `经过充分的客户需求调研`; keep only neutral product-purpose wording
 
 4. Standardize `notes`.
    Rewrite vendor guidance into this exact three-line structure:

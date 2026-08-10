@@ -23,6 +23,7 @@ DEFAULT_REPLACEMENT_DICTS = ["基础字符校对", "detection校对"]
 DEFAULT_SOURCE_HEADERS = ["name.1", "desc", "notes"]
 CN_RE = re.compile(r"[\u4e00-\u9fff]")
 URL_RE = re.compile(r"https?://[^\s]+|www\.[^\s]+", re.IGNORECASE)
+SOURCE_PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~:?#\[\]@!$&'()*+,;=%/-]+")
 
 
 def auth_state_cn(text):
@@ -35,7 +36,7 @@ def auth_state_cn(text):
     )
     authenticated = bool(
         re.search(
-            r"经过身份(?:认证|验证)|经过认证|(?<!未)经身份(?:认证|验证)|(?<!未)经认证|认证用户|已认证用户|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:经过身份(?:认证|验证)的?|经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
+            r"(?<!不)经过身份(?:认证|验证)|(?<!不)经过认证|(?<![未不])经身份(?:认证|验证)|(?<![未不])经认证|认证用户|已认证用户|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:(?<!不)经过身份(?:认证|验证)的?|(?<!不)经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
             text,
         )
     )
@@ -477,8 +478,13 @@ def postprocess_exported_workbook(output_path):
             )
             source_lower = source_text.lower()
             urls = " ".join(URL_RE.findall(source_text)).lower()
+            source_paths = sorted(set(SOURCE_PATH_RE.findall(source_text)), key=len, reverse=True)
             replacements = []
             variant_match = re.search(r"变种\s*#\s*(\d+)", source_text)
+
+            for source_path in source_paths:
+                if "@" in source_path:
+                    replacements.append((source_path.replace("@", ""), source_path))
 
             if "fangmail.net" in urls:
                 replacements.extend(

@@ -146,7 +146,6 @@ def is_software_description_sentence(sentence: str) -> bool:
         "payload",
         "Payload",
         "nonce",
-        "SQL",
         "SSRF",
         "XSS",
         "路径遍历",
@@ -231,6 +230,8 @@ def is_software_description_sentence(sentence: str) -> bool:
     )):
         return True
     if re.search(r"是[^。！？]{0,40}(?:一款|一个|一种|一套)", text) or "自主研发" in text:
+        return True
+    if re.search(r"是[^。！？]{0,80}(?:平台|系统|框架|工具|CMS|软件|产品|插件|组件)", text, flags=re.IGNORECASE):
         return True
     description_markers = (
         "是一款",
@@ -670,6 +671,24 @@ def normalize_software_description(text: str) -> str:
         return "AstrBot 是一款支持多消息平台与 MCP 扩展的智能聊天机器人框架。"
     if "n8n" in normalized:
         return "n8n 是一款开源的工作流自动化平台。"
+    if "pgAdmin" in normalized or "pgadmin" in normalized:
+        return "pgAdmin 是一款开源的 PostgreSQL 数据库管理和开发平台。"
+    if "LibreNMS" in normalized:
+        return "LibreNMS 是一款开源的网络监控管理系统。"
+    if "NukeViet" in normalized:
+        return "NukeViet 是一款开源 CMS。"
+    if "vBulletin" in normalized:
+        return "vBulletin 是一款商业论坛软件。"
+    if "Grav" in normalized:
+        return "Grav 是一款基于 PHP 的开源扁平文件 CMS。"
+    if "Sequelize" in normalized:
+        return "Sequelize 是一款基于 Node.js 的开源 ORM 框架。"
+    if "MetaCRM" in normalized:
+        return "MetaCRM 是一款 CRM 软件。"
+    if "国威HB1910" in normalized or "数字IP程控电话交换机" in normalized:
+        return "国威 HB1910 数字 IP 程控电话交换机是一款通信设备。"
+    if "用友U8Cloud" in compact or "用友U8Cloud" in normalized.replace(" ", ""):
+        return "用友 U8Cloud 是一款企业级 ERP 产品。"
     if "Penpot" in normalized:
         return "Penpot 是一个开源设计与原型协作平台。"
     if "XWiki" in normalized:
@@ -718,6 +737,8 @@ def normalize_software_description(text: str) -> str:
         "经过充分客户需求调研",
         "并依据国家",
         "依据国家",
+        "符合国家",
+        "国家工信部",
         "国家“十三五”",
         "国家十三五",
         "教育信息化建设规范",
@@ -741,6 +762,11 @@ def normalize_software_description(text: str) -> str:
         "核心竞争力",
         "护城河",
         "开放、互联、融合、智能",
+        "功能强大",
+        "最广泛使用",
+        "官方认可",
+        "广泛被",
+        "极速性能",
     )
     earliest_marketing = min(
         (normalized.find(marker) for marker in marketing_markers if marker in normalized),
