@@ -882,7 +882,7 @@ def apply_ad_domain_title_rules(title: str, original_name: str, desc: str, notes
     if clean_title.startswith("恶意文件传输 - "):
         return insert_title_part_before_variant(clean_title, "AD域")
     if has_pcap_evidence(original_name, desc, notes, context_text) and clean_title.startswith("命令与控制 - "):
-        return add_title_part_after_prefix(clean_title, "AD侦查流量")
+        return insert_title_part_before_variant(clean_title, "AD侦查流量")
     return clean_title
 
 
