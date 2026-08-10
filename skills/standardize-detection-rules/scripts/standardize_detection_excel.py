@@ -265,16 +265,16 @@ def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
         product = parts[0] if parts else remainder
         cve = ""
         endpoint = ""
-        vuln = ""
+        vuln_parts: List[str] = []
         for part in parts[1:]:
             if re.fullmatch(r"CVE-\d{4}-\d+", part, flags=re.IGNORECASE):
                 cve = part.upper()
             elif part.startswith("/") or ACTION_ENTRY_RE.fullmatch(part) or re.fullmatch(r"[A-Za-z0-9._?=&:/$-]+", part):
                 endpoint = part
             else:
-                vuln = part
+                vuln_parts.append(part)
         product = normalize_product_name(product)
-        return product, endpoint, vuln, cve
+        return product, endpoint, "，".join(vuln_parts), cve
 
     cve = ""
     cve_match = re.search(r"\((CVE-\d{4}-\d+)\)\s*$", text, flags=re.IGNORECASE)
@@ -338,21 +338,26 @@ def normalize_title_vulnerability(vuln: str) -> str:
 
 
 def normalize_name_vulnerability(vuln: str) -> str:
-    """Keep rule names concise: core vulnerability plus optional variant only."""
+    """Keep rule names concise while preserving source technique labels."""
     text = normalize_title_vulnerability(vuln)
     if not text:
         return ""
     parts = [part.strip() for part in text.split("，") if part.strip()]
     core_vuln = ""
     variant = ""
+    techniques: List[str] = []
     for part in parts:
         if re.fullmatch(r"变种\s*#\d+", part):
             variant = part
         elif any(keyword in part for keyword in ("漏洞", "缺陷", "注入", "读取", "上传", "执行", "泄露")):
             core_vuln = core_vuln or part
+        else:
+            technique = re.sub(r"\b(Ghost Bits\s*(?:截断|复合|宽松归一化|折叠))绕过\b", r"\1", part)
+            if technique not in techniques:
+                techniques.append(technique)
 
     if core_vuln:
-        return "，".join(part for part in (core_vuln, variant) if part)
+        return "，".join(part for part in (*techniques, core_vuln, variant) if part)
     return text
 
 

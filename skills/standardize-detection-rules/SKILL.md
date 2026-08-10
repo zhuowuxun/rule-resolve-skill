@@ -35,7 +35,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - treat action-style entry names in `desc`, such as `qcld_wb_chatbot_conversation_save AJAX Action`, as valid rule entry points when they expand a shorter title token
    - when `desc` contains a more precise vulnerability family than the title, promote it into `name.1`, for example `ClickHouse SQL 注入漏洞` should not be reduced to generic `SQL注入漏洞`
    - if the title path and `desc` path are completely unrelated, do not force-replace the title path; highlight the `name.1` and `desc` cells yellow for manual review
-   - if the title contains Ghost Bits technique details such as `Ghost Bits 截断`, `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, or `Ghost Bits 折叠`, do not keep those technique details in `name.1` when a clear core vulnerability type already exists; keep only the core vulnerability and optional `变种 #n`, for example `文件上传漏洞，变种 #1`
+   - if the title contains Ghost Bits technique details such as `Ghost Bits 截断`, `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, or `Ghost Bits 折叠`, preserve those technique details in `name.1` and place them before the core vulnerability type; for example `Ghost Bits 复合，远程代码执行漏洞，变种 #1`
 
 3. Standardize `desc`.
    The description should follow this order:
