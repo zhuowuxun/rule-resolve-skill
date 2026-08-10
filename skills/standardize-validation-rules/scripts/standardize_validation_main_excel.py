@@ -823,6 +823,69 @@ def append_os_suffix(name: str, notes: str) -> str:
     return move_os_suffix_before_action(f"{clean_name} {suffix}")
 
 
+AD_DOMAIN_MARKERS = (
+    "AD域",
+    "Active Directory",
+    "Domain Controller",
+    "域控",
+    "域控制器",
+    "域管理员",
+    "域用户",
+    "域账户",
+    "域账号",
+    "域凭据",
+    "域内",
+    "LDAP",
+    "Kerberos",
+    "NTDS.dit",
+    "DCSync",
+    "BloodHound",
+)
+
+
+def is_ad_domain_related(*texts: str) -> bool:
+    combined = " ".join(normalize_common_text(text) for text in texts if text)
+    return any(marker.lower() in combined.lower() for marker in AD_DOMAIN_MARKERS)
+
+
+def has_pcap_evidence(*texts: str) -> bool:
+    combined = " ".join(normalize_common_text(text) for text in texts if text)
+    return bool(re.search(r"\bPCAP\b|pcap\s*包|抓包|流量包", combined, flags=re.IGNORECASE))
+
+
+def insert_title_part_before_variant(title: str, part: str) -> str:
+    clean_title = normalize_common_text(title)
+    if not clean_title or part in [item.strip() for item in clean_title.split("，")]:
+        return clean_title
+    variant_match = re.search(r"(，变种 #\d+)$", clean_title)
+    if variant_match:
+        return f"{clean_title[:variant_match.start()]}，{part}{variant_match.group(1)}"
+    return f"{clean_title}，{part}"
+
+
+def add_title_part_after_prefix(title: str, part: str) -> str:
+    clean_title = normalize_common_text(title)
+    if part in [item.strip() for item in clean_title.split("，")]:
+        return clean_title
+    match = re.match(r"^([^，]+? - )(.+)$", clean_title)
+    if not match:
+        return insert_title_part_before_variant(clean_title, part)
+    return f"{match.group(1)}{part}，{match.group(2)}"
+
+
+def apply_ad_domain_title_rules(title: str, original_name: str, desc: str, notes: str, context_text: str = "") -> str:
+    if not is_ad_domain_related(title, original_name, desc, notes, context_text):
+        return title
+    clean_title = normalize_common_text(title)
+    if clean_title.startswith("主机命令行 - "):
+        return add_title_part_after_prefix(clean_title, "AD域")
+    if clean_title.startswith("恶意文件传输 - "):
+        return insert_title_part_before_variant(clean_title, "AD域")
+    if has_pcap_evidence(original_name, desc, notes, context_text) and clean_title.startswith("命令与控制 - "):
+        return add_title_part_after_prefix(clean_title, "AD侦查流量")
+    return clean_title
+
+
 def strip_validation_prefix_for_reclassification(name: str) -> str:
     value = normalize_common_text(name).strip()
     return re.sub(r"^(?:主机命令行|命令与控制|恶意文件传输|受保护的沙盘|应用程序漏洞|Web应用程序漏洞|AI应用程序漏洞|工控安全|OT安全)\s*-\s*", "", value)
@@ -2954,12 +3017,15 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
         return clean_name, standardize_web_desc(clean_name, clean_desc), clean_notes or WEB_NOTE_DEFAULT
     if clean_name.startswith("恶意文件传输 - "):
         title = titleize_malicious_transfer(clean_name, clean_desc)
+        title = apply_ad_domain_title_rules(title, clean_name, clean_desc, clean_notes, clean_context)
         return append_os_suffix(title, clean_notes), standardize_malicious_transfer_desc(title, clean_desc), clean_notes
     raw_download_title = titleize_raw_malicious_download(clean_name)
     if raw_download_title:
+        raw_download_title = apply_ad_domain_title_rules(raw_download_title, clean_name, clean_desc, clean_notes, clean_context)
         return append_os_suffix(raw_download_title, clean_notes), standardize_malicious_transfer_desc(raw_download_title, clean_desc), clean_notes
     raw_vuln_transfer_title = standardize_raw_vulnerability_transfer_name(clean_name, clean_desc, clean_notes)
     if raw_vuln_transfer_title:
+        raw_vuln_transfer_title = apply_ad_domain_title_rules(raw_vuln_transfer_title, clean_name, clean_desc, clean_notes, clean_context)
         return (
             append_os_suffix(raw_vuln_transfer_title, clean_notes),
             standardize_malicious_transfer_desc(raw_vuln_transfer_title, clean_desc),
@@ -2973,9 +3039,11 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
         return append_os_suffix(title, clean_notes), standardize_generic_desc(clean_desc), clean_notes
     if clean_name.startswith("命令与控制 - "):
         title = titleize_c2_with_context(clean_name, clean_desc)
+        title = apply_ad_domain_title_rules(title, clean_name, clean_desc, clean_notes, clean_context)
         return append_os_suffix(title, clean_notes), standardize_generic_desc(clean_desc), clean_notes
     if clean_name.startswith("主机命令行 - "):
         title = titleize_host_cmd(clean_name, clean_desc)
+        title = apply_ad_domain_title_rules(title, clean_name, clean_desc, clean_notes, clean_context)
         return append_os_suffix(title, clean_notes), standardize_host_cmd_desc(clean_name, clean_desc), clean_notes
     if clean_name.startswith("钓鱼邮件 - "):
         title = titleize_phishing_email(clean_name)
