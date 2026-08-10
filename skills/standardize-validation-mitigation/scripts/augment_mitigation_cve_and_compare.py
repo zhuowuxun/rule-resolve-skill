@@ -272,6 +272,12 @@ def build_cn_appendix(translated_desc: str, references: List[str]) -> str:
         for ref in references:
             match = re.search(r"CVE-\d{4}-\d+", ref, flags=re.IGNORECASE)
             if match:
+                cn_references.append(f"https://www.cve.org/CVERecord?id={match.group(0).upper()}")
+                break
+    if not cn_references:
+        for ref in references:
+            match = re.search(r"CVE-\d{4}-\d+", ref, flags=re.IGNORECASE)
+            if match:
                 cn_references.append(f"https://www.tenable.com/cve/{match.group(0).upper()}")
                 break
     if cn_references:
@@ -704,24 +710,28 @@ def normalize_reference_priority(references: List[str]) -> List[str]:
     def score(url: str) -> Tuple[int, str]:
         lowered = url.lower()
         priority = 50
-        if "tenable.com/cve/" in lowered:
+        if "cve.org/cverecord" in lowered or "cveawg.mitre.org/api/cve/" in lowered:
             priority = 1
-        elif "security/advisories" in lowered or "advisory" in lowered:
-            priority = 1
-        elif "support." in lowered or "docs." in lowered or "release-notes" in lowered:
+        elif "nvd.nist.gov/vuln/detail/" in lowered:
             priority = 2
-        elif "cisa.gov" in lowered or "apache.org" in lowered or "wordpress.org" in lowered:
+        elif "security/advisories" in lowered or "advisory" in lowered:
             priority = 3
-        elif "github.com" in lowered and "/security/" in lowered:
+        elif "support." in lowered or "docs." in lowered or "release-notes" in lowered:
             priority = 4
+        elif "cisa.gov" in lowered or "apache.org" in lowered or "wordpress.org" in lowered:
+            priority = 5
+        elif "github.com" in lowered and "/security/" in lowered:
+            priority = 6
         elif "github.com" in lowered:
             priority = 8
-        elif "vuldb.com/?id." in lowered:
+        elif "tenable.com/cve/" in lowered:
             priority = 20
-        elif "vuldb.com/?ctiid." in lowered or "submit." in lowered or "x.com/" in lowered:
+        elif "vuldb.com/?id." in lowered:
             priority = 30
-        elif "metasploit" in lowered:
+        elif "vuldb.com/?ctiid." in lowered or "submit." in lowered or "x.com/" in lowered:
             priority = 40
+        elif "metasploit" in lowered:
+            priority = 45
         return (priority, lowered)
 
     deduped = []

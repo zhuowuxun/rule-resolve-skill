@@ -38,7 +38,7 @@ def fetch_url(url: str) -> str:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with urllib.request.urlopen(request, timeout=20) as response:
                 return response.read().decode("utf-8", errors="ignore")
         except Exception as exc:
             if attempt == 2:
@@ -59,6 +59,41 @@ def parse_nvd(html: str) -> tuple[str, List[str]]:
             if ref.startswith("http") and ref not in seen:
                 seen.add(ref)
                 references.append(ref)
+    return description, references
+
+
+def first_english_description(descriptions: object) -> str:
+    if not isinstance(descriptions, list):
+        return ""
+    for item in descriptions:
+        if not isinstance(item, dict):
+            continue
+        lang = str(item.get("lang") or "").lower()
+        value = str(item.get("value") or "").strip()
+        if value and lang.startswith("en"):
+            return value
+    for item in descriptions:
+        if isinstance(item, dict):
+            value = str(item.get("value") or "").strip()
+            if value:
+                return value
+    return ""
+
+
+def parse_cve_org_api(data: Dict[str, object], cve_url: str) -> tuple[str, List[str]]:
+    containers = data.get("containers", {}) if isinstance(data, dict) else {}
+    cna = containers.get("cna", {}) if isinstance(containers, dict) else {}
+    description = first_english_description(cna.get("descriptions"))
+
+    references = [cve_url]
+    seen = {cve_url}
+    for ref in cna.get("references", []) if isinstance(cna, dict) else []:
+        if not isinstance(ref, dict):
+            continue
+        url = str(ref.get("url") or "").strip()
+        if url.startswith("http") and url not in seen:
+            seen.add(url)
+            references.append(url)
     return description, references
 
 
@@ -97,12 +132,34 @@ def parse_tenable(html: str, tenable_url: str) -> tuple[str, List[str]]:
 
 
 def fetch_one(cve: str) -> Dict[str, object]:
+    cve_org_url = f"https://www.cve.org/CVERecord?id={cve}"
+    cve_api_url = f"https://cveawg.mitre.org/api/cve/{cve}"
     nvd_url = f"https://nvd.nist.gov/vuln/detail/{cve}"
     tenable_url = f"https://www.tenable.com/cve/{cve}"
 
-    nvd_html = fetch_url(nvd_url)
-    description, references = parse_nvd(nvd_html)
-    source_url = nvd_url
+    description = ""
+    references: List[str] = []
+    source_url = cve_org_url
+
+    try:
+        cve_api = json.loads(fetch_url(cve_api_url))
+        description, references = parse_cve_org_api(cve_api, cve_org_url)
+    except (RuntimeError, TypeError, ValueError, json.JSONDecodeError):
+        references = [cve_org_url]
+
+    try:
+        nvd_html = fetch_url(nvd_url)
+        nvd_description, nvd_references = parse_nvd(nvd_html)
+        if nvd_description and not description:
+            description = nvd_description
+            source_url = nvd_url
+        seen = set(references)
+        for ref in [nvd_url] + nvd_references:
+            if ref.startswith("http") and ref not in seen:
+                seen.add(ref)
+                references.append(ref)
+    except RuntimeError:
+        pass
 
     if not description or not references:
         try:
@@ -112,12 +169,8 @@ def fetch_one(cve: str) -> Dict[str, object]:
                 description = tenable_description
                 source_url = tenable_url
             if tenable_references:
-                if not references:
-                    references = tenable_references
-                    source_url = tenable_url
-                else:
-                    seen = set(references)
-                    references.extend(ref for ref in tenable_references if ref not in seen)
+                seen = set(references)
+                references.extend(ref for ref in tenable_references if ref not in seen)
         except RuntimeError:
             pass
 

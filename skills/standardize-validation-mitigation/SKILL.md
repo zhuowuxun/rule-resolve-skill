@@ -73,10 +73,10 @@ This skill is not for:
    - Keep the remediation paragraph at the top.
    - Rebuild the trailing description/reference block from CVE sources.
    - Never preserve an existing CVE appendix just because a provided CVE cache is missing that CVE. The runner must fetch any missing CVE entries before augmentation, otherwise stale or cross-CVE descriptions can be retained.
-   - If NVD/CVE official pages do not expose a usable description or reference list, try the Tenable CVE page (`https://www.tenable.com/cve/<CVE-ID>`) before falling back to a bare source URL. Tenable is useful for CVEs that are not yet visible or parseable on cve.org/NVD.
+   - Fetch and prioritize CVE sources in this order: `cve.org` / CVE Services first, `nvd.nist.gov` second, vendor/security advisory links next, and Tenable only as a third-party fallback when official sources do not expose a usable description or reference list.
    - If all CVE sources return no reference list, still append the CVE detail/source URL as the fallback `请参考` / `Please refer to` reference; a row with a CVE must not lose its reference block because the external page has no parsed reference table.
    - In Chinese `cn_notes`, remove `nist.gov` links from appended `请参考` references. Keep `nist.gov` links in English `en_notes` `Please refer to` references.
-   - If removing `nist.gov` would leave the Chinese `请参考` block empty, add `https://www.tenable.com/cve/<CVE-ID>` as the Chinese fallback reference.
+   - If removing `nist.gov` would leave the Chinese `请参考` block empty, add `https://www.cve.org/CVERecord?id=<CVE-ID>` as the Chinese fallback reference; use `https://www.tenable.com/cve/<CVE-ID>` only if no CVE.org-style URL can be formed.
    - When translating CVE version range wording, do not literalize `up to <version>` as `高达 <version>`; translate `A flaw/vulnerability has been found in <product> up to <version>.` as `<product> <version> 及之前版本存在漏洞。`
    - Append reference links in the fixed format:
 

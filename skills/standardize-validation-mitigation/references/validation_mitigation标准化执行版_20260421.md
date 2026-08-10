@@ -131,19 +131,22 @@
 
 对有 `CVE` 的行：
 
-- 用 `https://www.cve.org/CVERecord?id=CVE-xxxx-xxxx` 获取：
+- 优先用 `https://www.cve.org/CVERecord?id=CVE-xxxx-xxxx` / CVE Services 获取：
   - Description 英文放英文列
   - 中文翻译放中文列
   - Reference 链接
 
 补充规则：
 
-- 若 `cve.org` 没内容，再取 `https://www.tenable.com/cve/CVE-xxxx-xxxx`
-- 若两边都没内容，则对应单元格留空并标黄
+- 若 `cve.org` 没内容，再取 `https://nvd.nist.gov/vuln/detail/CVE-xxxx-xxxx`
+- 若 `cve.org` 和 NVD 都没内容，再取 `https://www.tenable.com/cve/CVE-xxxx-xxxx`
+- 若三者都没内容，则保留 remediation 主体，并至少追加可构造的 CVE 详情页链接，避免 CVE 行没有 reference
 
 ### 3. Reference 处理
 
 - 从 reference 中提取真实 URL
+- reference 排序优先级：`cve.org` / CVE Services > `nvd.nist.gov` > 厂商/安全公告 > Tenable。
+- 中文 `请参考：` 链接块过滤 `nist.gov`；英文 `Please refer to:` 链接块可以保留 `nvd.nist.gov`。
 - 正文后统一补：
 
 ```text
