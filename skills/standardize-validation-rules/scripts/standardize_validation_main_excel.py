@@ -388,6 +388,8 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("威胁威胁组织", "威胁组织")
     value = value.replace("攻击技巧", "攻击手法")
     value = value.replace("系统变种", "系统版本")
+    value = value.replace("。攻击活动。创建用于跟踪", "。创建用于跟踪")
+    value = value.replace("攻击活动。创建用于跟踪", "创建用于跟踪")
     value = value.replace("Web 应用程序漏洞", "Web应用程序漏洞")
     value = value.replace("AI 应用程序漏洞", "AI应用程序漏洞")
     value = value.replace("活动集群", "威胁组织")
@@ -401,7 +403,6 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("服务于企事业单位", "服务于企业")
     value = value.replace("该操作", "该验证动作")
     value = value.replace("此操作", "此验证动作")
-    value = value.replace("登记", "签入")
     value = value.replace("丢弃", "投放")
     value = re.sub(r"\b[Dd]ropper\b", "释放器", value)
     value = re.sub(r"\b[Dd]roppers\b", "释放器", value)
@@ -1005,7 +1006,22 @@ def move_os_suffix_before_action(name: str) -> str:
 
 
 def clean_url(url: str) -> str:
-    return url.rstrip(".,;)\u3002")
+    return url.rstrip(".,;\u3002")
+
+
+def is_reference_url_context(text: str, start: int, end: int) -> bool:
+    """Only extract URLs that are clearly references, not behavioral IOCs in the prose."""
+    before = text[max(0, start - 80):start]
+    after = text[end:min(len(text), end + 40)]
+    if re.search(r"(?:请参考|参考链接|参考：|References?)\s*[:：]?\s*$", before, flags=re.IGNORECASE):
+        return True
+    if re.search(r"(?:_x000D_|\n|\r)\s*$", before) and not re.match(r"^\s*(?:发起|连接|回连|请求|通信)", after):
+        return True
+    line_start = max(text.rfind("\n", 0, start), text.rfind("\r", 0, start), text.rfind("_x000D_", 0, start))
+    line_prefix = text[line_start + 1:start] if line_start >= 0 else text[:start]
+    if not line_prefix.strip():
+        return True
+    return False
 
 
 def clean_campaign_codes_from_title(title: str) -> str:
@@ -1034,7 +1050,7 @@ def extract_uri_paths(text: str) -> List[str]:
         if path and path != "/" and path not in paths:
             paths.append(path)
     value_without_urls = URL_RE.sub(" ", value)
-    for match in re.finditer(r"(?<![:/A-Za-z0-9])/(?:[A-Za-z0-9._~%+-]+/)*[A-Za-z0-9._~%+-]+/?", value_without_urls):
+    for match in re.finditer(r"(?<![:/A-Za-z0-9])/(?:[A-Za-z0-9._~%:+-]+/)*[A-Za-z0-9._~%:+-]+/?", value_without_urls):
         path = unquote(match.group(0).rstrip("`'\"”）),，。；;"))
         if path and path != "/" and path not in paths:
             paths.append(path)
@@ -1085,16 +1101,27 @@ def split_references(text: str) -> Tuple[str, List[str]]:
     protected_dot = "__PROTECTED_DEFANGED_DOT__"
     sanitized = sanitized.replace("[.]", protected_dot)
     urls: List[str] = []
-    for url in MARKDOWN_LINK_RE.findall(sanitized):
-        cleaned = clean_url(url)
-        if cleaned and cleaned not in urls:
-            urls.append(cleaned)
-    for url in URL_RE.findall(sanitized):
-        cleaned = clean_url(url)
-        if cleaned and cleaned not in urls:
-            urls.append(cleaned)
-    body = MARKDOWN_LINK_RE.sub("", sanitized)
-    body = URL_RE.sub("", body)
+    body = sanitized
+
+    def replace_markdown_link(match: re.Match[str]) -> str:
+        cleaned = clean_url(match.group(1))
+        if is_reference_url_context(sanitized, match.start(), match.end()):
+            if cleaned and cleaned not in urls:
+                urls.append(cleaned)
+            return " "
+        return cleaned
+
+    body = MARKDOWN_LINK_RE.sub(replace_markdown_link, body)
+
+    def replace_url(match: re.Match[str]) -> str:
+        cleaned = clean_url(match.group(0))
+        if is_reference_url_context(sanitized, match.start(), match.end()):
+            if cleaned and cleaned not in urls:
+                urls.append(cleaned)
+            return " "
+        return cleaned
+
+    body = URL_RE.sub(replace_url, body)
     body = re.sub(r"(?:参考链接|请参考|官方修复\s*PR)\s*[:：]\s*[。.]?", " ", body, flags=re.IGNORECASE)
     body = re.sub(r"\[\*\*(" + CAMPAIGN_CODE_RE.pattern + r")\*\*\]\s*-\s*", "攻击活动。", body, flags=re.IGNORECASE)
     body = re.sub(r"\[\*\*(" + CAMPAIGN_CODE_RE.pattern + r")\*\*\]", "攻击活动", body, flags=re.IGNORECASE)
@@ -1178,6 +1205,7 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
         "中国有关联",
         "中国相关",
         "中国支持",
+        "中国间谍攻击者",
         "活动最早可追溯到",
         "并有证据表明其利用了各种边缘设备的漏洞",
         "利用了各种边缘设备的漏洞",
@@ -1199,19 +1227,28 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
         r".*FireEye.*未分类威胁组织.*",
     )
     for sentence in sentences:
-        if is_unwanted_political_attribution_sentence(sentence):
+        if sentence.strip(" 。") == "攻击活动":
             continue
         if any(marker in sentence for marker in blocked_markers):
+            continue
+        has_protected_indicator = bool(URL_RE.search(sentence) or re.search(r"[A-Za-z0-9_.-]+\[\.\][A-Za-z0-9_.-]+", sentence))
+        if has_protected_indicator:
+            kept.append(sentence)
+            continue
+        if is_unwanted_political_attribution_sentence(sentence):
             continue
         if any(re.match(pattern, sentence) for pattern in blocked_patterns):
             continue
         kept.append(sentence)
     cleaned = " ".join(s.strip() for s in kept if s.strip())
-    cleaned = re.sub(r"(^|。)\s*-?\s*攻击活动。.*$", r"\1", cleaned).strip()
+    if not (URL_RE.search(cleaned) or re.search(r"[A-Za-z0-9_.-]+\[\.\][A-Za-z0-9_.-]+", cleaned)):
+        cleaned = re.sub(r"(^|。)\s*-?\s*攻击活动。.*$", r"\1", cleaned).strip()
     cleaned = re.sub(r"(?<=\s)-\s+", " ", cleaned)
     cleaned = re.sub(r"(?<!\d)(20\d{2})\s+(\d{2})\s+(\d{2})(?!\d)", r"\1-\2-\3", cleaned)
     cleaned = re.sub(r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", cleaned)
     cleaned = cleaned.replace("*", "")
+    cleaned = cleaned.replace("。攻击活动。创建用于跟踪", "。创建用于跟踪")
+    cleaned = cleaned.replace("攻击活动。创建用于跟踪", "创建用于跟踪")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     if not cleaned and text.strip() and allow_fallback:
         # Do not let attribution cleanup erase valid validation-action evidence.
@@ -1242,6 +1279,8 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
     parts = [part.strip() for part in raw.split(" - ") if part.strip()]
     target = parts[0] if parts else raw
     vuln_type = parts[1] if len(parts) > 1 else ""
+    source_vuln_match = re.search(r"(未(?:授权|经认证|经身份验证)[^，,。；;（）()]{0,24}?漏洞)", raw)
+    source_vuln_type = source_vuln_match.group(1).strip() if source_vuln_match else ""
     product = target
     entry = ""
     if len(parts) == 1 and "，" in target:
@@ -1255,6 +1294,8 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
                 if not vuln_type and "漏洞" in part:
                     vuln_type = part
                     continue
+            if source_vuln_type and source_vuln_type != vuln_type:
+                vuln_type = source_vuln_type
             return product.strip(), entry.strip(), vuln_type.strip(), cve
     if " /" in target:
         product, entry = target.rsplit(" /", 1)
@@ -1268,6 +1309,8 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
         split_entry, split_vuln = re.split(r"\s*-\s*", entry, maxsplit=1)
         entry = split_entry.strip()
         vuln_type = split_vuln.strip()
+    if source_vuln_type and source_vuln_type != vuln_type:
+        vuln_type = source_vuln_type
     return product.strip(), entry.strip(), vuln_type.strip(), cve
 
 
@@ -1282,7 +1325,7 @@ def normalize_web_entry_path(path: str) -> str:
 def extract_web_entry_candidates(text: str) -> List[str]:
     body, _ = split_references(text)
     candidates: List[str] = []
-    for match in re.finditer(r"(?<!:)/+[A-Za-z0-9._~/%-]+", body):
+    for match in re.finditer(r"(?<!:)/+[A-Za-z0-9._~/%:+-]+", body):
         candidate = normalize_web_entry_path(match.group(0))
         if not candidate:
             continue
@@ -1319,7 +1362,7 @@ def is_hardware_like(product: str, desc: str) -> bool:
 
 
 def is_web_entry_path(entry: str) -> bool:
-    return bool(entry and re.match(r"^/[A-Za-z0-9._~/%-]+", entry))
+    return bool(entry and re.match(r"^/[A-Za-z0-9._~/%:+-]+", entry))
 
 
 def is_industrial_control_target(product: str, desc: str) -> bool:
@@ -2777,6 +2820,8 @@ def standardize_sequence_name(name: str) -> str:
     subject = derive_sequence_subject(name)
     if not subject:
         subject = "验证对象"
+    subject = subject.replace("威胁活动 攻击活动", "攻击活动")
+    subject = re.sub(r"威胁活动\s*$", "攻击活动", subject).strip()
     scene_prefix = classify_sequence_scene_prefix(name, subject)
     if scene_prefix != "恶意活动场景":
         subject = re.sub(r"\s*攻击活动\s*$", "", subject).strip()

@@ -57,6 +57,7 @@ This skill is not for:
    - Industrial-control / OT product classification has higher priority than Web endpoint classification and lower priority than AI classification. If the product or description identifies MES, SCADA, manufacturing execution, production-process management, data acquisition/monitoring, scheduling, warehouse, or equipment-fixture management systems, use `工控安全` even when the vulnerable entry is a Web path such as `.ashx`.
    - Product-specific application/appliance classification has higher priority than generic Web-path classification. For products such as Infoblox NETMRI and 深信服运维安全管理系统, use `应用程序漏洞` even when the entry contains a Web path.
    - Normalize loose CVE forms such as `CVE 2026 2441` to `CVE-2026-2441`; when a raw vulnerability title lacks the CVE but the description contains it, extract the normalized CVE into the title before the vulnerability type.
+   - If the description contains a more complete vulnerable path than the title, such as `/workflow/docs/:componentName` versus `/workflow/docs`, use the complete description path in both the title and the first description sentence.
    - If an Actions row lacks a validation prefix, infer the prefix from `cn_name`, `cn_desc`, and `cn_notes`; double-robot notes with vulnerability names should not be classified as `主机命令行`.
    - When a row is reclassified into a different validation prefix, remove the old prefix from the title body; never produce names such as `应用程序漏洞 - 主机命令行 - ...`.
    - If a title mentions malicious files but the note is a single-machine execution note rather than a source/target robot note, classify it as `主机命令行`, not `恶意文件传输`.
@@ -71,6 +72,7 @@ This skill is not for:
    - Host command titles must not stop at appending an OS suffix. Rewrite verbose forms like `主机命令行 - 使用“CMD”命令显示XXX` into `主机命令行 - CMD，XXX显示 (Windows)` or the closest concise action form.
    - In `Sequences`, normalize residual `下载威胁` wording to `下载攻击活动` so the final title does not become `下载威胁 攻击活动`.
    - In `Sequences`, if the subject already ends with `恶意软件活动`, normalize it to `恶意软件攻击活动` rather than appending another `攻击活动`.
+   - In `Sequences`, if the subject already contains or ends with `威胁活动`, normalize it to `攻击活动`; never output duplicate phrasing such as `威胁活动 攻击活动`.
    - In `Sequences`, correct machine-translated actor/malware names and verbs when the description makes the English original clear, for example `珍珠窃取者` -> `Pearl Stealer`, `Koi Stereer` -> `Koi Stealer`, and `放弃 Koi Stealer 活动` -> `投放 Koi Stealer 攻击活动`.
    - In `Sequences`, do not force every scene into `恶意活动场景`. Vulnerability scenario subjects containing markers such as `漏洞`, `CVE-`, `SQL注入`, `SSRF`, `任意文件`, `权限提升`, `认证绕过`, `信息泄露/信息泄漏`, `文件上传`, or `文件读取` should use `应用程序漏洞场景` unless an explicit more specific prefix such as `Web应用程序漏洞场景`, `AI应用程序漏洞场景`, or `工控安全场景` is already present.
    - For non-malicious vulnerability scenarios, descriptions should start with the vulnerability-scenario wording such as `此验证场景包括了针对 XXX 的利用尝试。`; do not write `在攻击活动中使用过的相关攻击手法`.
@@ -130,11 +132,12 @@ This skill is not for:
    - Trim promotional product-copy phrases in software descriptions, especially broad claims such as helping users manage leads, guide sales follow-up, or improve team sales capability; keep only concise product identity and necessary feature context.
    - Trim generic praise and marketing-style product claims such as `凭借其高性能`, `占据主导地位`, `功能强大`, and similar superiority language. Keep neutral identity and usage context instead.
    - Disclosure time format is fixed: `披露时间：YYYY-MM-DD。`
-   - Reference blocks should stay multiline:
+   - Reference blocks should stay multiline and should only contain links that are clearly references:
      ```text
      请参考：
      https://...
      ```
+   - Do not move behavioral URLs, C2 endpoints, callback servers, download URLs, or other IOCs from the prose into `请参考：`; keep them in the sentence where they describe the attack behavior.
    - Remove disposable markdown/link placeholders and unwanted attribution tails.
    - When deleting disposable markdown/link placeholders, preserve technical bracket tokens such as parameters and IOC markers, for example `jform[file]`, `array[index]`, and `example[.]com`.
    - Remove political/geopolitical and promotional actor-background tails from descriptions, such as `伊朗背景`, `地缘政治`, `精准钓鱼美国，以色列及阿联酋`, `中东冲突`, `极高的行动节奏`, and `较强的技术研发能力`, while preserving concrete technical behavior, malware/tool names, URLs, paths, files, CVEs, versions, and dates.
@@ -150,6 +153,7 @@ This skill is not for:
 5. Handle `Email` conservatively.
    - Keep existing `cn_subject` unchanged; subjects may already be manually adjusted.
    - Only normalize `cn_body` when there is an obvious formatting issue, and never infer or randomize a new subject unless the user explicitly asks.
+   - `登记` -> `签入` is a command-and-control check-in normalization only. Do not apply it globally to Email bodies or ordinary phrases such as `国家登记处`.
 
 6. Apply optional `Pipelines` cleanup when the workbook contains the sheet.
    - Only do light validation-main cleanup: actor wording, English/Chinese spacing, punctuation, and obvious machine-translation residue.

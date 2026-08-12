@@ -487,12 +487,18 @@ def normalize_exported_validation_text(text, target_header=""):
         "Once the Fastjson parser parses and restores the original dangerous character",
         value,
     )
+    value = re.sub(r"(https?://\S+?)）发起to send back data", r"initiates an HTTP callback to \1 to send data back", value)
+    value = re.sub(r"(https?://\S+?)。在整个攻击过程中，样本全程以隐藏窗口运行，通过try/catch structures", r"\1. Throughout the attack, the sample runs with its window hidden and uses try/catch structures", value)
+    value = re.sub(r"(https?://\S+?)）发起回连与数据外传。在整个执行过程中，脚本全程采用隐藏窗口运行，通过try/catch blocks", r"sends data back through an HTTP request to \1. Throughout execution, the script runs with its window hidden and uses try/catch blocks", value)
     value = re.sub(r"\bsimulate into the original\b", "restore the original", value, flags=re.IGNORECASE)
     value = re.sub(r"\bparser parses and simulate\b", "parser parses and restores", value, flags=re.IGNORECASE)
     value = re.sub(r"(?<!\ban )\badversary can\b", "an adversary can", value)
     if target_header in {"en_name", "en_subject"}:
         value = re.sub(r"\bchecked in\b", "Check-in", value, flags=re.IGNORECASE)
         value = re.sub(r"\bcheck-in\b", "Check-in", value, flags=re.IGNORECASE)
+        value = value.replace("(Windows) that execution", "(Windows), Execution")
+        value = value.replace("(Windows) execution", "(Windows), Execution")
+        value = value.replace("information Exfiltration Vulnerability", "Information Disclosure Vulnerability")
         if value.startswith("Host Command Line - "):
             value = value.replace(", Execution", ", Execute")
             value = value.replace(", execution", ", Execute")
