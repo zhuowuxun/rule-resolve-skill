@@ -18,7 +18,7 @@ WEB_PREFIX = "Web应用程序漏洞 - "
 APP_PREFIX = "应用程序漏洞 - "
 AI_APP_PREFIX = "AI应用程序漏洞 - "
 PREFIX = WEB_PREFIX
-PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~:?#\[\]@!$&'()*+,;=%/-]+")
+PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~:?#\[\]{}@!$&'()*+,;=%/-]+")
 ACTION_ENTRY_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\s+AJAX\s+Action\b", re.IGNORECASE)
 WARNING_FILL = PatternFill(fill_type="solid", fgColor="FFFF00")
 HISTORICAL_VENDOR_URLS = {
@@ -313,7 +313,11 @@ def parse_rule_name(name: str) -> Tuple[str, str, str, str]:
         tokens = left.split()
         if len(tokens) >= 2:
             tail = tokens[-1]
-            if re.fullmatch(r"[A-Za-z0-9._?=&:/$-]+", tail) and not re.fullmatch(r"v?\d+(?:\.\d+)+", tail, flags=re.IGNORECASE):
+            if (
+                re.fullmatch(r"[A-Za-z0-9._?=&:/$-]+", tail)
+                and not re.fullmatch(r"v?\d+(?:\.\d+)+", tail, flags=re.IGNORECASE)
+                and tail not in {"Framework"}
+            ):
                 product = " ".join(tokens[:-1]).strip()
                 endpoint = tail
 
@@ -390,7 +394,7 @@ def build_desc_intro(target: str, vuln: str) -> str:
 def extract_paths(text: str) -> List[str]:
     paths: List[str] = []
     for match in PATH_RE.finditer(clean_text(text)):
-        path = match.group(0).strip("`'\"()[]{}<>，,。；;：:、")
+        path = match.group(0).strip("`'\"()[]<>，,。；;：:、")
         if path and path not in paths:
             paths.append(path)
     return paths
@@ -406,7 +410,7 @@ def extract_entry_points(text: str) -> List[str]:
 
 
 def normalize_path_key(path: str) -> str:
-    cleaned = clean_text(path).strip("`'\"()[]{}<>，,。；;：:、").lower()
+    cleaned = clean_text(path).strip("`'\"()[]<>，,。；;：:、").lower()
     cleaned = re.sub(r"[?#].*$", "", cleaned)
     return cleaned.rstrip("/")
 
@@ -455,7 +459,10 @@ def resolve_endpoint_from_desc(endpoint: str, desc: str) -> Tuple[str, bool, Lis
     if endpoint:
         related = [entry for entry in desc_entries if endpoint_path_related(endpoint, entry)]
         if related:
-            return max(related, key=len), False, desc_entries
+            longer_related = [entry for entry in related if len(normalize_path_key(entry)) >= len(normalize_path_key(endpoint))]
+            if longer_related:
+                return max(longer_related, key=len), False, desc_entries
+            return endpoint, False, desc_entries
         # Only flag path mismatch when the title already contains a path-like endpoint.
         # Non-path components such as `JavaScript` or `PythonREPLComponent` should not
         # be compared against implementation paths in the description.
@@ -575,8 +582,9 @@ def normalize_attack_text(text: str) -> str:
         return marker
 
     # Paths and identifiers are source evidence; do not title-case fragments inside them.
-    normalized = re.sub(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+", protect, normalized)
+    normalized = re.sub(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]{}@!$&'()*+,;=%-]+", protect, normalized)
     normalized = re.sub(r"\b[A-Za-z0-9_-]+\.(?:php|aspx|ashx|jsp|ini|json|yaml|yml|xml|txt)\b", protect, normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b", protect, normalized)
 
     normalized = re.sub(r"sql注入", "SQL注入", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"SQL\s+注入", "SQL注入", normalized)
@@ -607,7 +615,7 @@ def auth_state_cn(text: str) -> Tuple[bool, bool]:
     )
     authenticated = bool(
         re.search(
-            r"经过身份(?:认证|验证)|经过认证|(?<!未)经身份(?:认证|验证)|(?<!未)经认证|认证用户|已认证用户|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:经过身份(?:认证|验证)的?|经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
+            r"经过身份(?:认证|验证)|经过认证|(?<!未)经身份(?:认证|验证)|(?<!未)经认证|(?<!未)认证用户|已认证(?:攻击者|用户)|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:经过身份(?:认证|验证)的?|经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
             normalized,
         )
     )
@@ -832,7 +840,7 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     # first comma-delimited clause and keep the attacker condition/impact.
     first_clause, sep, rest = text.partition("，")
     if sep and rest:
-        clause_paths = re.findall(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+", first_clause)
+        clause_paths = re.findall(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]{}@!$&'()*+,;=%-]+", first_clause)
         endpoint_text = clean_text(endpoint)
         if endpoint_text and any(path != endpoint_text for path in clause_paths):
             return text

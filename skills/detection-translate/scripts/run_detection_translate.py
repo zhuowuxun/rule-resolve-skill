@@ -23,7 +23,7 @@ DEFAULT_REPLACEMENT_DICTS = ["基础字符校对", "detection校对"]
 DEFAULT_SOURCE_HEADERS = ["name.1", "desc", "notes"]
 CN_RE = re.compile(r"[\u4e00-\u9fff]")
 URL_RE = re.compile(r"https?://[^\s]+|www\.[^\s]+", re.IGNORECASE)
-SOURCE_PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~:?#\[\]@!$&'()*+,;=%/-]+")
+SOURCE_PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~:?#\[\]{}@!$&'()*+,;=%/-]+")
 
 
 def auth_state_cn(text):
@@ -36,7 +36,7 @@ def auth_state_cn(text):
     )
     authenticated = bool(
         re.search(
-            r"(?<!不)经过身份(?:认证|验证)|(?<!不)经过认证|(?<![未不])经身份(?:认证|验证)|(?<![未不])经认证|认证用户|已认证用户|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:(?<!不)经过身份(?:认证|验证)的?|(?<!不)经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
+            r"(?<!不)经过身份(?:认证|验证)|(?<!不)经过认证|(?<![未不])经身份(?:认证|验证)|(?<![未不])经认证|(?<!未)认证用户|已认证(?:攻击者|用户)|已获得登录权限|拥有[^。；，,]{0,24}权限的认证用户|具有[^。；，,]{0,24}权限的?(?:(?<!不)经过身份(?:认证|验证)的?|(?<!不)经过认证的?)?(?:攻击者|用户)|有效凭证|登录权限",
             text,
         )
     )
@@ -422,7 +422,8 @@ def audit_project(project, manual_review_limit):
                 warnings.append({"row": row, "header": header, "issue": "contains_chinese", "text": text})
             if re.search(r",(?=[A-Za-z/])", text):
                 warnings.append({"row": row, "header": header, "issue": "comma_spacing", "text": text})
-            if re.search(r",,|\.\.(?!/)", text):
+            text_for_punctuation_audit = text.replace("...", "")
+            if re.search(r",,|\.\.(?!/)", text_for_punctuation_audit):
                 warnings.append({"row": row, "header": header, "issue": "double_punctuation", "text": text})
             if header == "name.1" and re.search(r"\bvulnerability\b", text):
                 warnings.append({"row": row, "header": header, "issue": "lowercase_vulnerability", "text": text})
@@ -628,11 +629,20 @@ def postprocess_exported_workbook(output_path):
             replacements.append(("Privilege Escalation漏洞", "Privilege Escalation Vulnerability"))
             replacements.extend(
                 [
+                    ("XSS漏洞", "XSS Vulnerability"),
                     ("RCE (Real-Time Execution)", "RCE"),
                     ("Wordpress", "WordPress"),
                     ("/api/.V2", "/api/v2"),
                     ("This detection rule simulate ", "This detection rule simulates "),
                     ("adversary 's", "adversary's"),
+                    ("user's ` Manageable parameter", "user-controlled `functionName` parameter"),
+                    ("without validation and execution it", "without validation and executes it"),
+                    ("` injection $(...)` command", "`$(...)` command injection"),
+                    ("use the `$(...)` command injection to replace the `param` parameter", "inject a `$(...)` command substitution through the `param` parameter"),
+                    ("simulate the HTML entity into Execution tags", "decodes HTML entities into executable tags"),
+                    ("business Scenario", "business scenario"),
+                    ("deployment Scenario", "deployment scenario"),
+                    ("Scenario linkage", "scenario linkage"),
                     ("敏感Information Exfiltration Vulnerability", "Sensitive Information Exfiltration Vulnerability"),
                     ("敏感Information Exfiltration", "Sensitive Information Exfiltration"),
                     ("write trojan to the server", "write trojan into the server"),
@@ -675,6 +685,7 @@ def postprocess_exported_workbook(output_path):
                             }
                         )
                     name_case_patterns = [
+                        (r"\bpassword reset Vulnerability\b", "Password Reset Vulnerability"),
                         (r"\bfile upload Vulnerability\b", "File Upload Vulnerability"),
                         (r"\barbitrary file write Vulnerability\b", "Arbitrary File Write Vulnerability"),
                         (r"\binformation exfiltration Vulnerability\b", "Information Exfiltration Vulnerability"),
@@ -893,7 +904,8 @@ def audit_exported_workbook(output_path, manual_review_limit):
                     warnings.append({"row": row, "header": header, "issue": "contains_chinese", "text": text})
                 if re.search(r",(?=[A-Za-z/])", text):
                     warnings.append({"row": row, "header": header, "issue": "comma_spacing", "text": text})
-                if re.search(r",,|\.\.(?!/)", text):
+                text_for_punctuation_audit = text.replace("...", "")
+                if re.search(r",,|\.\.(?!/)", text_for_punctuation_audit):
                     warnings.append({"row": row, "header": header, "issue": "double_punctuation", "text": text})
                 if header == "name_en" and re.search(r"\bvulnerability\b", text):
                     warnings.append({"row": row, "header": header, "issue": "lowercase_vulnerability", "text": text})
