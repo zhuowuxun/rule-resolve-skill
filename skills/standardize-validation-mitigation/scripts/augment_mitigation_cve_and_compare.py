@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 import xml.etree.ElementTree as ET
+import os
 from pathlib import Path
 from collections import Counter
 from typing import Dict, List, Optional, Tuple
@@ -187,6 +188,37 @@ def split_english_sentences(text: str) -> List[str]:
 
 
 def translate_chunk(text: str) -> str:
+    credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    if credentials_path:
+        try:
+            import requests
+            from google.oauth2 import service_account
+            from google.auth.transport.requests import Request
+
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials_path,
+                scopes=["https://www.googleapis.com/auth/cloud-translation"],
+            )
+            credentials.refresh(Request())
+            response = requests.post(
+                "https://translation.googleapis.com/language/translate/v2",
+                json={"q": text, "target": "zh-CN", "format": "text"},
+                headers={"Authorization": f"Bearer {credentials.token}"},
+                timeout=60,
+            )
+            response.raise_for_status()
+            translated = (
+                response.json()
+                .get("data", {})
+                .get("translations", [{}])[0]
+                .get("translatedText", "")
+            )
+            if translated:
+                return translated.strip()
+        except Exception:
+            # Fall back to the legacy public endpoint so existing environments keep working.
+            pass
+
     url = (
         "https://translate.googleapis.com/translate_a/single"
         "?client=gtx&sl=en&tl=zh-CN&dt=t&q=" + urllib.parse.quote(text)
@@ -434,6 +466,53 @@ def apply_yellow_fills_and_audit_sheet(output_path: Path, updates: Dict[Tuple[st
     wb.save(output_path)
 
 
+def restore_unmodified_visible_values(
+    source_path: Path,
+    output_path: Path,
+    updates: Dict[Tuple[str, int, int], Dict[str, object]],
+) -> int:
+    """Restore visible cached text lost when openpyxl re-saves array formulas.
+
+    Some source mitigation workbooks store remediation text as cached values
+    behind array formulas. openpyxl can drop those cached values while applying
+    fills, leaving visually blank cells. For cells we did not approve/update,
+    restore the source-visible text as a normal value so the delivered workbook
+    remains usable and source-equivalent.
+    """
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:  # pragma: no cover - runtime dependency guard
+        raise RuntimeError("openpyxl is required to restore formula cached values") from exc
+
+    source_wb = load_workbook(source_path, data_only=True)
+    output_values_wb = load_workbook(output_path, data_only=True)
+    output_wb = load_workbook(output_path)
+    restored = 0
+    allowed_cells = set(updates)
+
+    for sheet_name in source_wb.sheetnames:
+        if sheet_name not in output_wb.sheetnames or sheet_name not in output_values_wb.sheetnames:
+            continue
+        src_ws = source_wb[sheet_name]
+        out_values_ws = output_values_wb[sheet_name]
+        out_ws = output_wb[sheet_name]
+        max_row = min(src_ws.max_row, out_ws.max_row)
+        max_col = min(src_ws.max_column, out_ws.max_column)
+        for row_idx in range(1, max_row + 1):
+            for col_idx in range(1, max_col + 1):
+                if (sheet_name, row_idx, col_idx) in allowed_cells:
+                    continue
+                src_val = src_ws.cell(row=row_idx, column=col_idx).value
+                out_val = out_values_ws.cell(row=row_idx, column=col_idx).value
+                if src_val not in (None, "") and out_val in (None, ""):
+                    out_ws.cell(row=row_idx, column=col_idx).value = src_val
+                    restored += 1
+
+    if restored:
+        output_wb.save(output_path)
+    return restored
+
+
 def audit_output_against_source(
     source_path: Path,
     output_path: Path,
@@ -444,8 +523,11 @@ def audit_output_against_source(
     except ImportError as exc:  # pragma: no cover - runtime dependency guard
         raise RuntimeError("openpyxl is required to audit mitigation workbooks against source") from exc
 
-    source_wb = load_workbook(source_path, data_only=False)
-    output_wb = load_workbook(output_path, data_only=False)
+    # Mitigation exports can contain array formulas whose cached values are the
+    # user-visible remediation text. Compare visible values, not formula object
+    # identities, otherwise equivalent formula-backed cells look different.
+    source_wb = load_workbook(source_path, data_only=True)
+    output_wb = load_workbook(output_path, data_only=True)
     audit_sheet_name = "自动回填记录"
     allowed_cells = set(allowed_updates)
     unexpected: List[Dict[str, object]] = []
@@ -1359,6 +1441,7 @@ def main() -> None:
 
     archive.write(args.output)
     apply_yellow_fills_and_audit_sheet(args.output, auto_updates)
+    restored_formula_cached_values = restore_unmodified_visible_values(args.base, args.output, auto_updates)
     source_consistency = audit_output_against_source(args.base, args.output, auto_updates)
     reason_counts = Counter()
     for item in auto_updates.values():
@@ -1367,6 +1450,7 @@ def main() -> None:
     summary["highlighted_cells"] = len(auto_updates)
     summary["highlight_reasons"] = dict(sorted(reason_counts.items()))
     summary["source_consistency"] = source_consistency
+    summary["restored_formula_cached_values"] = restored_formula_cached_values
     summary["auto_updates"] = sorted(
         auto_updates.values(),
         key=lambda item: (str(item["sheet"]), int(item["row"]), str(item["column"])),
