@@ -42,6 +42,51 @@ rule-resolve 是规则处理总入口，会先检查 10.89，再按文件类型�
 
 Do not run destructive actions in response to `help` / `帮助`; only explain usage and wait for the next task.
 
+## Project Paths And Documents
+Record and use these locations when running this skill. Do not leave generated deliverables in `~/Downloads`.
+
+Skill and rule documents:
+- Router skill: `/Users/carmenz/.codex/skills/rule-resolve/SKILL.md`
+- Detection standardization: `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-detection-rules/SKILL.md`
+- Validation main-rule standardization: `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-validation-rules/SKILL.md`
+- Validation main-rule reference docs:
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-validation-rules/references/validation主规则标准化执行版_20260421.md`
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-validation-rules/references/validation标准化重构草案_20260421.md`
+- Validation mitigation standardization: `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-validation-mitigation/SKILL.md`
+- Validation mitigation reference docs:
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-validation-mitigation/references/validation_mitigation标准化执行版_20260421.md`
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-validation-mitigation/references/validation标准化重构草案_20260421.md`
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/standardize-validation-mitigation/references/action_mitigation260507_history_learning.md`
+- Detection translation/proofread:
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/detection-translate/SKILL.md`
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/detection-proofread/SKILL.md`
+- Validation translation/proofread:
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/validation-translate-proofread/SKILL.md`
+  - `/Users/carmenz/.codex/skills/rule-resolve/skills/validation-proofread/SKILL.md`
+
+Project result root:
+- `/Users/carmenz/Documents/tag管理系统/结果文档`
+
+Historical local inputs that were archived out of Downloads:
+- Mitigation dictionary: `/Users/carmenz/Documents/tag管理系统/结果文档/undated/undated/mitigation/mitigation字典_0118.xlsx`
+- Mitigation standardized history: `/Users/carmenz/Documents/tag管理系统/结果文档/undated/undated/mitigation/action_mitigation260507.xlsx`
+
+Output archive policy:
+- Generated outputs may be created in a temporary path while scripts run, but the final workbook/report must be moved into the project result root before responding to the user.
+- Use `scripts/archive_rule_outputs.py` after any standardization, translation, proofreading, or tag-related rule deliverable that would otherwise remain in `~/Downloads`.
+- Archive by `YYYY/MM/<category>/`, where `YYYY/MM` comes from the source filename date when available and `<category>` is one of `detection`, `validation`, `mitigation`, `tag`, or `process`.
+- The final response must link only the archived project copy, not the temporary or `~/Downloads` copy.
+- For `.xlsx` outputs, the archive helper rewrites the workbook with `keep_links=False` and verifies no `externalLinks` / `connections` parts remain. This prevents Excel from failing or prompting repair because of stale local external workbook links.
+
+Archive helper:
+
+```bash
+python3 ~/.codex/skills/rule-resolve/scripts/archive_rule_outputs.py \
+  /path/to/generated.xlsx /path/to/generated.report.json \
+  --source /path/to/source.xlsx \
+  --category mitigation
+```
+
 ## Mandatory Preflight
 Before doing any rule work, run the bundled preflight:
 
@@ -190,7 +235,7 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 - Do not copy from a manual comparison workbook as a generation source; use it only to learn repeatable differences.
 - Keep URLs, paths, CVEs, versions, parameters, functions, and file extensions protected.
 - Chinese delivery columns must not contain `nist.gov` / `nvd.nist.gov` URLs. Remove NIST URLs from all Chinese `desc` / `notes` / `cn_*` reference blocks; English columns may keep NIST links when selected by the child skill.
-- Final workbooks must be Excel-openable: verify with `openpyxl` and `unzip -t`.
+- Final workbooks must be Excel-openable after archiving: verify the archived `.xlsx` with `openpyxl`, `unzip -t`, and no `xl/externalLinks` / `xl/connections` parts.
 - Prefer concise output filenames such as `_standardized.xlsx`, `_translated.xlsx`, or `_proofread.xlsx`. Do not add verbose delivery/final suffixes to any rule workflow output.
 - Validation translation must create exactly one AI Translation Studio project per input workbook. Do not split one workbook into separate `main` / `notes` projects; note-only replacement must be enforced by the validation translation child skill and backend replacement logic.
 
@@ -218,7 +263,8 @@ After every standardization run and before the final response, compare the exact
 7. Manually sample high-risk rows after script output.
 8. Run Excel/platform QA gates from the child skill.
 9. Run the post-standardization source compare for standardization routes.
-10. If user feedback reveals a repeatable rule, patch the routed child skill or script, not this router, unless the feedback is about routing/preflight, source-compare policy, Git versioning, or remote platform configuration.
+10. Archive the final workbook/report out of `~/Downloads` with `scripts/archive_rule_outputs.py`, then rerun Excel-openable checks on the archived workbook.
+11. If user feedback reveals a repeatable rule, patch the routed child skill or script, not this router, unless the feedback is about routing/preflight, source-compare policy, Git versioning, output archiving, document paths, or remote platform configuration.
 
 ## Git Version Rule
 When a standardization run requires changing any `rule-resolve` skill document or bundled script, update the GitHub version before the final response.
