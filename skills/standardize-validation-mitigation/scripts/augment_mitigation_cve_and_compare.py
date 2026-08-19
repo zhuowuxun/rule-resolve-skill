@@ -23,6 +23,7 @@ NS = {
 }
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 SHEET_MAIN_NS = NS["a"]
+NIST_URL_RE = re.compile(r"https?://[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]*nist\.gov[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]*", re.IGNORECASE)
 
 
 def qname(local: str) -> str:
@@ -315,6 +316,18 @@ def build_cn_appendix(translated_desc: str, references: List[str]) -> str:
     if cn_references:
         parts.append("请参考：\n" + "\n".join(cn_references[:5]))
     return "\n\n".join(parts).strip()
+
+
+def remove_nist_urls_from_chinese_text(text: str) -> str:
+    value = str(text or "")
+    value = NIST_URL_RE.sub("", value)
+    value = re.sub(r"[ \t]+", " ", value)
+    value = re.sub(r"\n[ \t]+", "\n", value)
+    value = re.sub(r"[ \t]+\n", "\n", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    value = re.sub(r"请参考[:：]\s*$", "", value).strip()
+    value = re.sub(r"\s+([，。；：！？])", r"\1", value)
+    return value.strip()
 
 
 def append_block(base: str, appendix: str) -> str:
@@ -1298,6 +1311,7 @@ def main() -> None:
             pre_transform_cn = base_cn
             pre_transform_en = base_en
             transformed_cn, transformed_en = transform_base_notes(base_cn, base_en, rule_type, product, name, os_scope, cve)
+            transformed_cn = remove_nist_urls_from_chinese_text(transformed_cn)
             if transformed_cn != read_cell_value(cell_map.get(7), shared).strip() or transformed_en != read_cell_value(cell_map.get(8), shared).strip():
                 set_inline_string(ensure_cell(row, 7, row_idx), transformed_cn)
                 set_inline_string(ensure_cell(row, 8, row_idx), transformed_en)
@@ -1385,7 +1399,7 @@ def main() -> None:
             description_en = str(cve_data[cve].get("description_en") or "").strip()
             appendix_cn = build_cn_appendix(translate_en_to_zh(description_en, product) if description_en else "", refs)
             appendix_en = build_en_appendix(description_en, refs)
-            new_cn = append_block(base_cn, appendix_cn)
+            new_cn = remove_nist_urls_from_chinese_text(append_block(base_cn, appendix_cn))
             new_en = append_block(base_en, appendix_en)
 
             row_cve_changed = False

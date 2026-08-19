@@ -20,6 +20,7 @@ AI_APP_PREFIX = "AI应用程序漏洞 - "
 PREFIX = WEB_PREFIX
 PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/[A-Za-z0-9._~:?#\[\]{}@!$&'()*+,;=%/-]+")
 ACTION_ENTRY_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\s+AJAX\s+Action\b", re.IGNORECASE)
+NIST_URL_RE = re.compile(r"https?://[^\s，,。；;）)]+nist\.gov[^\s，,。；;）)]*", re.IGNORECASE)
 WARNING_FILL = PatternFill(fill_type="solid", fgColor="FFFF00")
 HISTORICAL_VENDOR_URLS = {
     "用友 NC": "https://www.yonyou.com/",
@@ -85,6 +86,17 @@ def clean_text(value: Any) -> str:
     if not text or text.lower() == "nan":
         return ""
     return re.sub(r"\s+", " ", text).strip()
+
+
+def remove_nist_urls_from_chinese_text(text: str) -> str:
+    value = str(text or "")
+    value = NIST_URL_RE.sub("", value)
+    value = re.sub(r"请参考[:：]\s*(?:[。；;，,]\s*)?$", "", value).strip()
+    value = re.sub(r"请关注厂商主页获取更新[:：]\s*$", "请关注厂商主页获取更新：", value).strip()
+    value = re.sub(r"[ \t]+", " ", value)
+    value = re.sub(r"\s+([，。；：])", r"\1", value)
+    value = re.sub(r"([：:])\s*$", r"\1", value)
+    return value.strip()
 
 
 def normalize_product_key(text: str) -> str:
@@ -957,7 +969,7 @@ def build_standardized_desc(
             final_text = f"{final_text}。{part}"
         else:
             final_text = f"{final_text}{part}"
-    return final_text.replace("。。", "。").replace("，，", "，").strip()
+    return remove_nist_urls_from_chinese_text(final_text.replace("。。", "。").replace("，，", "，").strip())
 
 
 def normalize_notes(notes: str, context: str = "", batch_vendor_urls: Dict[str, str] | None = None) -> str:
@@ -974,6 +986,8 @@ def normalize_notes(notes: str, context: str = "", batch_vendor_urls: Dict[str, 
         return f"塞讯验证建议：\n请关注厂商主页获取更新：\n{fallback_url}" if fallback_url else "塞讯验证建议：\n请关注厂商主页获取更新："
     url_match = re.search(r"(https?://\S+)", text)
     url = url_match.group(1) if url_match else re.sub(r"^请关注厂商主页获取更新[:：]?\s*", "", text).strip()
+    if NIST_URL_RE.search(url):
+        url = ""
     if not url and fallback_url:
         url = fallback_url
     return f"塞讯验证建议：\n请关注厂商主页获取更新：\n{url}"

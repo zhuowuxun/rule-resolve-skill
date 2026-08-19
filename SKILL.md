@@ -189,6 +189,7 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 - Do not use validation title prefixes for detection sheets unless the child detection skill says so.
 - Do not copy from a manual comparison workbook as a generation source; use it only to learn repeatable differences.
 - Keep URLs, paths, CVEs, versions, parameters, functions, and file extensions protected.
+- Chinese delivery columns must not contain `nist.gov` / `nvd.nist.gov` URLs. Remove NIST URLs from all Chinese `desc` / `notes` / `cn_*` reference blocks; English columns may keep NIST links when selected by the child skill.
 - Final workbooks must be Excel-openable: verify with `openpyxl` and `unzip -t`.
 - Prefer concise output filenames such as `_standardized.xlsx`, `_translated.xlsx`, or `_proofread.xlsx`. Do not add verbose delivery/final suffixes to any rule workflow output.
 - Validation translation must create exactly one AI Translation Studio project per input workbook. Do not split one workbook into separate `main` / `notes` projects; note-only replacement must be enforced by the validation translation child skill and backend replacement logic.
@@ -199,6 +200,7 @@ After every standardization run and before the final response, compare the exact
 - Align rows by stable keys when available (`uuid`, `vid`, rule ID) and fall back to row order only when the sheet has no stable key.
 - Compare the branch-relevant fields: detection `name.1` / `desc` / `notes`; validation main `cn_name` / `cn_desc` / `cn_notes` plus `Sequences` / `Email` fields; mitigation `cn_notes` / `en_notes` / `cve` / `reference`-style fields and fill markers.
 - Verify protected evidence is preserved unless an approved normalization explicitly changes it: CVE/CNVD/CWE/CAPEC IDs, URLs, URI paths, hostnames/domains, filenames, extensions, functions, parameters, CLI flags, dates, versions, APT IDs, and defanged indicators such as `[.]`.
+- Verify Chinese output fields contain no `nist.gov` / `nvd.nist.gov` URLs. If any Chinese field still contains a NIST URL, treat the run as failed, remove the URL from the Chinese field only, rerun Excel QA, and rerun source compare. Do not remove the corresponding English `nist.gov` reference unless the routed child skill says so.
 - For validation main standardization, reference URLs from `cn_desc` must stay in `cn_desc` as a multiline `请参考：` block. They must not be moved into `cn_notes`; `cn_notes` should keep only execution/validator notes. If any `cn_notes` cell still contains `参考链接` or `http`, treat the run as failed, repair the output, and rerun Excel QA before delivery.
 - Verify authentication semantics against the source row exactly. `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, `已获得登录权限`, `未授权`, `未认证`, `未经认证`, and `未经身份认证/验证` must not be added, removed, or reversed.
 - Investigate rows where the output becomes much shorter after excluding approved cleanup noise. Treat missing negation (`未` / `未经`), changed authenticated/unauthenticated state, lost endpoint/path tails, lost malware/file names, lost extra sequence sentences, or lost reference/disclosure information as a failed run.

@@ -57,6 +57,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - you may tighten wording for attack-method phrasing
    - if a historical standardized software description exists, reuse or shorten toward that wording
    - keep the application description at the end
+   - remove `nist.gov` / `nvd.nist.gov` URLs from Chinese `desc` reference text; do not remove ordinary non-link NIST wording, and do not apply this deletion to English columns
    - treat product-introduction phrasing such as `自主研发`, `是…一款`, `核心价值`, `核心使命`, `不仅具有`, and `专业产品` as software description, not attack-method explanation
    - do not treat product-introduction terms such as `PostgreSQL`, `MySQL`, or generic database/platform wording as attack-method text merely because they contain `SQL`; software introductions must still be moved to the end
    - trim marketing/praise wording from software descriptions, such as `功能全面`, `性能稳定`, `扩展性强`, `核心竞争力`, `护城河`, and `开放、互联、融合、智能`; keep only neutral product purpose or category
@@ -72,6 +73,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    ```
 
    Preserve the URL exactly.
+   If the preserved URL is a `nist.gov` / `nvd.nist.gov` URL, remove it from the Chinese `notes` field instead of preserving it.
 
 5. Prefer a slim output.
    Unless the user explicitly asks for comparison columns, keep the original workbook shape and overwrite only the target fields in the output copy.
@@ -80,6 +82,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - Align rows by stable IDs when present and otherwise by row order; compare `name.1`, `desc`, and `notes`.
    - Verify protected evidence is preserved: CVEs, URLs, URI paths, filenames, extensions, disclosure dates, versions, vendor links, product names, and authentication markers such as `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `未授权`, `未认证`, `未经认证`, `未经身份认证/验证`, and `无需任何认证`.
    - Treat any authenticated/unauthenticated state mismatch, loss of `未` / `未经`, endpoint/path tails, `披露时间`, reference/vendor URLs, or technical impact text as a failed run.
+   - Confirm Chinese `desc` and `notes` contain no `nist.gov` / `nvd.nist.gov` URLs; English output columns may keep NIST links.
    - Confirm rows with full paths in `desc` also use those full paths in `name.1`; if `desc` and `name.1` paths are unrelated, confirm the yellow highlight is present.
    - Approved intentional differences include CVE extraction into the title, prefix correction, moving/shortening software description to the end, duplicate vulnerability wording removal, city/province cleanup, and promotional/political wording cleanup.
    - If the compare finds real content loss, patch the script/rules, regenerate the workbook, rerun Excel QA, and rerun the source compare before delivery.

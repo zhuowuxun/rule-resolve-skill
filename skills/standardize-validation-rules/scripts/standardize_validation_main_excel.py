@@ -32,6 +32,7 @@ REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 SHEET_MAIN_NS = NS["a"]
 
 URL_RE = re.compile(r"https?://[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]+")
+NIST_URL_RE = re.compile(r"https?://[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]*nist\.gov[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]*", re.IGNORECASE)
 MARKDOWN_LINK_RE = re.compile(r"\[.*?\]\((https?://[^)]+)\)")
 CVE_RE = re.compile(r"\bCVE[-\s]*(\d{4})[-\s]*(\d{4,})\b", re.IGNORECASE)
 VARIANT_RE = re.compile(r"(?i)(?:variant|变种|方法)\s*[-# ]?\s*(\d+)")
@@ -1009,6 +1010,22 @@ def clean_url(url: str) -> str:
     return url.rstrip(".,;\u3002")
 
 
+def is_nist_url(url: str) -> bool:
+    return "nist.gov" in (url or "").lower()
+
+
+def remove_nist_urls_from_chinese_text(text: str) -> str:
+    value = str(text or "")
+    value = NIST_URL_RE.sub("", value)
+    value = re.sub(r"[ \t]+", " ", value)
+    value = re.sub(r"\n[ \t]+", "\n", value)
+    value = re.sub(r"[ \t]+\n", "\n", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    value = re.sub(r"请参考[:：]\s*$", "", value).strip()
+    value = re.sub(r"\s+([，。；：！？])", r"\1", value)
+    return value.strip()
+
+
 def is_reference_url_context(text: str, start: int, end: int) -> bool:
     """Only extract URLs that are clearly references, not behavioral IOCs in the prose."""
     before = text[max(0, start - 80):start]
@@ -1107,7 +1124,8 @@ def split_references(text: str) -> Tuple[str, List[str]]:
         cleaned = clean_url(match.group(1))
         if is_reference_url_context(sanitized, match.start(), match.end()):
             if cleaned and cleaned not in urls:
-                urls.append(cleaned)
+                if not is_nist_url(cleaned):
+                    urls.append(cleaned)
             return " "
         return cleaned
 
@@ -1117,7 +1135,8 @@ def split_references(text: str) -> Tuple[str, List[str]]:
         cleaned = clean_url(match.group(0))
         if is_reference_url_context(sanitized, match.start(), match.end()):
             if cleaned and cleaned not in urls:
-                urls.append(cleaned)
+                if not is_nist_url(cleaned):
+                    urls.append(cleaned)
             return " "
         return cleaned
 
@@ -1139,7 +1158,7 @@ def build_reference_block(urls: Iterable[str]) -> str:
     unique_urls: List[str] = []
     for url in urls:
         cleaned = clean_url(url)
-        if cleaned and cleaned not in unique_urls:
+        if cleaned and not is_nist_url(cleaned) and cleaned not in unique_urls:
             unique_urls.append(cleaned)
     if not unique_urls:
         return ""
@@ -3258,6 +3277,9 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
 
             row_changed = False
             for col_idx, new_value in updates.items():
+                if isinstance(new_value, str):
+                    new_value = remove_nist_urls_from_chinese_text(new_value)
+                    updates[col_idx] = new_value
                 current = read_cell_value(cell_map.get(col_idx), shared_strings).strip()
                 if normalize_text(current) == normalize_text(new_value):
                     continue

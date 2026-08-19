@@ -137,6 +137,7 @@ This skill is not for:
      请参考：
      https://...
      ```
+   - Remove `nist.gov` / `nvd.nist.gov` URLs from Chinese `cn_desc` reference blocks and other Chinese delivery fields. Do not remove ordinary non-link NIST wording, and do not remove NIST links from English columns.
    - Do not move behavioral URLs, C2 endpoints, callback servers, download URLs, or other IOCs from the prose into `请参考：`; keep them in the sentence where they describe the attack behavior.
    - Remove disposable markdown/link placeholders and unwanted attribution tails.
    - When deleting disposable markdown/link placeholders, preserve technical bracket tokens such as parameters and IOC markers, for example `jform[file]`, `array[index]`, and `example[.]com`.
@@ -180,6 +181,7 @@ This skill is not for:
    - no URL mismatch between original and output for rows where URLs are preserved
    - no reference links flattened onto the same line as `请参考：`; reference blocks must be `请参考：` followed immediately by the URL lines, without a blank line in between
    - no reference links may remain in `cn_notes`; if source `cn_desc` contains URLs, the standardized output must keep them at the end of `cn_desc` as a multiline `请参考：` block, while `cn_notes` should contain only execution/validator notes
+   - no Chinese delivery field may contain `nist.gov` / `nvd.nist.gov` URLs; English fields may keep NIST links
    - no reference URL paths such as `/campaigns/...`, `/actors/...`, `/malware/...` inserted into C2 titles
    - no C2 title may use `渗透` when the description clearly says `数据外泄` / `数据泄露` / `窃取` / Base64 data sent through C&C; use `数据泄漏`
    - no C2 title may use `数据泄露` / `数据外泄`; use `数据泄漏`
