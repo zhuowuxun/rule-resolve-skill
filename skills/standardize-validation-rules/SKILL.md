@@ -146,6 +146,8 @@ This skill is not for:
    - Remove disposable markdown/link placeholders and unwanted attribution tails.
    - When deleting disposable markdown/link placeholders, preserve technical bracket tokens such as parameters and IOC markers, for example `jform[file]`, `array[index]`, and `example[.]com`.
    - Remove political/geopolitical and promotional actor-background tails from descriptions, such as `伊朗背景`, `地缘政治`, `精准钓鱼美国，以色列及阿联酋`, `中东冲突`, `极高的行动节奏`, and `较强的技术研发能力`, while preserving concrete technical behavior, malware/tool names, URLs, paths, files, CVEs, versions, and dates.
+   - When removing China-related or geopolitical attribution from descriptions, delete or rewrite the whole sentence so the remaining text is grammatical. If the attribution sentence also contains concrete behavior, keep the behavior in a neutral complete sentence, for example `疑似与中国有关联的黑客组织以微软 IIS 服务器为目标，部署 Web Shell 并提升权限` -> `该攻击活动以微软 IIS 服务器为目标，部署 Web Shell 并提升权限。`
+   - After removing markdown/entity chunks, do not leave dangling alias fragments such as `BLUEBEAM（又名 BLUEBEAM.PHP 是...（又名 攻击活动`; normalize them into complete software sentences or delete the broken alias wording.
    - Fix obvious machine-translation residue such as `该变种后面是...` to fluent Chinese such as `该变种是...`.
    - Remove province/city prefixes from company introductions when they are only geographic qualifiers.
    - Keep raw `notes` and `Pipelines` URLs intact; do not run mitigation reference-block logic on validation main-rule workbooks.

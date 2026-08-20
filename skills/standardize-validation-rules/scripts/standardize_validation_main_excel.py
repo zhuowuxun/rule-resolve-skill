@@ -407,6 +407,11 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("该操作", "该验证动作")
     value = value.replace("此操作", "此验证动作")
     value = value.replace("此验证动作还原主机", "此验证动作还原了主机")
+    value = re.sub(r"\b([A-Z][A-Z0-9_.-]{2,})（又名\s+([A-Z][A-Z0-9_.-]{2,})\s+是", r"\2 是", value)
+    value = re.sub(r"（又名\s*(?=。|，|；|攻击活动|$)", "", value)
+    value = value.replace("webshell", "Web Shell")
+    value = re.sub(r"\bWeb shell\b", "Web Shell", value)
+    value = value.replace("该该攻击活动", "该攻击活动")
     value = value.replace("丢弃", "投放")
     value = re.sub(r"\b[Dd]ropper\b", "释放器", value)
     value = re.sub(r"\b[Dd]roppers\b", "释放器", value)
@@ -1223,6 +1228,12 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
     if not text:
         return ""
     text = normalize_attribution_noise_phrases(text)
+    text = re.sub(
+        r"疑似与中国有关联的[^。；，]*?(?:黑客组织|威胁组织|组织)?以微软\s*IIS\s*服务器为目标，部署\s*Web\s*Shell\s*并提升权限",
+        "该攻击活动以微软 IIS 服务器为目标，部署 Web Shell 并提升权限",
+        text,
+        flags=re.IGNORECASE,
+    )
     blocked_markers = (
         "与中国有关联",
         "中国有关联",
@@ -1270,8 +1281,15 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
     cleaned = re.sub(r"(?<!\d)(20\d{2})\s+(\d{2})\s+(\d{2})(?!\d)", r"\1-\2-\3", cleaned)
     cleaned = re.sub(r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", cleaned)
     cleaned = cleaned.replace("*", "")
+    cleaned = re.sub(r"框架生成\s*攻击活动[。.]?", "框架生成。", cleaned)
     cleaned = cleaned.replace("。攻击活动。创建用于跟踪", "。创建用于跟踪")
     cleaned = cleaned.replace("攻击活动。创建用于跟踪", "创建用于跟踪")
+    cleaned = re.sub(
+        r"攻击活动\s*(?:以)?微软\s*IIS\s*服务器为目标，部署\s*Web\s*Shell\s*并提升权限[。.]?",
+        "该攻击活动以微软 IIS 服务器为目标，部署 Web Shell 并提升权限。",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     if not cleaned and text.strip() and allow_fallback:
         # Do not let attribution cleanup erase valid validation-action evidence.
