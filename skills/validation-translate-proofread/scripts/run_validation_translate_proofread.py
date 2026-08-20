@@ -401,27 +401,36 @@ def backup_database(repo_root, project_name, api_base, platform_ssh, platform_ro
 
 
 def run_validation_proofread(repo_root, project_id, api_base, platform_ssh, platform_root, ssh_command):
+    def is_clean(stdout):
+        return "没有发现任何问题" in (stdout or "") or "No issues found" in (stdout or "")
+
     if not is_local_api(api_base):
         root = shlex.quote(platform_root.rstrip("/"))
         project_id_q = shlex.quote(str(project_id))
         remote_py = "./backend/venv/bin/python3"
         remote_script = "tools/validation/check_and_fix.py"
-        repair = run_remote(
-            platform_ssh,
-            ssh_command,
-            f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q} --repair",
-            "Remote validation proofreading repair",
-        )
-        verify = run_remote(
-            platform_ssh,
-            ssh_command,
-            f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q}",
-            "Remote validation proofreading verify",
-        )
+        repair_outputs = []
+        verify = None
+        for _ in range(3):
+            repair = run_remote(
+                platform_ssh,
+                ssh_command,
+                f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q} --repair",
+                "Remote validation proofreading repair",
+            )
+            repair_outputs.append(repair.stdout)
+            verify = run_remote(
+                platform_ssh,
+                ssh_command,
+                f"set -e; cd {root}; {remote_py} {remote_script} {project_id_q}",
+                "Remote validation proofreading verify",
+            )
+            if is_clean(verify.stdout):
+                break
         return {
-            "repair_stdout": repair.stdout,
-            "verify_stdout": verify.stdout,
-            "verify_clean": "没有发现任何问题" in verify.stdout,
+            "repair_stdout": "\n\n--- repair pass ---\n\n".join(repair_outputs),
+            "verify_stdout": verify.stdout if verify else "",
+            "verify_clean": is_clean(verify.stdout if verify else ""),
             "target": f"{platform_ssh}:{platform_root.rstrip('/')}",
         }
 
@@ -430,24 +439,30 @@ def run_validation_proofread(repo_root, project_id, api_base, platform_ssh, plat
     if not proofread_py.exists():
         raise RuntimeError(f"Backend venv Python not found: {proofread_py}")
 
-    repair = subprocess.run(
-        [str(proofread_py), str(proofread_script), str(project_id), "--repair"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    verify = subprocess.run(
-        [str(proofread_py), str(proofread_script), str(project_id)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    repair_outputs = []
+    verify = None
+    for _ in range(3):
+        repair = subprocess.run(
+            [str(proofread_py), str(proofread_script), str(project_id), "--repair"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        repair_outputs.append(repair.stdout)
+        verify = subprocess.run(
+            [str(proofread_py), str(proofread_script), str(project_id)],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        if is_clean(verify.stdout):
+            break
     return {
-        "repair_stdout": repair.stdout,
-        "verify_stdout": verify.stdout,
-        "verify_clean": "没有发现任何问题" in verify.stdout,
+        "repair_stdout": "\n\n--- repair pass ---\n\n".join(repair_outputs),
+        "verify_stdout": verify.stdout if verify else "",
+        "verify_clean": is_clean(verify.stdout if verify else ""),
         "target": str(repo_root),
     }
 

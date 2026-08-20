@@ -99,6 +99,7 @@ Because AI Translation Studio selects source columns by column index across ever
    ./backend/venv/bin/python tools/validation/check_and_fix.py <project_id>
    ```
    The final check must report zero issues, or only documented non-blocking false positives.
+   If the first repair pass reports fixed chunks but the immediate verify is not clean, run a bounded second/third repair+verify pass on the same platform before failing. Do not create another project for repairable proofreading residue.
 
 9. Manually sample high-risk rows.
    Always read representative title, description, and note chunks:

@@ -71,6 +71,7 @@ This skill is not for:
    - Host command, command-and-control, malicious file transfer, protected sandbox, scene, and email rows should follow the confirmed validation naming rules.
    - Host command titles must not stop at appending an OS suffix. Rewrite verbose forms like `主机命令行 - 使用“CMD”命令显示XXX` into `主机命令行 - CMD，XXX显示 (Windows)` or the closest concise action form.
    - In `Sequences`, normalize residual `下载威胁` wording to `下载攻击活动` so the final title does not become `下载威胁 攻击活动`.
+   - In `Sequences`, normalize residual `恶意文件下载活动` / `恶意文件下载 攻击活动` wording to `恶意文件下载攻击活动` so the final title does not contain stitched duplicate activity wording.
    - In `Sequences`, if the subject already ends with `恶意软件活动`, normalize it to `恶意软件攻击活动` rather than appending another `攻击活动`.
    - In `Sequences`, if the subject already contains or ends with `威胁活动`, normalize it to `攻击活动`; never output duplicate phrasing such as `威胁活动 攻击活动`.
    - In `Sequences`, correct machine-translated actor/malware names and verbs when the description makes the English original clear, for example `珍珠窃取者` -> `Pearl Stealer`, `Koi Stereer` -> `Koi Stealer`, and `放弃 Koi Stealer 活动` -> `投放 Koi Stealer 攻击活动`.
@@ -104,6 +105,7 @@ This skill is not for:
    - For command-and-control DNS-query rows such as `恶意域名 DNS 查询`, keep concrete domain IOCs or defanged domains in `cn_name` when the source title provides them; preserve defanged markers such as `[.]` exactly.
    - For AD-domain-related network rows that are judged to contain a PCAP package or captured traffic evidence, add `AD侦查流量` before `变种 #n`; for example `命令与控制 - APT-XXXX，恶意域名 DNS 查询，example[.]com，AD侦查流量，变种 #1`. If there is no variant number, append `AD侦查流量` at the end. Do not use the generic `AD域` title segment for these network-traffic rows.
    - For command-and-control rows, do not use `渗透` when the description is about data exfiltration/leakage, stolen reconnaissance data, PUT requests carrying Base64-encoded data, or status updates sent to C&C infrastructure. Use `数据泄漏` instead. Keep malware names such as `AEROSTAT` in English; do not translate them into words such as `浮空器`.
+   - For command-and-control rows, do not keep `撤离` when the description is about data exfiltration/leakage, stolen reconnaissance data, PUT requests carrying Base64-encoded data, or status updates sent to C&C infrastructure. Use `数据泄漏` instead.
    - For Web / AI / application vulnerability rows, if the description contains a more complete endpoint path than the raw title and it contains the title path's tail, use the complete description path in both `cn_name` and the opening sentence.
    - For Web / AI / application vulnerability rows, do not keep capture/container labels such as `PCAP` in `cn_name`; if an attack technique label such as `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, `Ghost Bits 折叠`, or `Stream NACK 双重释放` appears with a vulnerability type, place the technique before the vulnerability type and before `变种 #n`.
    - Normalize `电报` to `Telegram` in command-and-control names.
@@ -117,6 +119,8 @@ This skill is not for:
    - If `Actions.cn_desc` is still English, especially host-command text beginning with `In this action...`, translate it into the approved Chinese validation style during standardization; do not leave English in Chinese delivery columns for the later translation step to inherit.
    - Normalize `网络钓鱼电子邮件` to `钓鱼邮件` in descriptions as well as titles.
    - File-transfer descriptions should use `此验证动作还原了主机尝试下载...。` and should not append `的过程` at the end of the first sentence.
+   - Treat `此验证动作还原主机...` as an already-existing validation opening and normalize it to `此验证动作还原了主机...`; do not prepend a second generic download sentence.
+   - After removing disposable markdown/entity tails, collapse repeated product/malware names before `是`, for example `NETSUPPORT Manager NETSUPPORT Manager 是...` -> `NETSUPPORT Manager 是...`.
    - File-transfer descriptions should use one consistent actor/object association format: `恶意软件或工具 (APT-U####)`; do not mix this with `恶意软件或工具，APT-U####`. When there are multiple objects, attach the APT ID to the first malware/tool object, for example `REMCOS (APT-U5487) 和 SHADOWLADDER`.
    - File-transfer type enrichment is primarily for `cn_name`; do not force the first description sentence from `与 APT-U#### 关联的文件` into a longer typed object unless the original wording is unclear or ungrammatical.
    - For scene descriptions composed from malicious-file-transfer download threats, use wording such as `此验证场景包括了与 X 相关的各种变种的下载。` rather than `各种样本`; do not apply this to non-download ransomware attack scenes such as plain `INC 勒索软件攻击活动`.

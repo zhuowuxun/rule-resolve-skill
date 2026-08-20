@@ -377,6 +377,7 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("Bluenoroff", "BlueNoroff")
     value = value.replace("Axios供应链", "Axios 供应链")
     value = value.replace("NWHSteale r", "NWHStealer")
+    value = value.replace("NetSupport Manager NETSUPPORT Manager", "NetSupport Manager")
     value = value.replace("电报", "Telegram")
     value = value.replace("CJIAJIA", "C++").replace("C+JIAJIA", "C++")
     value = re.sub(r"C&C\s*或\s*C&C", "C&C", value)
@@ -391,6 +392,7 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("系统变种", "系统版本")
     value = value.replace("。攻击活动。创建用于跟踪", "。创建用于跟踪")
     value = value.replace("攻击活动。创建用于跟踪", "创建用于跟踪")
+    value = value.replace("恶意软件 攻击活动", "恶意软件攻击活动")
     value = value.replace("Web 应用程序漏洞", "Web应用程序漏洞")
     value = value.replace("AI 应用程序漏洞", "AI应用程序漏洞")
     value = value.replace("活动集群", "威胁组织")
@@ -404,10 +406,12 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("服务于企事业单位", "服务于企业")
     value = value.replace("该操作", "该验证动作")
     value = value.replace("此操作", "此验证动作")
+    value = value.replace("此验证动作还原主机", "此验证动作还原了主机")
     value = value.replace("丢弃", "投放")
     value = re.sub(r"\b[Dd]ropper\b", "释放器", value)
     value = re.sub(r"\b[Dd]roppers\b", "释放器", value)
     value = re.sub(r"\b[Mm]alwaredropper\b", "恶意软件释放器", value)
+    value = re.sub(r"\b([A-Z][A-Za-z0-9_.-]*(?:\s+[A-Z][A-Za-z0-9_.-]*){0,2})\s+\1\s+是", r"\1 是", value)
     value = re.sub(r"\.Exe\b", ".exe", value)
     value = re.sub(r"\.Dll\b", ".dll", value)
     value = re.sub(r"\.Bat\b", ".bat", value)
@@ -2381,7 +2385,7 @@ def standardize_malicious_transfer_desc(title: str, desc: str) -> str:
     else:
         download_target = f" {target}" if re.match(r"[A-Za-z0-9]", target) else target
     opening = f"此验证动作还原了主机尝试下载{download_target}。"
-    if text.startswith("此验证动作还原了"):
+    if text.startswith("此验证动作还原"):
         return normalize_common_text(text)
     return normalize_common_text(f"{opening} {text}".strip())
 
@@ -2588,8 +2592,9 @@ def titleize_c2_with_context(name: str, desc: str) -> str:
     raw = titleize_c2(name)
     if "AEROSTAT" in desc:
         raw = raw.replace("浮空器", "AEROSTAT")
-    if "渗透" in raw and c2_desc_indicates_data_exfiltration(desc):
+    if any(token in raw for token in ("渗透", "撤离")) and c2_desc_indicates_data_exfiltration(desc):
         raw = raw.replace("渗透", "数据泄漏")
+        raw = raw.replace("撤离", "数据泄漏")
     if "FRONTLOAD" in desc:
         raw = raw.replace("前置式", "FRONTLOAD")
     for path in extract_uri_paths(desc)[:1]:
@@ -2791,6 +2796,9 @@ def derive_sequence_subject(name: str) -> str:
     raw = raw.replace("威胁组织活动恶意软件下载", "威胁组织恶意软件下载")
     raw = raw.replace("供应链攻击活动恶意软件下载攻击活动", "供应链攻击活动恶意软件下载")
     raw = raw.replace("供应链攻击活动恶意软件下载威胁", "供应链攻击活动恶意软件下载")
+    raw = re.sub(r"(恶意文件下载)\s*活动\s*攻击活动$", r"\1攻击活动", raw)
+    raw = re.sub(r"(恶意文件下载)\s*活动$", r"\1攻击活动", raw)
+    raw = re.sub(r"(恶意文件下载)\s+攻击活动", r"\1攻击活动", raw)
     raw = raw.replace("投放 Koi Stealer 活动", "投放 Koi Stealer 攻击活动")
     raw = raw.replace("放弃 Koi Stealer 活动", "投放 Koi Stealer 攻击活动")
     raw = re.sub(r"(恶意软件家族)活动\s*攻击活动$", r"\1攻击活动", raw)
@@ -2840,6 +2848,7 @@ def standardize_sequence_name(name: str) -> str:
     if not subject:
         subject = "验证对象"
     subject = subject.replace("威胁活动 攻击活动", "攻击活动")
+    subject = re.sub(r"(恶意文件下载)\s*$", r"\1攻击活动", subject)
     subject = re.sub(r"威胁活动\s*$", "攻击活动", subject).strip()
     scene_prefix = classify_sequence_scene_prefix(name, subject)
     if scene_prefix != "恶意活动场景":
