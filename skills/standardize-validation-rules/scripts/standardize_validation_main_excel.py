@@ -170,6 +170,7 @@ NAME_ALIAS_MAP = {
 
 ACTION_CONTEXTUAL_ALIAS_RULES = (
     (re.compile(r"(?<![A-Za-z0-9])Qilin(?![A-Za-z0-9])", re.IGNORECASE), "麒麟勒索软件", "Qilin 勒索软件"),
+    (re.compile(r"(?<![A-Za-z0-9])GLOBAL GROUP(?![A-Za-z0-9])", re.IGNORECASE), "全球勒索软件", "GLOBAL GROUP 勒索软件"),
 )
 
 RANSOMWARE_REFERENCE_ENV = "VALIDATION_RANSOMWARE_REFERENCE_WORKBOOK"
@@ -451,6 +452,8 @@ def normalize_contextual_alias_spacing(text: str) -> str:
     value = normalize_common_text(text)
     value = re.sub(r"(?<=[\u4e00-\u9fff])\s*(Qilin)\b", r" \1", value)
     value = re.sub(r"\b(Qilin)\s*(?=[\u4e00-\u9fff])", r"\1 ", value)
+    value = re.sub(r"(?<=[\u4e00-\u9fff])\s*(GLOBAL GROUP)\b", r" \1", value)
+    value = re.sub(r"\b(GLOBAL GROUP)\s*(?=[\u4e00-\u9fff])", r"\1 ", value)
     value = re.sub(r"又名\s*([A-Za-z0-9_.-]+)", r"又名 \1", value)
     return value
 

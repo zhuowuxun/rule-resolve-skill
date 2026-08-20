@@ -661,6 +661,8 @@ def relocate_reference_links_from_notes(output_path):
         if {"cn_name", "en_name"}.issubset(header_map):
             cn_name_col = header_map["cn_name"]
             en_name_col = header_map["en_name"]
+            cn_desc_context_col = header_map.get("cn_desc")
+            en_desc_context_col = header_map.get("en_desc")
             for row_idx in range(2, ws.max_row + 1):
                 cn_name = ws.cell(row_idx, cn_name_col).value or ""
                 en_name = ws.cell(row_idx, en_name_col).value or ""
@@ -676,6 +678,29 @@ def relocate_reference_links_from_notes(output_path):
                     )
                 if "AEROSTAT" in cn_name:
                     new_en_name = re.sub(r"\bAirship\b", "AEROSTAT", new_en_name, flags=re.IGNORECASE)
+                cn_context = cn_name
+                if cn_desc_context_col:
+                    cn_desc_context = ws.cell(row_idx, cn_desc_context_col).value
+                    if isinstance(cn_desc_context, str):
+                        cn_context += "\n" + cn_desc_context
+                if "GLOBAL GROUP" in cn_context and "勒索软件" in cn_context:
+                    new_en_name = re.sub(r"\bGlobal ransomware\b", "GLOBAL GROUP ransomware", new_en_name, flags=re.IGNORECASE)
+                    if en_desc_context_col:
+                        en_desc_context = ws.cell(row_idx, en_desc_context_col).value
+                        if isinstance(en_desc_context, str):
+                            fixed_en_desc_context = re.sub(
+                                r"\bglobal ransomware\b",
+                                "GLOBAL GROUP ransomware",
+                                en_desc_context,
+                                flags=re.IGNORECASE,
+                            )
+                            fixed_en_desc_context = fixed_en_desc_context.replace(
+                                "various variants of ransomware associated with GLOBAL GROUP ransomware",
+                                "various GLOBAL GROUP ransomware variants",
+                            )
+                            if fixed_en_desc_context != en_desc_context:
+                                ws.cell(row_idx, en_desc_context_col).value = fixed_en_desc_context
+                                normalized_rows += 1
                 if new_en_name != en_name:
                     ws.cell(row_idx, en_name_col).value = new_en_name
                     title_rows_normalized += 1
