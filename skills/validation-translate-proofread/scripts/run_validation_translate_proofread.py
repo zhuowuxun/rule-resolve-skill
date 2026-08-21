@@ -520,6 +520,8 @@ def normalize_exported_validation_text(text, target_header=""):
         if value.startswith("Protected Sandbox - "):
             value = re.sub(r",\s*Execute(?=,|$)", ", Execution", value)
             value = re.sub(r",\s*execution(?=,|$)", ", Execution", value)
+        value = re.sub(r"\bLoader Malware\b", "Loader", value)
+        value = re.sub(r"\bloader malware\b", "loader", value)
         value = value.replace(" backdoor", " Backdoor")
         value = value.replace(" trojan", " Trojan")
         value = value.replace(" loader", " Loader")

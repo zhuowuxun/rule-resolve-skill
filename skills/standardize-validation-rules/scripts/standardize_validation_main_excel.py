@@ -613,6 +613,8 @@ def normalize_cn_action_terms(text: str) -> str:
     for src, dst in NAME_ALIAS_MAP.items():
         value = value.replace(src, dst)
     replacements = [
+        ("加载器 恶意软件", "加载器"),
+        ("加载器恶意软件", "加载器"),
         ("Drops The Executable", "投放可执行文件"),
         ("Drop The Executable", "投放可执行文件"),
         ("Drops the executable", "投放可执行文件"),
