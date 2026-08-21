@@ -869,41 +869,8 @@ def apply_network_only_product_cleanup(cn: str, en: str) -> Tuple[str, str]:
 
 
 def sandbox_should_omit_destructive_head(name: str) -> bool:
-    """Sandbox cleanup/rollback-difficult rules are not necessarily destructive."""
-    normalized = re.sub(r"\s+", " ", name).lower()
-    non_destructive_tokens = (
-        "持久化",
-        "c&c",
-        "c2",
-        "命令与控制",
-        "信标",
-        "beacon",
-        "连接至",
-        "联络",
-        "通信",
-        "采集日志",
-        "日志采集",
-        "计划任务",
-        "任务计划",
-        "scheduled task",
-        "注册表",
-        "registry",
-        "run key",
-        "service",
-        "自启动",
-        "启动项",
-        "登录项",
-        "驻留",
-        "powershell",
-        "执行",
-        "命令执行",
-        "脚本执行",
-        "execute",
-        "execution",
-    )
-    return any(token in normalized for token in non_destructive_tokens) and not sandbox_has_explicit_destructive_effect(
-        name
-    )
+    """Sandbox rules keep the destructive head only for explicit destructive effects."""
+    return not sandbox_has_explicit_destructive_effect(name)
 
 
 def sandbox_has_explicit_destructive_effect(name: str) -> bool:
