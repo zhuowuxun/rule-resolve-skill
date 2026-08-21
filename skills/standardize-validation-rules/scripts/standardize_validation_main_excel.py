@@ -12,6 +12,7 @@ editing worksheet XML directly.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -3078,6 +3079,23 @@ def standardize_sequence_desc(name: str, desc: str) -> str:
     return ensure_terminal_punctuation(text) + build_reference_block(urls)
 
 
+TOPICAL_EMAIL_SUBJECTS = [
+    "近期高温补贴申领通知",
+    "下半年绩效安排确认",
+    "开学季出行报销指引",
+    "台风天气远程办公安排",
+    "年度体检预约提醒",
+    "企业邮箱安全升级通知",
+    "本周会议纪要与待办",
+    "最新行业政策解读",
+]
+
+def topical_email_subject(seed_text: str) -> str:
+    text = normalize_common_text(seed_text)
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return TOPICAL_EMAIL_SUBJECTS[int(digest[:8], 16) % len(TOPICAL_EMAIL_SUBJECTS)]
+
+
 def infer_email_subject(body: str) -> str:
     text = normalize_common_text(body)
     lower = text.lower()
@@ -3097,12 +3115,23 @@ def infer_email_subject(body: str) -> str:
         return "最新研究报告"
     if ".zip" in lower or ".rar" in lower or ".7z" in lower:
         return "最新资料下载"
-    return "测试邮件"
+    return topical_email_subject(text)
 
 
 def standardize_email_row(subject: str, body: str) -> Tuple[str, str]:
+    clean_subject = normalize_common_text(subject)
     clean_body = normalize_common_text(body)
-    return subject, clean_body
+    placeholder_subjects = {
+        "",
+        "测试邮件",
+        "Test email",
+        "test email",
+        "测试",
+        "test",
+    }
+    if clean_subject in placeholder_subjects:
+        clean_subject = topical_email_subject(clean_body)
+    return clean_subject, clean_body
 
 
 def standardize_actions_row(name: str, desc: str, notes: str, context_text: str = "") -> Tuple[str, str, str]:

@@ -160,8 +160,9 @@ This skill is not for:
    - For protected-sandbox notes, use `此验证动作需要在受保护的沙盘中才能正确执行。`; do not write `受保护的沙盘环境中`.
 
 5. Handle `Email` conservatively.
-   - Keep existing `cn_subject` unchanged; subjects may already be manually adjusted.
-   - Only normalize `cn_body` when there is an obvious formatting issue, and never infer or randomize a new subject unless the user explicitly asks.
+   - Keep existing meaningful `cn_subject` unchanged; subjects may already be manually adjusted.
+   - If `cn_subject` is an obvious placeholder such as `测试邮件`, `Test email`, `测试`, or empty, replace it with a realistic topical phishing-style subject generated from the email body and a small current-events/business-topic pool. Keep generation deterministic for the same body so reruns are reproducible.
+   - Only normalize `cn_body` when there is an obvious formatting issue, and never infer or randomize a new subject for already-meaningful subjects unless the user explicitly asks.
    - `登记` -> `签入` is a command-and-control check-in normalization only. Do not apply it globally to Email bodies or ordinary phrases such as `国家登记处`.
 
 6. Apply optional `Pipelines` cleanup when the workbook contains the sheet.
