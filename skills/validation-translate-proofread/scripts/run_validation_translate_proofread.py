@@ -508,6 +508,8 @@ def normalize_exported_validation_text(text, target_header=""):
     value = re.sub(r"\bsimulate into the original\b", "restore the original", value, flags=re.IGNORECASE)
     value = re.sub(r"\bparser parses and simulate\b", "parser parses and restores", value, flags=re.IGNORECASE)
     value = re.sub(r"(?<!\ban )\badversary can\b", "an adversary can", value)
+    value = re.sub(r"\bauthentication Scenario\b", "validation scenario", value)
+    value = re.sub(r"\bAuthentication Scenario\b", "Validation Scenario", value)
     if target_header in {"en_name", "en_subject"}:
         value = re.sub(r"\bchecked in\b", "Check-in", value, flags=re.IGNORECASE)
         value = re.sub(r"\bcheck-in\b", "Check-in", value, flags=re.IGNORECASE)
@@ -831,6 +833,8 @@ def audit_workbook(path, manual_review_limit):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "comma_spacing", "text": text})
             if re.search(r",,|\.\.(?!/)", text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "double_punctuation", "text": text})
+            if re.search(r"\bauthentication Scenario\b|\bAuthentication Scenario\b", text):
+                warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "validation_scenario_mistranslation", "text": text})
             if header in title_headers and re.search(r"\bvulnerability\b", text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "lowercase_vulnerability", "text": text})
             if header in title_headers and text.rstrip().endswith("."):

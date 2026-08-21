@@ -123,6 +123,7 @@ Because AI Translation Studio selects source columns by column index across ever
    - no ATT&CK replacement bleed in descriptions, such as title-case `Malware`, `Persistence`, `Obfuscation`, `Exfiltration`, `Reconnaissance`, `Lateral movement`, `Privilege Escalation`, `Policy`, or `Phishing Email`
    - `validation note replacement` outputs such as `Isolator` or `a Target Validator` are absent from `en_name` and `en_desc` unless source semantics explicitly require them outside note context
    - historical validation terminology rules are enforced: `攻击手法` / `attack techniques` -> `TTPs`, `工控安全` -> `OT Security`, and `#` in English title names becomes `-`
+   - `此验证场景` must be translated as `This validation scenario`; never allow `This authentication Scenario` or `authentication scenario` for validation scene descriptions.
    - C2 title terminology must match the standardized Chinese source: `数据泄漏` -> `Data Exfiltration`; do not translate it as `Penetration`, `Penetration Testing`, or `Infiltration`. Malware names such as `AEROSTAT` must remain English and must not become `Airship`.
    - software names match the dictionary or the user-confirmed fallback table below
    - title fields (`en_name`) contain no standalone articles: `a`, `an`, or `the`
