@@ -1486,6 +1486,19 @@ def finalize_vulnerability_title_order(name: str) -> str:
         else:
             others.append(normalized_part)
 
+    if "本地" in others:
+        merged_vulns: List[str] = []
+        used_local = False
+        for vuln in vulns:
+            if not used_local and vuln == "权限提升漏洞":
+                merged_vulns.append("本地权限提升漏洞")
+                used_local = True
+            else:
+                merged_vulns.append(vuln)
+        if used_local:
+            vulns = merged_vulns
+            others = [part for part in others if part != "本地"]
+
     ordered: List[str] = [product] + cves + paths + techniques + others + vulns + variants
     deduped: List[str] = []
     for part in ordered:

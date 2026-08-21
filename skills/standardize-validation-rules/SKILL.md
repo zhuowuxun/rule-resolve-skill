@@ -210,6 +210,7 @@ This skill is not for:
    - Web / AI / application vulnerability rows must pass the duplicate-vulnerability check described above
    - Web / AI / application vulnerability descriptions must not contain repeated `此验证动作还原了...。此验证动作还原了攻击者...` openings
    - Web / AI / application vulnerability titles must not keep `PCAP`, and technique labels such as `Ghost Bits ...` must appear before the vulnerability type, not after `远程代码执行漏洞`
+   - Vulnerability attribute words such as `本地` must stay attached to the vulnerability type, for example `CVE-2026-64531，本地权限提升漏洞`, not `本地，CVE-2026-64531，权限提升漏洞`.
    - malicious file-transfer titles must not contain semantic duplicate types such as `恶意脚本，恶意脚本文件`, `恶意文档，恶意文档文件`, `JavaScript 木马，恶意 JavaScript 木马文件`, or `恶意电子表格文件，恶意电子表格文件`
    - malicious file-transfer titles with a concrete backdoor/family name plus `.DLL 文件` / `.ZIP 文件` must not also append `恶意远程访问木马文件`
    - rows with explicit Web endpoint paths must not be downgraded from `Web应用程序漏洞` to generic `应用程序漏洞`

@@ -156,6 +156,7 @@ Because AI Translation Studio selects source columns by column index across ever
 - In `Malicious File Transfer` titles, normalize attack/file-type descriptors to Title Case while leaving action/variant fields lowercase: `Malicious Remote Access Tool, download, variant -7`; `Malicious Download Script, download, variant -34`; `Malicious Windows Installer Package, download, variant -9`.
 - In validation English titles, normalize redundant loader malware nouns: `Loader Malware` -> `Loader`.
 - If the standardized Chinese row contains an English ransomware family/group name plus `勒索软件`, preserve that name in English output and do not generalize it. For example, `GLOBAL GROUP 勒索软件` should be `GLOBAL GROUP ransomware`, not `Global ransomware` or `global ransomware`.
+- In vulnerability titles, keep vulnerability attributes attached to the vulnerability type. For example, translate `本地权限提升漏洞` as `Local Privilege Escalation Vulnerability`, not `Local, ..., Privilege Escalation Vulnerability`.
 - In `Protected Sandbox` titles, translate bare `执行` as the noun `Execution`, not the verb `Execute`; keep `Execute` only for host-command-style imperative action titles.
 - In `Command and Control` titles, translate `数据泄漏` as `Data Exfiltration`. If an exported title says `Penetration`, `Penetration Testing`, or `Infiltration` while the Chinese title says `数据泄漏`, repair it to `Data Exfiltration`.
 

@@ -514,6 +514,12 @@ def normalize_exported_validation_text(text, target_header=""):
         value = value.replace("(Windows) that execution", "(Windows), Execution")
         value = value.replace("(Windows) execution", "(Windows), Execution")
         value = value.replace("information Exfiltration Vulnerability", "Information Disclosure Vulnerability")
+        value = re.sub(
+            r",\s*Local,\s*(CVE-\d{4}-\d+),\s*Privilege Escalation Vulnerability",
+            r", \1, Local Privilege Escalation Vulnerability",
+            value,
+            flags=re.IGNORECASE,
+        )
         if value.startswith("Host Command Line - "):
             value = value.replace(", Execution", ", Execute")
             value = value.replace(", execution", ", Execute")
