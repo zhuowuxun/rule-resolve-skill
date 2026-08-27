@@ -1558,6 +1558,8 @@ def standardize_raw_vulnerability_name(name: str, desc: str, notes: str) -> str:
     raw = normalize_variant(normalize_cn_action_terms(strip_validation_prefix_for_reclassification(name))).strip(" ，,。")
     if "漏洞" not in raw:
         return ""
+    variants = re.findall(r"变种\s*#\d+", raw)
+    raw = re.sub(r"\s*变种\s*#\d+\s*", " ", raw).strip(" ，,。")
     cve = extract_cve(f"{raw} {desc}")
     raw = CVE_RE.sub("", raw).strip(" ，,。")
     raw = re.sub(r"[，,]\s*[，,]+", "，", raw).strip(" ，,。")
@@ -1606,6 +1608,7 @@ def standardize_raw_vulnerability_name(name: str, desc: str, notes: str) -> str:
     if cve:
         parts.append(cve)
     parts.append(vuln)
+    parts.extend(variants)
     return remove_redundant_os_suffix_for_vulnerability_title(f"{prefix} - " + "，".join(part for part in parts if part))
 
 
