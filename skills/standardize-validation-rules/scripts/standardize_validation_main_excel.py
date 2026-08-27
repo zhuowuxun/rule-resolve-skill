@@ -426,6 +426,7 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("网络间谍组织", "威胁组织")
     value = value.replace("网络间谍活动集群", "威胁组织")
     value = value.replace("网络钓鱼电子邮件", "钓鱼邮件")
+    value = value.replace("远程控制木马", "远控木马")
     value = value.replace("为企事业单位", "为企业")
     value = value.replace("面向企事业单位", "面向企业")
     value = value.replace("服务于企事业单位", "服务于企业")
