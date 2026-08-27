@@ -1571,6 +1571,7 @@ def standardize_raw_vulnerability_name(name: str, desc: str, notes: str) -> str:
         (r"^(Windows|Linux|macOS|Mac OS)[，,]\s*(.+?漏洞)$", r"\1", r"\2"),
         (r"^(Linux\s*PackageKit)\s*(权限提升漏洞)$", r"\1", r"\2"),
         (r"^(Linux\s*内核)(.+?权限提升漏洞)$", r"\1", r"\2"),
+        (r"^(Windows\s*Defender)[，,]\s*(.+?权限提升漏洞)$", r"\1", r"\2"),
         (r"^(Windows\s*Defender)\s+(.+?权限提升漏洞)$", r"\1", r"\2"),
         (r"^(Google\s+Chrome\s+Blink\s+CSS\s+引擎)(释放后使用漏洞)$", r"\1", r"\2"),
     ]
@@ -1624,7 +1625,17 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
         re.search(r"下载(?:一个)?与.+?漏洞.+?\.[A-Za-z0-9]{2,8}\s*文件", clean_desc)
         or re.search(r"尝试下载.+?\.[A-Za-z0-9]{2,8}\s*文件", clean_desc)
     )
-    if not any(marker in clean_desc for marker in ("可执行的漏洞利用程序", "可执行文件，该文件利用", "漏洞利用程序")) and not vuln_related_download:
+    vuln_related_file_action = bool(
+        re.search(
+            r"(?:下载|传输|投放|执行)(?:一个)?(?:利用.+?漏洞|.+?漏洞相关|.+?漏洞的).+?\.[A-Za-z0-9]{2,8}\s*文件",
+            clean_desc,
+        )
+    )
+    if (
+        not any(marker in clean_desc for marker in ("可执行的漏洞利用程序", "可执行文件，该文件利用", "漏洞利用程序"))
+        and not vuln_related_download
+        and not vuln_related_file_action
+    ):
         return ""
     vuln_title = standardize_raw_vulnerability_name(name, desc, notes)
     if not vuln_title or " - " not in vuln_title:
@@ -1632,6 +1643,8 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
     parts = [part.strip() for part in vuln_title.split(" - ", 1)[1].split("，") if part.strip()]
     if not parts:
         return ""
+    variants = [part for part in parts if part.startswith("变种 #")]
+    parts = [part for part in parts if not part.startswith("变种 #")]
     vuln_idx = len(parts) - 1
     if desc_file_type_match:
         file_type = f".{desc_file_type_match.group(1).upper()} 文件"
@@ -1640,6 +1653,7 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
     elif not parts[vuln_idx].endswith("漏洞利用程序"):
         parts[vuln_idx] = f"{parts[vuln_idx]}利用程序"
     parts.append("下载")
+    parts.extend(variants)
     return "恶意文件传输 - " + "，".join(parts)
 
 
@@ -2461,6 +2475,11 @@ def normalize_transfer_association_opening(text: str, title: str) -> str:
 def standardize_malicious_transfer_desc(title: str, desc: str) -> str:
     text = standardize_generic_desc(desc)
     text = normalize_transfer_association_opening(text, title)
+    text = re.sub(
+        r"^此验证动作还原了执行一个(.+?\.[A-Za-z0-9]{2,8}\s*文件)。",
+        r"此验证动作还原了主机尝试下载一个\1。",
+        text,
+    )
     subject = title.replace("恶意文件传输 - ", "")
     parts = [part.strip() for part in subject.split("，") if part.strip()]
     detail_parts = [part for part in parts if part not in {"下载"} and not part.startswith("变种 #")]
@@ -3254,6 +3273,14 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
             clean_notes or WEB_NOTE_DEFAULT,
         )
     if re.match(r"^(?:Web|AI)\s*应用程序漏洞\s*-\s*", clean_name) or re.match(r"^(?:应用程序漏洞|工控安全|OT安全)\s*-\s*", clean_name):
+        raw_vuln_transfer_title = standardize_raw_vulnerability_transfer_name(clean_name, clean_desc, clean_notes)
+        if raw_vuln_transfer_title:
+            raw_vuln_transfer_title = apply_ad_domain_title_rules(raw_vuln_transfer_title, clean_name, clean_desc, clean_notes, clean_context)
+            return (
+                append_os_suffix(raw_vuln_transfer_title, clean_notes),
+                standardize_malicious_transfer_desc(raw_vuln_transfer_title, clean_desc),
+                clean_notes,
+            )
         clean_name = finalize_vulnerability_title_order(clean_name)
         return clean_name, standardize_web_desc(clean_name, raw_desc), clean_notes or WEB_NOTE_DEFAULT
     if clean_name.startswith("恶意文件传输 - "):

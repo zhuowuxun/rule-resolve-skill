@@ -61,7 +61,7 @@ This skill is not for:
    - If an Actions row lacks a validation prefix, infer the prefix from `cn_name`, `cn_desc`, and `cn_notes`; double-robot notes with vulnerability names should not be classified as `主机命令行`.
    - When a row is reclassified into a different validation prefix, remove the old prefix from the title body; never produce names such as `应用程序漏洞 - 主机命令行 - ...`.
    - If a title mentions malicious files but the note is a single-machine execution note rather than a source/target robot note, classify it as `主机命令行`, not `恶意文件传输`.
-   - If a raw vulnerability title describes an executable exploit program/file and the notes use source/target robots, classify it as `恶意文件传输`, not `应用程序漏洞`.
+   - If a raw or already-prefixed vulnerability title describes an executable exploit program/file and the notes use source/target robots, classify it as `恶意文件传输`, not `应用程序漏洞`; do not let `CVE` / `漏洞` override file-transfer semantics when the description says the action downloads, executes, or transfers a `.EXE` / `.DLL` / script / sample file.
    - If a raw vulnerability title plus source/target-robot notes describes downloading a file related to the vulnerability, classify it as `恶意文件传输` and keep the downloaded file type such as `.EXE 文件` before `下载`.
    - Mark rows where a missing prefix was added so the inferred prefix can be manually reviewed.
    - For raw malicious-download titles like `X，由 Y 威胁组织使用，.EXT 文件下载变种 #n`, standardize as `恶意文件传输 - Y，X，.EXT 文件，下载，变种 #n`; preserve threat-actor spacing such as `Lazarus Group`.
@@ -125,6 +125,7 @@ This skill is not for:
    - If `Actions.cn_desc` is still English, especially host-command text beginning with `In this action...`, translate it into the approved Chinese validation style during standardization; do not leave English in Chinese delivery columns for the later translation step to inherit.
    - Normalize `网络钓鱼电子邮件` to `钓鱼邮件` in descriptions as well as titles.
    - File-transfer descriptions should use `此验证动作还原了主机尝试下载...。` and should not append `的过程` at the end of the first sentence.
+   - For vulnerability-related file-transfer rows, normalize openings like `此验证动作还原了执行一个利用 ... 漏洞的 .EXE 文件。` to `此验证动作还原了主机尝试下载一个利用 ... 漏洞的 .EXE 文件。` so the description matches the `恶意文件传输` title prefix.
    - Treat `此验证动作还原主机...` as an already-existing validation opening and normalize it to `此验证动作还原了主机...`; do not prepend a second generic download sentence.
    - After removing disposable markdown/entity tails, collapse repeated product/malware names before `是`, for example `NETSUPPORT Manager NETSUPPORT Manager 是...` -> `NETSUPPORT Manager 是...`.
    - File-transfer descriptions should use one consistent actor/object association format: `恶意软件或工具 (APT-U####)`; do not mix this with `恶意软件或工具，APT-U####`. When there are multiple objects, attach the APT ID to the first malware/tool object, for example `REMCOS (APT-U5487) 和 SHADOWLADDER`.
