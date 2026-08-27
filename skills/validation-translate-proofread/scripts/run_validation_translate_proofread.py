@@ -691,7 +691,7 @@ def _normalize_desc_reference_block(text, markers, preferred_marker):
     if skeleton:
         return text
 
-    ref_block = f"{preferred_marker}\n\n" + "\n".join(urls)
+    ref_block = f"{preferred_marker}\n" + "\n".join(urls)
     return f"{prefix}\n\n{ref_block}" if prefix else ref_block
 
 
@@ -717,7 +717,7 @@ def relocate_reference_links_from_notes(output_path):
                         ["Please refer to", "Please refer to:", "Reference link", "Reference link:", "Reference links", "Reference links:"],
                         "Please refer to:",
                     )
-                    fixed_en_desc_any = re.sub(r"(Please refer to:)\n(https?://)", r"\1\n\n\2", fixed_en_desc_any)
+                    fixed_en_desc_any = re.sub(r"(Please refer to:)\n\s*\n+(https?://)", r"\1\n\2", fixed_en_desc_any)
                     if fixed_en_desc_any != en_desc_any:
                         ws.cell(row_idx, en_desc_col_any).value = fixed_en_desc_any
                         normalized_rows += 1
@@ -799,11 +799,11 @@ def relocate_reference_links_from_notes(output_path):
 
             if not URL_RE.search(str(cn_desc)):
                 cn_desc = str(cn_desc).rstrip()
-                cn_desc = f"{cn_desc}\n\n参考链接：\n\n" + "\n".join(urls) if cn_desc else "参考链接：\n\n" + "\n".join(urls)
+                cn_desc = f"{cn_desc}\n\n参考链接：\n" + "\n".join(urls) if cn_desc else "参考链接：\n" + "\n".join(urls)
                 ws.cell(row_idx, cn_desc_col).value = cn_desc
             if not URL_RE.search(str(en_desc)):
                 en_desc = str(en_desc).rstrip()
-                en_desc = f"{en_desc}\n\nPlease refer to:\n\n" + "\n".join(urls) if en_desc else "Please refer to:\n\n" + "\n".join(urls)
+                en_desc = f"{en_desc}\n\nPlease refer to:\n" + "\n".join(urls) if en_desc else "Please refer to:\n" + "\n".join(urls)
                 ws.cell(row_idx, en_desc_col).value = en_desc
 
             ws.cell(row_idx, cn_notes_col).value = cn_note_body
@@ -827,7 +827,7 @@ def relocate_reference_links_from_notes(output_path):
                 normalized_rows += 1
             en_desc_after = ws.cell(row_idx, en_desc_col).value
             if isinstance(en_desc_after, str):
-                fixed_en_desc = re.sub(r"(Please refer to:)\n(https?://)", r"\1\n\n\2", en_desc_after)
+                fixed_en_desc = re.sub(r"(Please refer to:)\n\s*\n+(https?://)", r"\1\n\2", en_desc_after)
                 if fixed_en_desc != en_desc_after:
                     ws.cell(row_idx, en_desc_col).value = fixed_en_desc
                     normalized_rows += 1
@@ -898,8 +898,8 @@ def audit_workbook(path, manual_review_limit):
                 cn_name = cn_names.get((sheet_name, row_num), "")
                 if "数据泄漏" in cn_name:
                     warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "data_exfiltration_mistranslation", "text": text})
-            if header in {"en_desc", "en_notes"} and re.search(r"Please refer to:\nhttps?://", text):
-                warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "reference_link_missing_blank_line_after_marker", "text": text})
+            if header in {"en_desc", "en_notes"} and re.search(r"Please refer to:\n\s*\n+https?://", text):
+                warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "reference_link_extra_blank_line_after_marker", "text": text})
 
     for item in reference_note_rows:
         warnings.append({"sheet": item["sheet"], "row": item["row"], "header": "notes", "issue": "reference_link_left_in_notes"})

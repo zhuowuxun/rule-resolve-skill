@@ -118,7 +118,7 @@ If the same source header appears at different column indexes across sheets, inc
    - no Chinese leftovers in `en_*`
    - CVEs, URLs, endpoint paths, versions, and ISO dates are preserved
    - `Disclosure date: YYYY-MM-DD` format is used
-   - reference blocks are exactly multiline with one blank line before the marker and one blank line after the marker: `<body text>\n\nPlease refer to:\n\nhttps://...`
+   - reference blocks are exactly multiline with one blank line before the marker and no blank line after the marker: `<body text>\n\n请参考：\nhttps://...` / `<body text>\n\nPlease refer to:\nhttps://...`
    - no `_x000D_`, `<br>`, `<span translate="no">`, or flattened reference block remains
    - `cn_desc` body ends with terminal punctuation before any reference block
    - no ATT&CK replacement bleed in descriptions, such as title-case `Malware`, `Persistence`, `Obfuscation`, `Exfiltration`, `Reconnaissance`, `Lateral movement`, `Privilege Escalation`, `Policy`, or `Phishing Email`
