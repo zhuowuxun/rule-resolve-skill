@@ -32,7 +32,7 @@ NS = {
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 SHEET_MAIN_NS = NS["a"]
 
-URL_RE = re.compile(r"https?://[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]+")
+URL_RE = re.compile(r"https?://[^\s<>\],\u3002\uff0c\uff1b\uff01\uff1f，。；！？]+")
 NIST_URL_RE = re.compile(r"https?://[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]*nist\.gov[^\s<>\]\u3002\uff0c\uff1b\uff01\uff1f，。；！？]*", re.IGNORECASE)
 MARKDOWN_LINK_RE = re.compile(r"\[.*?\]\((https?://[^)]+)\)")
 CVE_RE = re.compile(r"\bCVE[-\s]*(\d{4})[-\s]*(\d{4,})\b", re.IGNORECASE)
@@ -358,9 +358,32 @@ def normalize_variant(text: str) -> str:
     return VARIANT_RE.sub(repl, text)
 
 
+def move_inline_variant_to_title_end(title: str) -> str:
+    value = normalize_common_text(title)
+    if not re.search(r"变种\s*#\d+", value):
+        return value
+    if re.search(r"(?:，变种 #\d+|攻击活动 #\d+)$", value):
+        return value
+    prefix = ""
+    body = value
+    if " - " in value:
+        prefix, body = value.split(" - ", 1)
+    match = re.search(r"[（(]?\s*变种\s*#(\d+)\s*[）)]?", body)
+    if not match:
+        return value
+    before = body[: match.start()].strip(" ，,")
+    after = body[match.end():].strip(" ，,")
+    if not after:
+        return value
+    cleaned = normalize_common_text(f"{before} {after}").strip(" ，,")
+    cleaned = re.sub(r"\s+([（(])", r" \1", cleaned)
+    result = f"{cleaned}，变种 #{match.group(1)}"
+    return f"{prefix} - {result}" if prefix else result
+
+
 def normalize_common_text(text: str) -> str:
     value = normalize_text(text)
-    value = value.replace("_x000D_", "")
+    value = value.replace("_x000D_", "\n")
     value = value.replace("、", "，")
     value = value.replace("linuxOS", "Linux")
     value = value.replace("LinuxOS", "Linux")
@@ -436,8 +459,16 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("AI 应用程序漏洞", "AI应用程序漏洞")
     value = normalize_variant(value)
     value = re.sub(r"(?<!\d)(20\d{2})\s+(\d{2})\s+(\d{2})(?!\d)", r"\1-\2-\3", value)
-    value = re.sub(r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", value)
+    def disclosure_repl(match: re.Match[str]) -> str:
+        return f"披露时间：{match.group(1)}-{match.group(2).zfill(2)}-{match.group(3).zfill(2)}。"
+
+    value = re.sub(
+        r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{1,2})[-\s/]*(\d{1,2})[，,。]*",
+        disclosure_repl,
+        value,
+    )
     value = value.replace("。，", "。")
+    value = value.replace("，。", "。")
     value = re.sub(r"\b([A-Z][A-Z0-9_.-]{2,})。\s+\1。", r"\1。", value)
     value = re.sub(r"([。！？])\s+(?=[A-Za-z0-9\u4e00-\u9fff])", r"\1", value)
     value = re.sub(r",(?=[A-Za-z\u4e00-\u9fff])", "，", value)
@@ -646,6 +677,8 @@ def normalize_notes(text: str) -> str:
     value = value.replace("中的源验证机器人 和", "中的源验证机器人和")
     value = re.sub(r"Windows 10，Windows 11，Windows Server 2016，Windows Server 2019，Windows Server 2022", "Windows 10、Windows 11、Windows Server 2016、Windows Server 2019、Windows Server 2022", value)
     value = value.replace("系统，非管理员，管理员", "系统、非管理员、管理员")
+    value = value.replace("外部/不受信，内部/受信", "外部/不受信、内部/受信")
+    value = value.replace("内部/受信，外部/不受信", "内部/受信、外部/不受信")
     value = value.replace("验证机器人 上", "验证机器人上")
     value = value.replace("验证机器人上以", "验证机器人上，以")
     return value.strip()
@@ -773,7 +806,7 @@ def append_os_suffix(name: str, notes: str) -> str:
     if vulnerability_title_has_os_product(clean_name):
         return clean_name
     if clean_name.startswith("主机命令行 - "):
-        return append_host_cmd_os_suffix(clean_name, suffix)
+        return move_inline_variant_to_title_end(append_host_cmd_os_suffix(clean_name, suffix))
     if clean_name.startswith("受保护的沙盘 - "):
         return append_sandbox_os_suffix(clean_name, suffix)
     parts = [part.strip() for part in clean_name.split("，")]
@@ -1022,7 +1055,7 @@ def move_os_suffix_before_action(name: str) -> str:
 
 
 def clean_url(url: str) -> str:
-    return url.rstrip(".,;\u3002")
+    return re.sub(r"(?:_x000D_|[\s|,;，。])+$", "", url or "")
 
 
 def is_nist_url(url: str) -> bool:
@@ -1047,7 +1080,7 @@ def is_reference_url_context(text: str, start: int, end: int) -> bool:
     after = text[end:min(len(text), end + 40)]
     if re.search(r"(?:请参考|参考链接|参考：|References?)\s*[:：]?\s*$", before, flags=re.IGNORECASE):
         return True
-    if re.search(r"(?:_x000D_|\n|\r)\s*$", before) and not re.match(r"^\s*(?:发起|连接|回连|请求|通信)", after):
+    if re.search(r"(?:_x000D_|\n|\r)\s*(?:\|\s*)*$", before) and not re.match(r"^\s*(?:发起|连接|回连|请求|通信)", after):
         return True
     line_start = max(text.rfind("\n", 0, start), text.rfind("\r", 0, start), text.rfind("_x000D_", 0, start))
     line_prefix = text[line_start + 1:start] if line_start >= 0 else text[:start]
@@ -1156,6 +1189,9 @@ def split_references(text: str) -> Tuple[str, List[str]]:
         return cleaned
 
     body = URL_RE.sub(replace_url, body)
+    body = NIST_URL_RE.sub(" ", body)
+    body = re.sub(r"\s*[，,]\s*(?=披露时间)", "", body)
+    body = re.sub(r"\s*[，,]\s*$", "", body)
     body = re.sub(r"(?:参考链接|请参考|官方修复\s*PR)\s*[:：]\s*[。.]?", " ", body, flags=re.IGNORECASE)
     body = re.sub(r"\[\*\*(" + CAMPAIGN_CODE_RE.pattern + r")\*\*\]\s*-\s*", "攻击活动。", body, flags=re.IGNORECASE)
     body = re.sub(r"\[\*\*(" + CAMPAIGN_CODE_RE.pattern + r")\*\*\]", "攻击活动", body, flags=re.IGNORECASE)
@@ -1204,6 +1240,8 @@ POLITICAL_ATTRIBUTION_MARKERS = (
     "精准钓鱼",
     "美国，以色列及阿联酋",
     "以色列及阿联酋",
+    "与中国结盟",
+    "台湾及其周边地区",
     "极高的行动节奏",
     "技术研发能力",
 )
@@ -1285,7 +1323,11 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
         cleaned = re.sub(r"(^|。)\s*-?\s*攻击活动。.*$", r"\1", cleaned).strip()
     cleaned = re.sub(r"(?<=\s)-\s+", " ", cleaned)
     cleaned = re.sub(r"(?<!\d)(20\d{2})\s+(\d{2})\s+(\d{2})(?!\d)", r"\1-\2-\3", cleaned)
-    cleaned = re.sub(r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", cleaned)
+    cleaned = re.sub(
+        r"披露时间\s*[:：]\s*(20\d{2})[-\s/]*(\d{1,2})[-\s/]*(\d{1,2})[，,。]*",
+        lambda match: f"披露时间：{match.group(1)}-{match.group(2).zfill(2)}-{match.group(3).zfill(2)}。",
+        cleaned,
+    )
     cleaned = cleaned.replace("*", "")
     cleaned = re.sub(r"框架生成\s*攻击活动[。.]?", "框架生成。", cleaned)
     cleaned = cleaned.replace("。攻击活动。创建用于跟踪", "。创建用于跟踪")
@@ -1574,7 +1616,12 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
         return ""
     if not re.search(r"源(?:验证机器人|AI攻防机器人).+目标(?:验证机器人|AI攻防机器人)", clean_notes):
         return ""
-    if not any(marker in clean_desc for marker in ("可执行的漏洞利用程序", "可执行文件，该文件利用", "漏洞利用程序")):
+    desc_file_type_match = re.search(r"\.([A-Za-z0-9]{2,8})\s*文件", clean_desc)
+    vuln_related_download = bool(
+        re.search(r"下载(?:一个)?与.+?漏洞.+?\.[A-Za-z0-9]{2,8}\s*文件", clean_desc)
+        or re.search(r"尝试下载.+?\.[A-Za-z0-9]{2,8}\s*文件", clean_desc)
+    )
+    if not any(marker in clean_desc for marker in ("可执行的漏洞利用程序", "可执行文件，该文件利用", "漏洞利用程序")) and not vuln_related_download:
         return ""
     vuln_title = standardize_raw_vulnerability_name(name, desc, notes)
     if not vuln_title or " - " not in vuln_title:
@@ -1583,7 +1630,11 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
     if not parts:
         return ""
     vuln_idx = len(parts) - 1
-    if not parts[vuln_idx].endswith("漏洞利用程序"):
+    if desc_file_type_match:
+        file_type = f".{desc_file_type_match.group(1).upper()} 文件"
+        if file_type not in parts:
+            parts.append(file_type)
+    elif not parts[vuln_idx].endswith("漏洞利用程序"):
         parts[vuln_idx] = f"{parts[vuln_idx]}利用程序"
     parts.append("下载")
     return "恶意文件传输 - " + "，".join(parts)
@@ -1594,7 +1645,11 @@ def extract_disclosure(sentences: List[str]) -> Tuple[List[str], str]:
     remaining: List[str] = []
     for sentence in sentences:
         if "披露时间" in sentence and not disclosure:
-            disclosure = re.sub(r"披露时间\s*[:：]\s*(\d{4})[-\s/]*(\d{2})[-\s/]*(\d{2})", r"披露时间：\1-\2-\3", sentence.strip())
+            disclosure = re.sub(
+                r"披露时间\s*[:：]\s*(\d{4})[-\s/]*(\d{1,2})[-\s/]*(\d{1,2})[，,。]*",
+                lambda match: f"披露时间：{match.group(1)}-{match.group(2).zfill(2)}-{match.group(3).zfill(2)}。",
+                sentence.strip(),
+            )
             disclosure = ensure_terminal_punctuation(disclosure)
         else:
             remaining.append(sentence.strip())
@@ -2420,7 +2475,7 @@ def standardize_malicious_transfer_desc(title: str, desc: str) -> str:
     if associated_name and target and target != "相关文件":
         download_target = f"与 {associated_name} 关联的{target}"
     else:
-        download_target = f" {target}" if re.match(r"[A-Za-z0-9]", target) else target
+        download_target = f" {target}" if re.match(r"[A-Za-z0-9.]", target) else target
     opening = f"此验证动作还原了主机尝试下载{download_target}。"
     if text.startswith("此验证动作还原"):
         return normalize_common_text(text)
@@ -2586,6 +2641,8 @@ def titleize_sandbox(name: str, desc: str) -> str:
     result = result.replace("，执行，执行", "，执行，")
     result = result.replace("，执行投放", "，执行，投放")
     result = result.replace("Stage Script 释放器", "Stage Script释放器")
+    result = result.replace("投放Malicious ", "投放恶意 ")
+    result = result.replace("投放 malicious ", "投放恶意 ")
     return result
 
 
@@ -2854,6 +2911,41 @@ def derive_sequence_subject(name: str) -> str:
     return normalize_common_text(raw.strip())
 
 
+def derive_sequence_subject_from_source_name(source_name: str) -> str:
+    """Use the raw English scene name to repair machine-translated actor names."""
+    raw = normalize_common_text(source_name)
+    if not raw or not re.search(r"[A-Za-z]", raw):
+        return ""
+    raw = normalize_variant(raw)
+    variant = ""
+    variant_match = re.search(r"(?:变种\s*#(\d+)|#(\d+)|-\s*(\d+))\s*$", raw)
+    if variant_match:
+        variant_number = next(group for group in variant_match.groups() if group)
+        variant = f" #{variant_number}"
+        raw = raw[: variant_match.start()].strip(" ，,-")
+    replacements = (
+        (r"\s+Threat Group Campaign Malware Download Threat$", " 威胁组织恶意软件下载攻击活动"),
+        (r"\s+Threat Group Campaign$", " 威胁组织攻击活动"),
+        (r"\s+Ransomware Campaign$", " 勒索软件攻击活动"),
+        (r"\s+Botnet Download Threat$", " 僵尸网络下载攻击活动"),
+        (r"\s+Malware Dropper Download Threat$", " 恶意软件释放器下载攻击活动"),
+        (r"\s+Vulnerability Threat$", " 漏洞威胁"),
+        (r"\s+Download Threat$", " 下载攻击活动"),
+        (r"\s+Campaign$", " 攻击活动"),
+    )
+    subject = raw
+    for pattern, replacement in replacements:
+        updated = re.sub(pattern, replacement, subject, flags=re.IGNORECASE)
+        if updated != subject:
+            subject = updated
+            break
+    if subject == raw:
+        return ""
+    if variant and not re.search(r"\s#\d+$", subject):
+        subject = f"{subject}{variant}"
+    return normalize_common_text(subject.strip())
+
+
 def classify_sequence_scene_prefix(name: str, subject: str) -> str:
     raw = normalize_common_text(name)
     explicit = re.match(r"^(Web\s*应用程序漏洞|AI应用程序漏洞|应用程序漏洞|工控安全|OT安全)场景\s*-", raw)
@@ -2880,8 +2972,11 @@ def classify_sequence_scene_prefix(name: str, subject: str) -> str:
     return "恶意活动场景"
 
 
-def standardize_sequence_name(name: str) -> str:
+def standardize_sequence_name(name: str, source_name: str = "") -> str:
     subject = derive_sequence_subject(name)
+    source_subject = derive_sequence_subject_from_source_name(source_name)
+    if source_subject and (re.search(r"(运动|地球龙治|威胁组织威胁组织)", subject) or not re.search(r"[A-Za-z]", subject)):
+        subject = source_subject
     if not subject:
         subject = "验证对象"
     subject = subject.replace("威胁活动 攻击活动", "攻击活动")
@@ -3047,8 +3142,11 @@ def standardize_pipeline_desc(desc: str) -> str:
     return text
 
 
-def standardize_sequence_desc(name: str, desc: str) -> str:
+def standardize_sequence_desc(name: str, desc: str, source_name: str = "") -> str:
     subject = derive_sequence_subject(name)
+    source_subject = derive_sequence_subject_from_source_name(source_name)
+    if source_subject and (re.search(r"(运动|地球龙治|威胁组织威胁组织)", subject) or not re.search(r"[A-Za-z]", subject)):
+        subject = source_subject
     desc_subject = sequence_desc_subject(subject)
     scene_prefix = classify_sequence_scene_prefix(name, subject)
     body, urls = split_references(desc)
@@ -3135,6 +3233,7 @@ def standardize_email_row(subject: str, body: str) -> Tuple[str, str]:
 
 
 def standardize_actions_row(name: str, desc: str, notes: str, context_text: str = "") -> Tuple[str, str, str]:
+    raw_desc = normalize_text(desc)
     clean_name = normalize_common_text(name)
     clean_desc = normalize_common_text(desc)
     clean_context = normalize_common_text(context_text)
@@ -3143,16 +3242,17 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
     if row_aliases:
         clean_name = apply_contextual_aliases(clean_name, row_aliases)
         clean_desc = apply_contextual_aliases(clean_desc, row_aliases)
+        raw_desc = apply_contextual_aliases(raw_desc, row_aliases)
 
     if re.match(r"(?i)^web\s*安全验证\s*-\s*", clean_name):
         return (
             normalize_web_name(clean_name, clean_desc),
-            standardize_web_desc(clean_name, clean_desc),
+            standardize_web_desc(clean_name, raw_desc),
             clean_notes or WEB_NOTE_DEFAULT,
         )
     if re.match(r"^(?:Web|AI)\s*应用程序漏洞\s*-\s*", clean_name) or re.match(r"^(?:应用程序漏洞|工控安全|OT安全)\s*-\s*", clean_name):
         clean_name = finalize_vulnerability_title_order(clean_name)
-        return clean_name, standardize_web_desc(clean_name, clean_desc), clean_notes or WEB_NOTE_DEFAULT
+        return clean_name, standardize_web_desc(clean_name, raw_desc), clean_notes or WEB_NOTE_DEFAULT
     if clean_name.startswith("恶意文件传输 - "):
         title = titleize_malicious_transfer(clean_name, clean_desc)
         title = apply_ad_domain_title_rules(title, clean_name, clean_desc, clean_notes, clean_context)
@@ -3189,11 +3289,12 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
     return clean_name, standardize_generic_desc(clean_desc), clean_notes
 
 
-def standardize_sequences_row(name: str, desc: str, aliases: Optional[Dict[str, str]] = None) -> Tuple[str, str]:
+def standardize_sequences_row(name: str, desc: str, aliases: Optional[Dict[str, str]] = None, source_name: str = "") -> Tuple[str, str]:
     if aliases:
         name = apply_contextual_aliases(name, aliases)
         desc = apply_contextual_aliases(desc, aliases)
-    return standardize_sequence_name(name), standardize_sequence_desc(name, desc)
+        source_name = apply_contextual_aliases(source_name, aliases)
+    return standardize_sequence_name(name, source_name), standardize_sequence_desc(name, desc, source_name)
 
 
 def apply_added_prefix_highlights(output_path: Path, added_prefix_cells: List[Dict[str, object]]) -> None:
@@ -3323,7 +3424,9 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
                     note_col: new_notes,
                 }
             elif sheet_name == "Sequences":
-                new_name, new_desc = standardize_sequences_row(name, desc, action_contextual_aliases)
+                source_name_col = header_index.get("name", 3)
+                source_name = read_cell_value(cell_map.get(source_name_col), shared_strings).strip()
+                new_name, new_desc = standardize_sequences_row(name, desc, action_contextual_aliases, source_name)
                 new_name = clean_campaign_codes_from_title(new_name)
                 updates = {
                     name_col: new_name,
