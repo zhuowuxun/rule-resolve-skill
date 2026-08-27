@@ -159,7 +159,7 @@ If the same source header appears at different column indexes across sheets, inc
 - In validation English titles, normalize redundant loader malware nouns: `Loader Malware` -> `Loader`.
 - If the standardized Chinese row contains an English ransomware family/group name plus `勒索软件`, preserve that name in English output and do not generalize it. For example, `GLOBAL GROUP 勒索软件` should be `GLOBAL GROUP ransomware`, not `Global ransomware` or `global ransomware`.
 - In vulnerability titles, keep vulnerability attributes attached to the vulnerability type. For example, translate `本地权限提升漏洞` as `Local Privilege Escalation Vulnerability`, not `Local, ..., Privilege Escalation Vulnerability`.
-- In vulnerability titles, translate `信息泄露漏洞` as `Information Disclosure Vulnerability` and `敏感信息泄露漏洞` as `Sensitive Information Disclosure Vulnerability`; do not use `Information Exfiltration` for disclosure vulnerability names.
+- In vulnerability titles, translate `信息泄露漏洞` / `敏感信息泄露漏洞` as `Sensitive Data Exposure`; do not silently rewrite them to `Information Disclosure`.
 - In `Protected Sandbox` titles, translate bare `执行` as the noun `Execution`, not the verb `Execute`; keep `Execute` only for host-command-style imperative action titles.
 - In `Command and Control` titles, translate `数据泄漏` as `Data Exfiltration`. If an exported title says `Penetration`, `Penetration Testing`, or `Infiltration` while the Chinese title says `数据泄漏`, repair it to `Data Exfiltration`.
 

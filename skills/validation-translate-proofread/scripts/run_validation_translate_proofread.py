@@ -223,10 +223,10 @@ def apply_builtin_validation_title_repairs(session, api_base, project_id):
 
         new_text = translated
         replacements = [
-            ("敏感information exfiltration漏洞", "Sensitive Information Disclosure Vulnerability"),
-            ("sensitive information exfiltration漏洞", "Sensitive Information Disclosure Vulnerability"),
-            ("information exfiltration漏洞", "Information Disclosure Vulnerability"),
-            ("信息exfiltration漏洞", "Information Disclosure Vulnerability"),
+            ("敏感information exfiltration漏洞", "Sensitive Data Exposure"),
+            ("sensitive information exfiltration漏洞", "Sensitive Data Exposure"),
+            ("information exfiltration漏洞", "Sensitive Data Exposure"),
+            ("信息exfiltration漏洞", "Sensitive Data Exposure"),
         ]
         for old, new in replacements:
             new_text = new_text.replace(old, new)
@@ -568,7 +568,7 @@ def normalize_exported_validation_text(text, target_header=""):
         value = re.sub(r"\bcheck-in\b", "Check-in", value, flags=re.IGNORECASE)
         value = value.replace("(Windows) that execution", "(Windows), Execution")
         value = value.replace("(Windows) execution", "(Windows), Execution")
-        value = value.replace("information Exfiltration Vulnerability", "Information Disclosure Vulnerability")
+        value = value.replace("information Exfiltration Vulnerability", "Sensitive Data Exposure")
         value = re.sub(
             r",\s*Local,\s*(CVE-\d{4}-\d+),\s*Privilege Escalation Vulnerability",
             r", \1, Local Privilege Escalation Vulnerability",
