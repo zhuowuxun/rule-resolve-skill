@@ -62,6 +62,7 @@ PY
 For standard validation workbooks, translate source columns `cn_name`, `cn_desc`, and `cn_notes`; export should populate adjacent `en_name`, `en_desc`, and `en_notes`. Do not translate `uuid`, `vid`, `created`, or already-English columns.
 If an `Email` sheet exists, also translate `cn_subject` and `cn_body` into `en_subject` and `en_body`. Keep existing Chinese subjects unchanged in `cn_subject`; only fill the English target columns.
 Because AI Translation Studio selects source columns by column index across every sheet, temporary upload copies may intentionally blank non-source cells whose column index collides with a source column on another sheet, such as `Sequences.created` sharing the `cn_notes` column index. Empty source chunks created from those intentionally blank cells must not count as translation failures, but real non-empty source chunks must all be translated before replacement/proofreading/export.
+If the same source header appears at different column indexes across sheets, include every actual source column index in the one project upload instead of failing or splitting projects. The temporary upload copy must blank cells where those selected column indexes point to non-source headers on other sheets, so fields such as `vid`, `name`, `desc`, or `created` are not translated accidentally.
 
 ## Workflow
 1. Confirm platform translation readiness before creating any project.
@@ -158,6 +159,7 @@ Because AI Translation Studio selects source columns by column index across ever
 - In validation English titles, normalize redundant loader malware nouns: `Loader Malware` -> `Loader`.
 - If the standardized Chinese row contains an English ransomware family/group name plus `勒索软件`, preserve that name in English output and do not generalize it. For example, `GLOBAL GROUP 勒索软件` should be `GLOBAL GROUP ransomware`, not `Global ransomware` or `global ransomware`.
 - In vulnerability titles, keep vulnerability attributes attached to the vulnerability type. For example, translate `本地权限提升漏洞` as `Local Privilege Escalation Vulnerability`, not `Local, ..., Privilege Escalation Vulnerability`.
+- In vulnerability titles, translate `信息泄露漏洞` as `Information Disclosure Vulnerability` and `敏感信息泄露漏洞` as `Sensitive Information Disclosure Vulnerability`; do not use `Information Exfiltration` for disclosure vulnerability names.
 - In `Protected Sandbox` titles, translate bare `执行` as the noun `Execution`, not the verb `Execute`; keep `Execute` only for host-command-style imperative action titles.
 - In `Command and Control` titles, translate `数据泄漏` as `Data Exfiltration`. If an exported title says `Penetration`, `Penetration Testing`, or `Infiltration` while the Chinese title says `数据泄漏`, repair it to `Data Exfiltration`.
 

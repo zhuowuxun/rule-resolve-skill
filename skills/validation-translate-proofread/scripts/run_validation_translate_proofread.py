@@ -206,6 +206,47 @@ def translate_all_with_retries(session, api_base, project_id, expected_chunks, m
     return last_result
 
 
+def apply_builtin_validation_title_repairs(session, api_base, project_id):
+    """Narrow title repairs that should work even if the platform script lags."""
+    project = get_json(session, f"{api_base}/api/project/{project_id}", "Fetch project for built-in title repairs")
+    fixed = []
+    for chunk in project.get("chunks", []):
+        translated = chunk.get("translated_text") or ""
+        if not translated:
+            continue
+        try:
+            meta = json.loads(chunk.get("format_data") or "{}")
+        except json.JSONDecodeError:
+            meta = {}
+        if meta.get("header") != "cn_name":
+            continue
+
+        new_text = translated
+        replacements = [
+            ("敏感information exfiltration漏洞", "Sensitive Information Disclosure Vulnerability"),
+            ("sensitive information exfiltration漏洞", "Sensitive Information Disclosure Vulnerability"),
+            ("information exfiltration漏洞", "Information Disclosure Vulnerability"),
+            ("信息exfiltration漏洞", "Information Disclosure Vulnerability"),
+        ]
+        for old, new in replacements:
+            new_text = new_text.replace(old, new)
+        new_text = re.sub(
+            r'^Host Command Line - Creating Scheduled Tasks "([^"]+)" \(([^)]+)\) via Schtasks$',
+            r'Host Command Line - Use Schtasks to Create Scheduled Task "\1" (\2)',
+            new_text,
+        )
+
+        if new_text != translated:
+            put_json(
+                session,
+                f"{api_base}/api/project/{project_id}/chunks/{chunk['id']}",
+                {"translated_text": new_text},
+                "Apply built-in validation title repair",
+            )
+            fixed.append({"seq": chunk.get("seq"), "before": translated, "after": new_text})
+    return fixed
+
+
 def verify_note_replacement_scope(repo_root, replacement_dict_names, api_base, platform_ssh, platform_root, ssh_command):
     note_dict_requested = any(name.strip().lower() == "validation note replacement" for name in replacement_dict_names)
     if not note_dict_requested:
@@ -304,6 +345,18 @@ def detect_stable_column(sheet_headers, header_name, limit_sheets=None):
     if len(indexes) != 1:
         raise RuntimeError(f"Header '{header_name}' appears in different columns across sheets: {sorted(indexes)}")
     return next(iter(indexes)), found_sheets
+
+
+def detect_columns(sheet_headers, header_name, limit_sheets=None):
+    indexes = set()
+    found_sheets = []
+    for sheet_name, headers in sheet_headers.items():
+        if limit_sheets and sheet_name not in limit_sheets:
+            continue
+        if header_name in headers:
+            indexes.add(headers.index(header_name))
+            found_sheets.append(sheet_name)
+    return sorted(indexes), found_sheets
 
 
 def resolve_google_translate_config(session, api_base, activate=False):
@@ -876,17 +929,18 @@ def main():
     sheet_headers = collect_sheet_headers(input_path)
     main_cols = []
     for header in [*DEFAULT_MAIN_SOURCE_HEADERS, *DEFAULT_EMAIL_SOURCE_HEADERS]:
-        col_idx, found_sheets = detect_stable_column(sheet_headers, header)
-        if col_idx is None and header in DEFAULT_MAIN_SOURCE_HEADERS:
+        col_indexes, found_sheets = detect_columns(sheet_headers, header)
+        if not col_indexes and header in DEFAULT_MAIN_SOURCE_HEADERS:
             raise RuntimeError(f"Missing required validation header: {header}")
-        if col_idx is None:
+        if not col_indexes:
             continue
         if not found_sheets:
             raise RuntimeError(f"Header '{header}' was not found in any sheet")
-        if col_idx not in main_cols:
-            main_cols.append(col_idx)
+        for col_idx in col_indexes:
+            if col_idx not in main_cols:
+                main_cols.append(col_idx)
 
-    notes_col, note_sheets = detect_stable_column(sheet_headers, DEFAULT_NOTE_SOURCE_HEADER)
+    note_cols, note_sheets = detect_columns(sheet_headers, DEFAULT_NOTE_SOURCE_HEADER)
 
     session = requests.Session()
     health = get_json(session, f"{args.api_base}/api/health", "Check backend health")
@@ -915,15 +969,17 @@ def main():
     source_headers = list(DEFAULT_MAIN_SOURCE_HEADERS)
     source_cols = list(main_cols)
     for header in DEFAULT_EMAIL_SOURCE_HEADERS:
-        col_idx, found_sheets = detect_stable_column(sheet_headers, header)
-        if col_idx is not None and found_sheets:
+        col_indexes, found_sheets = detect_columns(sheet_headers, header)
+        if col_indexes and found_sheets:
             source_headers.append(header)
+            for col_idx in col_indexes:
+                if col_idx not in source_cols:
+                    source_cols.append(col_idx)
+    if note_cols and note_sheets:
+        source_headers.append(DEFAULT_NOTE_SOURCE_HEADER)
+        for col_idx in note_cols:
             if col_idx not in source_cols:
                 source_cols.append(col_idx)
-    if notes_col is not None and note_sheets:
-        source_headers.append(DEFAULT_NOTE_SOURCE_HEADER)
-        if notes_col not in source_cols:
-            source_cols.append(notes_col)
 
     platform_input_path, upload_tmpdir, blanked_upload_cells = prepare_platform_input_workbook(
         input_path,
@@ -963,6 +1019,7 @@ def main():
         {},
         "Run batch replacement",
     )
+    builtin_title_repairs = apply_builtin_validation_title_repairs(session, args.api_base, project_id)
 
     backup_path = backup_database(
         repo_root,
@@ -1028,6 +1085,7 @@ def main():
                 "errors": translate_result.get("errors", []),
             },
             "replace_result": replace_result,
+            "builtin_title_repairs": builtin_title_repairs,
             "chunk_count": project.get("chunk_count"),
             "verify_clean": proofread_result["verify_clean"],
             "verify_stdout": proofread_result["verify_stdout"],
