@@ -86,6 +86,7 @@ HARDWARE_KEYWORDS = (
 )
 
 AI_APPLICATION_PRODUCTS = (
+    "9router",
     "langflow",
     "librechat",
     "mindsdb",
@@ -3282,7 +3283,10 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
                 standardize_malicious_transfer_desc(raw_vuln_transfer_title, clean_desc),
                 clean_notes,
             )
-        clean_name = finalize_vulnerability_title_order(clean_name)
+        if re.match(r"^(?:Web|AI)\s*应用程序漏洞\s*-\s*", clean_name) or is_web_entry_path(parse_web_name(clean_name)[1]):
+            clean_name = normalize_web_name(clean_name, clean_desc)
+        else:
+            clean_name = finalize_vulnerability_title_order(clean_name)
         return clean_name, standardize_web_desc(clean_name, raw_desc), clean_notes or WEB_NOTE_DEFAULT
     if clean_name.startswith("恶意文件传输 - "):
         title = titleize_malicious_transfer(clean_name, clean_desc)

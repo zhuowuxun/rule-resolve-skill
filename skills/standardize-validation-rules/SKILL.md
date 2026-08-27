@@ -53,6 +53,7 @@ This skill is not for:
    - Normalize `Web安全验证 -` / `web安全验证 -` to `Web应用程序漏洞 -`.
    - If a title contains an explicit Web endpoint path such as `/api/...`, `.ashx`, `.php`, `.jsp`, or another URL-path-like entry, keep/classify it as `Web应用程序漏洞` even when the product name contains application words such as `ERP` or `管理系统`.
    - AI product classification has higher priority than Web endpoint classification. If the product or description identifies the target as an AI application, LLM platform, AI coding agent, MCP/Model Context Protocol server/tool, or AI workflow product, use `AI应用程序漏洞` even when the vulnerability entry contains a Web path such as `/session/`.
+   - Product-level AI classification must be stable across different commands, endpoints, or vulnerable paths for the same software. For example, all `9Router` vulnerability rows should use `AI应用程序漏洞`.
    - Do not classify a product as `AI应用程序漏洞` only because a generic product description contains marketing phrases such as `AI 驱动`; the product itself must be an AI/LLM/MCP/AI-workflow target.
    - Industrial-control / OT product classification has higher priority than Web endpoint classification and lower priority than AI classification. If the product or description identifies MES, SCADA, manufacturing execution, production-process management, data acquisition/monitoring, scheduling, warehouse, or equipment-fixture management systems, use `工控安全` even when the vulnerable entry is a Web path such as `.ashx`.
    - Product-specific application/appliance classification has higher priority than generic Web-path classification. For products such as Infoblox NETMRI and 深信服运维安全管理系统, use `应用程序漏洞` even when the entry contains a Web path.
@@ -65,7 +66,7 @@ This skill is not for:
    - If a raw vulnerability title plus source/target-robot notes describes downloading a file related to the vulnerability, classify it as `恶意文件传输` and keep the downloaded file type such as `.EXE 文件` before `下载`.
    - Mark rows where a missing prefix was added so the inferred prefix can be manually reviewed.
    - For raw malicious-download titles like `X，由 Y 威胁组织使用，.EXT 文件下载变种 #n`, standardize as `恶意文件传输 - Y，X，.EXT 文件，下载，变种 #n`; preserve threat-actor spacing such as `Lazarus Group`.
-   - Use `AI应用程序漏洞` for AI application products such as Langflow, Open WebUI, OpenClaw, MLflow, LiteLLM, MindsDB, LibreChat, NocoBase, opencode, and short-video-maker.
+   - Use `AI应用程序漏洞` for AI application products such as 9Router, Langflow, Open WebUI, OpenClaw, MLflow, LiteLLM, MindsDB, LibreChat, NocoBase, opencode, and short-video-maker.
    - Use `应用程序漏洞` for application/appliance products such as Citrix NetScaler, D-Link NAS, Fortinet FortiClientEMS, Fortinet FortiSandbox, Jumpserver, Infoblox NETMRI, 深信服运维安全管理系统, and similar product-specific business/application appliances.
    - Do not force 东胜物流软件 to `应用程序漏洞` in validation main-rule workbooks; when it is represented as a Web endpoint vulnerability, keep `Web应用程序漏洞`.
    - Use `工控安全` for industrial-control products such as 深科特 LEAN MES and similar MES/SCADA/manufacturing execution systems; descriptions that identify the product as an industrial protocol gateway, protocol conversion gateway, communication gateway, or industrial-device integration product should also use `工控安全`.
