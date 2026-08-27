@@ -87,6 +87,7 @@ HARDWARE_KEYWORDS = (
 
 AI_APPLICATION_PRODUCTS = (
     "9router",
+    "flowise",
     "langflow",
     "librechat",
     "mindsdb",
