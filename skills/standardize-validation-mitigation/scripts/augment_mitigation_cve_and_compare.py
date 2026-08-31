@@ -801,6 +801,19 @@ def normalize_host_command_product_scope(cn: str, en: str, inferred_os: str, rul
     return cn, en
 
 
+def normalize_sandbox_product_scope(cn: str, en: str, inferred_os: str, rule_type: str) -> Tuple[str, str]:
+    if "受保护的沙盘" not in rule_type or inferred_os != "Windows":
+        return cn, en
+
+    cn = cn.replace("终端安全产品", "终端或主机安全产品")
+    cn = cn.replace("终端/主机安全产品", "终端或主机安全产品")
+    cn = cn.replace("针对终端的", "针对终端或主机的")
+    cn = cn.replace("对终端的", "对终端或主机的")
+    en = re.sub(r"\bendpoint security products\b", "endpoint or server security products", en, flags=re.IGNORECASE)
+    en = re.sub(r"\bendpoint's\b", "endpoint or server's", en, flags=re.IGNORECASE)
+    return cn, en
+
+
 def normalize_reference_priority(references: List[str]) -> List[str]:
     def score(url: str) -> Tuple[int, str]:
         lowered = url.lower()
@@ -1119,6 +1132,7 @@ def transform_base_notes(
     inferred_os = infer_os_scope(name, os_scope)
     cn, en = cleanup_os_mismatch(cn, en, inferred_os, rule_type)
     cn, en = normalize_host_command_product_scope(cn, en, inferred_os, rule_type)
+    cn, en = normalize_sandbox_product_scope(cn, en, inferred_os, rule_type)
     en = en.replace("Digidations", "digiDations")
     en = en.replace("theendpoint", "the endpoint")
     en = en.replace("Productsare", "Products are")

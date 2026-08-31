@@ -95,6 +95,10 @@ This skill is not for:
    - When a sandbox row is filled from dictionary/history and the remediation starts directly with `如果...` / `If ...`, add the destructive sentence head only if the rule name has explicit destructive indicators such as stopping security protection, disabling data services, deleting shadow copies, wiping, encryption, ransomware, or destroy behavior. Do not add it merely for generic execution, loaders, file movement, or payload drop wording.
    - Treat `此攻击手法是具有危险性的` / `This attack method is dangerous` as old wording. For sandbox rows with destructive semantics, normalize it to `此攻击手法是具有破坏性的` / `This attack method is destructive`; otherwise remove the whole destructive/dangerous sentence head.
    - Sandbox product scope is endpoint/terminal oriented. Do not leave sandbox rows starting with `如果网络安全产品对此攻击漏检` / `If the network security products miss this attack`.
+   - For Windows `受保护的沙盘` rows, normalize sandbox remediation scope from endpoint-only to endpoint-or-server wording:
+     - Chinese: replace `终端安全产品` with `终端或主机安全产品`, and replace `针对终端的` / `对终端的` with `针对终端或主机的` / `对终端或主机的`.
+     - English: replace `endpoint security products` with `endpoint or server security products`.
+     - Do not apply this expansion to Linux or macOS sandbox rows.
    - For hardware-style product groups currently identified by validated rules, remove:
      - `或主机安全产品`
      - `通过优化WAF产品的检测规则实现防御或评估RSAP产品在贵司的适用性`
