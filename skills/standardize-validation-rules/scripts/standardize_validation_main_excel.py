@@ -1118,7 +1118,7 @@ def extract_uri_paths(text: str) -> List[str]:
         if path and path != "/" and path not in paths:
             paths.append(path)
     value_without_urls = URL_RE.sub(" ", value)
-    for match in re.finditer(r"(?<![:/A-Za-z0-9])/(?:[A-Za-z0-9._~%:+-]+/)*[A-Za-z0-9._~%:+-]+/?", value_without_urls):
+    for match in re.finditer(r"(?<![:/A-Za-z0-9])/(?:[A-Za-z0-9._~%:+{}-]+/)*[A-Za-z0-9._~%:+{}-]+/?", value_without_urls):
         path = unquote(match.group(0).rstrip("`'\"”）),，。；;"))
         if path and path != "/" and path not in paths:
             paths.append(path)
@@ -1417,7 +1417,7 @@ def normalize_web_entry_path(path: str) -> str:
 def extract_web_entry_candidates(text: str) -> List[str]:
     body, _ = split_references(text)
     candidates: List[str] = []
-    for match in re.finditer(r"(?<!:)/+[A-Za-z0-9._~/%:+-]+", body):
+    for match in re.finditer(r"(?<!:)/+[A-Za-z0-9._~/%:+{}-]+", body):
         candidate = normalize_web_entry_path(match.group(0))
         if not candidate:
             continue

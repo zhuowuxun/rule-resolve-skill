@@ -275,7 +275,7 @@ These are hard constraints. Normalization rules must not alter them unless a nar
 - disclosure dates: always `披露时间：YYYY-MM-DD`
 - CVE/CNVD/CWE/CAPEC IDs
 - URLs and URL paths
-- URI paths such as `/api/v1/utils/code/execute`
+- URI paths such as `/api/v1/utils/code/execute` and templated endpoint paths such as `/api/v1/command/{database}`
 - hostnames and domains
 - filenames and extensions such as `.LNK`, `.NET`, `.ashx`
 - functions/methods such as `BuiltinCaptcha::saveCaptcha()`
