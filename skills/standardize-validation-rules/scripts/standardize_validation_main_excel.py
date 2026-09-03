@@ -2728,6 +2728,7 @@ def titleize_phishing_email(name: str) -> str:
 def titleize_host_cmd(name: str, desc: str = "") -> str:
     raw = normalize_variant(normalize_cn_action_terms(name))
     raw = raw.replace("Archieve/zip", "archive/zip")
+    raw = raw.replace("WebBroeserPassView", "WebBrowserPassView")
     raw = re.sub(
         r"^(主机命令行\s*-\s*使用\s+Wevtutil\s+工具)\s+变种\s*#(\d+)\s+(清除系统事件日志)(?:\s*\((Windows|Linux|macOS)\))?$",
         lambda m: f"{m.group(1)}{m.group(3)}" + (f" ({m.group(4)})" if m.group(4) else "") + f"，变种 #{m.group(2)}",
@@ -2737,6 +2738,18 @@ def titleize_host_cmd(name: str, desc: str = "") -> str:
     if "4096 字节随机写入" in raw and "Handala 威胁组织" not in raw and "Handala" in desc:
         raw = raw.replace("主机命令行 - ", "主机命令行 - Handala 威胁组织，", 1)
     patterns = [
+        (
+            r"^主机命令行\s*-\s*使用\s+WebBrowserPassView\s+工具导出浏览器凭据(?:\s*\((Windows|Linux|macOS)\))?(?:，\s*变种\s*#(\d+))?$",
+            lambda m: "主机命令行 - WebBrowserPassView，浏览器凭据导出"
+            + (f" ({m.group(1)})" if m.group(1) else "")
+            + (f"，变种 #{m.group(2)}" if m.group(2) else ""),
+        ),
+        (
+            r"^主机命令行\s*-\s*使用\s+Regsvr32\s+执行远程\s+SCT\s+脚本(?:\s*\((Windows|Linux|macOS)\))?(?:，\s*变种\s*#(\d+))?$",
+            lambda m: "主机命令行 - Regsvr32，远程 SCT 脚本执行"
+            + (f" ({m.group(1)})" if m.group(1) else "")
+            + (f"，变种 #{m.group(2)}" if m.group(2) else ""),
+        ),
         (
             r"^主机命令行\s*-\s*使用[“\"]([^”\"]+)[”\"]命令显示可配置服务的列表(?:\s*\([^)]*\))?$",
             "主机命令行 - {cmd}，可配置服务列表显示",
@@ -2749,6 +2762,8 @@ def titleize_host_cmd(name: str, desc: str = "") -> str:
     for pattern, template in patterns:
         match = re.match(pattern, raw)
         if match:
+            if callable(template):
+                return template(match)
             return template.format(cmd=match.group(1).strip())
     return raw
 
@@ -2824,12 +2839,27 @@ def translate_known_english_host_cmd_desc(name: str, desc: str) -> str:
 
 
 def standardize_host_cmd_desc(name: str, desc: str) -> str:
-    clean_name = normalize_common_text(name)
+    clean_name = normalize_common_text(name).replace("WebBroeserPassView", "WebBrowserPassView")
     clean_desc = normalize_common_text(desc)
     lower_name = clean_name.lower()
     translated_desc = translate_known_english_host_cmd_desc(clean_name, clean_desc)
     if translated_desc:
         return translated_desc
+    if "WebBrowserPassView" in clean_name and "浏览器凭据导出" in clean_name:
+        software_desc = clean_desc.replace("WebBroeserPassView", "WebBrowserPassView").strip()
+        intro = "此验证动作还原了在 Windows 主机上使用 WebBrowserPassView 工具导出浏览器凭据的行为。"
+        if software_desc and not software_desc.startswith("此验证动作还原了"):
+            return intro + software_desc
+        return intro
+    if "Regsvr32" in clean_name and "远程 SCT 脚本执行" in clean_name:
+        detail = clean_desc.strip()
+        intro = "此验证动作还原了在 Windows 主机上使用 Regsvr32 执行远程 SCT 脚本的行为。"
+        if detail:
+            detail = re.sub(r"^远程 SCT 脚本使用", "该远程 SCT 脚本通过", detail)
+            detail = detail.replace("。远程 SCT 脚本使用", "。该远程 SCT 脚本通过")
+            if not detail.startswith("此验证动作还原了"):
+                return intro + detail
+        return intro
     if "net config" in lower_name:
         return "此验证动作还原了在 Windows 主机上执行 Net config 命令以显示正在运行的可配置服务列表的行为。该命令也可用于显示和更改服务器服务或工作站服务的设置。"
     if "tasklist /svc" in lower_name:

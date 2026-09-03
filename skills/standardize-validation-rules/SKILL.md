@@ -72,6 +72,7 @@ This skill is not for:
    - Use `工控安全` for industrial-control products such as 深科特 LEAN MES and similar MES/SCADA/manufacturing execution systems; descriptions that identify the product as an industrial protocol gateway, protocol conversion gateway, communication gateway, or industrial-device integration product should also use `工控安全`.
    - Host command, command-and-control, malicious file transfer, protected sandbox, scene, and email rows should follow the confirmed validation naming rules.
    - Host command titles must not stop at appending an OS suffix. Rewrite verbose forms like `主机命令行 - 使用“CMD”命令显示XXX` into `主机命令行 - CMD，XXX显示 (Windows)` or the closest concise action form.
+   - Host command titles that describe tool-based actions must be rewritten into concise noun/action segments, not left as `使用 XXX ...`. For example, `主机命令行 - 使用 WebBrowserPassView 工具导出浏览器凭据 (Windows)` -> `主机命令行 - WebBrowserPassView，浏览器凭据导出 (Windows)`, and `主机命令行 - 使用 Regsvr32 执行远程 SCT 脚本 (Windows)` -> `主机命令行 - Regsvr32，远程 SCT 脚本执行 (Windows)`.
    - Host command titles must move inline variant markers to the end. For example, `使用 UpdateProcThreadAttribute 变种 #1 修改父进程 ID (Windows)` should become `使用 UpdateProcThreadAttribute 修改父进程 ID (Windows)，变种 #1`.
    - In `Sequences`, normalize residual `下载威胁` wording to `下载攻击活动` so the final title does not become `下载威胁 攻击活动`.
    - In `Sequences`, normalize residual `恶意文件下载活动` / `恶意文件下载 攻击活动` wording to `恶意文件下载攻击活动` so the final title does not contain stitched duplicate activity wording.
@@ -124,6 +125,7 @@ This skill is not for:
    - Prefer the opening `此验证动作还原了...`.
    - Every `cn_desc` body must end with terminal punctuation (`。` / `！` / `？`) before any reference block.
    - Host command descriptions must describe the validation action, not merely restate the tool help text. For example, `“tasklist”显示...` should become `此验证动作还原了在 Windows 主机上执行 tasklist /svc 命令以显示...的行为。`
+   - Host command descriptions for tool-based actions should start with the concrete validation behavior and may keep the software/tool explanation after it. For example, WebBrowserPassView rows should start with `此验证动作还原了在 Windows 主机上使用 WebBrowserPassView 工具导出浏览器凭据的行为。`; Regsvr32 remote SCT rows should start with `此验证动作还原了在 Windows 主机上使用 Regsvr32 执行远程 SCT 脚本的行为。`
    - If `Actions.cn_desc` is still English, especially host-command text beginning with `In this action...`, translate it into the approved Chinese validation style during standardization; do not leave English in Chinese delivery columns for the later translation step to inherit.
    - Normalize `网络钓鱼电子邮件` to `钓鱼邮件` in descriptions as well as titles.
    - File-transfer descriptions should use `此验证动作还原了主机尝试下载...。` and should not append `的过程` at the end of the first sentence.
@@ -234,6 +236,7 @@ This skill is not for:
    - AI products with endpoint paths must remain `AI应用程序漏洞`, not `Web应用程序漏洞`
    - industrial-control products with endpoint paths must remain `工控安全`, not `Web应用程序漏洞`
    - no host command title may remain in the verbose `使用“...”命令显示...` form after standardization
+   - no host command title may remain in verbose `使用 XXX 工具...` or `使用 XXX 执行...` form when it can be rewritten as concise `工具，动作` segments
    - no host command description may remain as bare command help text such as `“CMD”显示...` without the `此验证动作还原了...` opening
    - the final `.xlsx` must be Excel-openable, not merely a valid zip archive:
      - after XML-level edits, always rewrite/save the final workbook through `openpyxl`
