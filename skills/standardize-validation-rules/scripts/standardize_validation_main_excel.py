@@ -2882,6 +2882,10 @@ def standardize_host_cmd_desc(name: str, desc: str) -> str:
 
 
 def standardize_generic_desc(desc: str) -> str:
+    # Remove an accidental whole-cell quotation, preserving all internal quotes.
+    wrapped = re.fullmatch(r'\s*"(此验证动作[\s\S]*[。！？])\s*"[。]?\s*', desc or '')
+    if wrapped:
+        desc = wrapped.group(1).strip()
     body, urls = split_references(desc)
     text = cleanup_unwanted_attribution(normalize_geo_company_text(body))
     text = re.sub(r"^在此验证动作中，", "此验证动作还原了", text)
