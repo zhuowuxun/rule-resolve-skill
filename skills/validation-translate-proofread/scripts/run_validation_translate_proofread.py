@@ -560,7 +560,7 @@ def normalize_exported_validation_text(text, target_header=""):
     value = re.sub(r"(https?://\S+?)）发起回连与数据外传。在整个执行过程中，脚本全程采用隐藏窗口运行，通过try/catch blocks", r"sends data back through an HTTP request to \1. Throughout execution, the script runs with its window hidden and uses try/catch blocks", value)
     value = re.sub(r"\bsimulate into the original\b", "restore the original", value, flags=re.IGNORECASE)
     value = re.sub(r"\bparser parses and simulate\b", "parser parses and restores", value, flags=re.IGNORECASE)
-    value = re.sub(r"(?<!\ban )\badversary can\b", "an adversary can", value)
+    value = re.sub(r"(^|(?<=[.!?])\s+)adversary can\b", r"\1An adversary can", value, flags=re.IGNORECASE)
     value = re.sub(r"\bauthentication Scenario\b", "validation scenario", value)
     value = re.sub(r"\bAuthentication Scenario\b", "Validation Scenario", value)
     if target_header in {"en_name", "en_subject"}:
