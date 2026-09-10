@@ -45,6 +45,8 @@ OS_TOKEN_RE = re.compile(
 WEB_PREFIX = "Web安全验证 - "
 WEB_NOTE_DEFAULT = "塞讯验证建议在外部/不受信、内部/受信的安全区域中选择源验证机器人，在目标/DMZ区域中选择目标验证机器人。"
 VALIDATION_TITLE_PREFIXES = (
+    "IOT安全 - ",
+    "IOT 安全 - ",
     "恶意文件传输 - ",
     "主机命令行 - ",
     "命令与控制 - ",
@@ -3316,6 +3318,12 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
         clean_name = apply_contextual_aliases(clean_name, row_aliases)
         clean_desc = apply_contextual_aliases(clean_desc, row_aliases)
         raw_desc = apply_contextual_aliases(raw_desc, row_aliases)
+
+    # Preserve an explicit IoT category rather than treating it as a product name.
+    if re.match(r"(?i)^iot\s*安全\s*-\s*", clean_name):
+        title = re.sub(r"(?i)^iot\s*安全\s*-\s*", "IOT安全 - ", clean_name)
+        title = re.sub(r"[，,]\s*[，,]+", "，", title)
+        return title, standardize_generic_desc(raw_desc), clean_notes
 
     if re.match(r"(?i)^web\s*安全验证\s*-\s*", clean_name):
         return (
