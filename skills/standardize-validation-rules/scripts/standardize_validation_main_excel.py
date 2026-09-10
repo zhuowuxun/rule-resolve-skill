@@ -1193,6 +1193,9 @@ def split_references(text: str) -> Tuple[str, List[str]]:
 
     body = URL_RE.sub(replace_url, body)
     body = NIST_URL_RE.sub(" ", body)
+    # Entity headers delimit independent prose: keep the prose and its sentence boundary.
+    body = re.sub(r"(?:-\s*)?\[\*\*[^\]]+\*\*\]\s*-\s*", "。", body)
+    body = re.sub(r"[。]\s*[。]+", "。", body)
     body = re.sub(r"\s*[，,]\s*(?=披露时间)", "", body)
     body = re.sub(r"\s*[，,]\s*$", "", body)
     body = re.sub(r"(?:参考链接|请参考|官方修复\s*PR)\s*[:：]\s*[。.]?", " ", body, flags=re.IGNORECASE)
@@ -1322,8 +1325,6 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
             continue
         kept.append(sentence)
     cleaned = " ".join(s.strip() for s in kept if s.strip())
-    if not (URL_RE.search(cleaned) or re.search(r"[A-Za-z0-9_.-]+\[\.\][A-Za-z0-9_.-]+", cleaned)):
-        cleaned = re.sub(r"(^|。)\s*-?\s*攻击活动。.*$", r"\1", cleaned).strip()
     cleaned = re.sub(r"(?<=\s)-\s+", " ", cleaned)
     cleaned = re.sub(r"(?<!\d)(20\d{2})\s+(\d{2})\s+(\d{2})(?!\d)", r"\1-\2-\3", cleaned)
     cleaned = re.sub(
@@ -1422,7 +1423,7 @@ def extract_web_entry_candidates(text: str) -> List[str]:
         if not candidate:
             continue
         # Avoid obvious prose/date fragments; references are already split out.
-        if re.search(r"\.(?:html?|md)$", candidate, flags=re.IGNORECASE):
+        if re.search(r"\.md$", candidate, flags=re.IGNORECASE):
             continue
         if candidate not in candidates:
             candidates.append(candidate)
@@ -1748,6 +1749,15 @@ def dedupe_web_attack_sentences(
             continue
         if clean in seen:
             continue
+        # Preserve affected versions and endpoint/function context before deduplication.
+        scope = re.match(r"^(.+?)存在[^。]*?漏洞", clean)
+        if scope:
+            detail = scope.group(1).strip()
+            evidence = re.findall(r"\d+(?:\.\d+)+|/[A-Za-z0-9_./:{}-]+|[A-Za-z_][A-Za-z0-9_]*\(\)", detail)
+            if any(token not in target for token in evidence):
+                detail = re.sub(r"(?<=\d)\s*变种", " 版本", detail)
+                detail = detail.replace("之前变种", "之前版本").replace("及之前变种", "及之前版本")
+                deduped.append(f"该问题涉及 {detail}。")
         if vuln_type and vuln_type in clean and ("存在" in clean or "接口" in clean):
             mentions_target = bool(
                 (target and target in clean)
@@ -1803,6 +1813,10 @@ def trim_promotional_product_copy(text: str) -> str:
         "Redis 是一款开源的，基于内存并可持久化的高性能 Key-Value 数据库，使用 ANSI C 语言编写，支持网络访问，并提供多种编程语言的 API。凭借读写高效，数据结构丰富的特性，Redis 被广泛用于缓存，消息队列，会话存储等业务场景。",
         "Redis 是一款开源的内存型 Key-Value 数据库，支持持久化和网络访问，常用于缓存、消息队列、会话存储等业务场景。",
     )
+    if "紫光电子档案" in value:
+        for prefix in ("系统具有强大的文件存储", "同时，紫光电子档案管理系统还拥有", "用户只需简单操作"):
+            value = re.sub(re.escape(prefix) + r"[^。]*。", "", value)
+        value = value.replace("紫光电子档案管理系统是一款专业的电子档案管理软件，旨在帮助企业实现高效，便捷的档案管理。", "紫光电子档案管理系统是一款提供文件存储、检索、共享、分类和备份功能的档案管理软件。")
     value = value.replace("构建了完整且高隐蔽性的攻击闭环", "形成完整攻击链")
     return normalize_common_text(value)
 
@@ -2492,7 +2506,7 @@ def standardize_malicious_transfer_desc(title: str, desc: str) -> str:
         or re.fullmatch(r"[A-Z][A-Z0-9_.-]{2,}", detail_parts[0])
     ):
         associated_name = detail_parts[0]
-    if detail_parts and any(token in detail_parts[0] for token in ("勒索软件", "恶意软件", "木马", "后门", "加载器")):
+    if detail_parts and any(token in detail_parts[0] for token in ("勒索软件", "恶意软件", "木马", "后门", "加载器", "释放器")):
         target = "，".join(detail_parts)
     else:
         target = "，".join(detail_parts[1:]) if len(detail_parts) > 1 else "相关文件"
