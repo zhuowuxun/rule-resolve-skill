@@ -1378,7 +1378,12 @@ def main() -> None:
                 raw_refs.append(source_url)
             refs = normalize_reference_priority(raw_refs)
             description_en = str(cve_data[cve].get("description_en") or "").strip()
-            appendix_cn = build_cn_appendix(translate_en_to_zh(description_en, product) if description_en else "", refs)
+            # A reviewed translation in the CVE cache avoids repeated network calls
+            # and preserves technical tokens when the translation API is throttled.
+            description_cn = str(cve_data[cve].get("description_cn") or "").strip()
+            if description_en and not description_cn:
+                description_cn = translate_en_to_zh(description_en, product)
+            appendix_cn = build_cn_appendix(description_cn, refs)
             appendix_en = build_en_appendix(description_en, refs)
             new_cn = remove_nist_urls_from_chinese_text(append_block(base_cn, appendix_cn))
             new_en = append_block(base_en, appendix_en)
