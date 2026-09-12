@@ -148,6 +148,8 @@ def is_software_description_sentence(sentence: str) -> bool:
     if text.startswith(known_product_intro_prefixes):
         return True
     strong_attack_markers = (
+        "缺少身份认证",
+        "无需提供凭据",
         "漏洞",
         "攻击者",
         "未授权",
@@ -593,10 +595,11 @@ def normalize_attack_text(text: str) -> str:
         protected_tokens[marker] = match.group(0)
         return marker
 
+    normalized = re.sub(r"https?://[^\s，。；）)]+", protect, normalized, flags=re.IGNORECASE)
     # Paths and identifiers are source evidence; do not title-case fragments inside them.
     normalized = re.sub(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]{}@!$&'()*+,;=%-]+", protect, normalized)
     normalized = re.sub(r"\b[A-Za-z0-9_-]+\.(?:php|aspx|ashx|jsp|ini|json|yaml|yml|xml|txt)\b", protect, normalized, flags=re.IGNORECASE)
-    normalized = re.sub(r"\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b", protect, normalized)
+    normalized = re.sub(r"(?<![A-Za-z0-9_])[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+(?![A-Za-z0-9_])", protect, normalized)
 
     normalized = re.sub(r"sql注入", "SQL注入", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"SQL\s+注入", "SQL注入", normalized)
@@ -604,7 +607,7 @@ def normalize_attack_text(text: str) -> str:
     normalized = re.sub(r"(?<![A-Za-z])xss(?![A-Za-z])", "XSS", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])rce(?![A-Za-z])", "RCE", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])api(?![A-Za-z])", "API", normalized, flags=re.IGNORECASE)
-    normalized = re.sub(r"(?<![A-Za-z])http(?![A-Za-z])", "HTTP", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"(?<![A-Za-z])http(?![A-Za-z]|://)", "HTTP", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])url(?![A-Za-z])", "URL", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])json(?![A-Za-z])", "JSON", normalized, flags=re.IGNORECASE)
     for marker, token in protected_tokens.items():
@@ -621,7 +624,7 @@ def auth_state_cn(text: str) -> Tuple[bool, bool]:
     normalized = clean_text(text)
     unauthenticated = bool(
         re.search(
-            r"未授权|未认证|未经认证|未经授权|未经身份(?:认证|验证)|无需(?:任何)?(?:身份)?认证|无须(?:任何)?(?:身份)?认证|不需要(?:任何)?(?:身份)?认证",
+            r"缺少身份认证|无需提供凭据|未授权|未认证|未经认证|未经授权|未经身份(?:认证|验证)|无需(?:任何)?(?:身份)?认证|无须(?:任何)?(?:身份)?认证|不需要(?:任何)?(?:身份)?认证",
             normalized,
         )
     )
@@ -810,6 +813,10 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     text = clean_text(attack_text)
     if not text or not vuln:
         return text
+    # Authentication qualifiers in the clause are evidence, not duplicate wording.
+    first_clause = re.split(r"[，。]", text, maxsplit=1)[0]
+    if re.search(r"未授权|未认证|未经|经过认证|身份认证|身份验证|经认证", first_clause):
+        return text
     product_text = clean_text(product)
     product_variants = [product_text]
     if product_text.startswith("WordPress "):
@@ -852,6 +859,8 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     # first comma-delimited clause and keep the attacker condition/impact.
     first_clause, sep, rest = text.partition("，")
     if sep and rest:
+        if "。" in first_clause:
+            return text
         clause_paths = re.findall(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]{}@!$&'()*+,;=%-]+", first_clause)
         endpoint_text = clean_text(endpoint)
         if endpoint_text and any(path != endpoint_text for path in clause_paths):
