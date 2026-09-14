@@ -48,6 +48,9 @@ HARDWARE_PRODUCT_KEYWORDS = (
     "电力运维平台",
 )
 AI_APPLICATION_PRODUCTS = (
+    "nuxt-ollama",
+    "OmniRoute",
+    "Knowns",
     "9Router",
     "Blinko",
     "Crawl4AI",
@@ -596,6 +599,7 @@ def normalize_attack_text(text: str) -> str:
         return marker
 
     normalized = re.sub(r"https?://[^\s，。；）)]+", protect, normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\b[A-Za-z_][A-Za-z0-9_]*(?:[/.][A-Za-z_][A-Za-z0-9_]*)+\(\)", protect, normalized)
     # Paths and identifiers are source evidence; do not title-case fragments inside them.
     normalized = re.sub(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]{}@!$&'()*+,;=%-]+", protect, normalized)
     normalized = re.sub(r"\b[A-Za-z0-9_-]+\.(?:php|aspx|ashx|jsp|ini|json|yaml|yml|xml|txt)\b", protect, normalized, flags=re.IGNORECASE)
@@ -815,6 +819,9 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
         return text
     # Authentication qualifiers in the clause are evidence, not duplicate wording.
     first_clause = re.split(r"[，。]", text, maxsplit=1)[0]
+    for qualifier in ("反序列化", "路径穿越", "路径遍历", "二阶", "代码注入", "模板包含"):
+        if qualifier in first_clause and qualifier not in vuln:
+            return text
     if re.search(r"未授权|未认证|未经|经过认证|身份认证|身份验证|经认证", first_clause):
         return text
     product_text = clean_text(product)
