@@ -505,9 +505,18 @@ def is_hardware_like_product(product: str) -> bool:
     return any(keyword in product for keyword in HARDWARE_PRODUCT_KEYWORDS)
 
 
-def is_ai_application_product(product: str) -> bool:
+def is_ai_application_product(product: str, desc: str = "") -> bool:
     normalized = normalize_product_key(product)
-    return any(normalize_product_key(keyword) in normalized for keyword in AI_APPLICATION_PRODUCTS)
+    if any(normalize_product_key(keyword) in normalized for keyword in AI_APPLICATION_PRODUCTS):
+        return True
+    # The category includes any LLM-related application, including supporting
+    # infrastructure and integrations, rather than only model/chat products.
+    return bool(re.search(
+        r"\bLLMs?\b|大语言模型|大型语言模型|大模型|\bRAG\b|\bOllama\b|\bLangChain\b|"
+        r"\bMCP\b|Model Context Protocol|AI\s*(?:网关|对话|辅助开发|智能体)|"
+        r"LLM[- ](?:gateway|agent|integration)|AI[- ]assisted development",
+        f"{product} {desc}", re.IGNORECASE,
+    ))
 
 
 def build_standardized_name(name: str, desc: str = "") -> Tuple[str, bool]:
@@ -522,7 +531,7 @@ def build_standardized_name(name: str, desc: str = "") -> Tuple[str, bool]:
         parts.append(endpoint)
     if vuln:
         parts.append(vuln)
-    if is_ai_application_product(product):
+    if is_ai_application_product(product, desc):
         prefix = AI_APP_PREFIX
     elif is_hardware_like_product(product):
         prefix = APP_PREFIX
