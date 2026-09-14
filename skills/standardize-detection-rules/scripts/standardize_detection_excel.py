@@ -827,7 +827,7 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     if not product_pattern or not vuln_pattern:
         return text
     separators = r"(?:\s+|/|，|,|的|插件\s*)*"
-    accessors = r"(?:接口|接口处|端点|方法|函数|配置|API\s*端点|REST\s*API\s*端点|路由)"
+    accessors = r"(?:接口|接口处|端点|方法|函数|参数|配置|API\s*端点|REST\s*API\s*端点|路由)"
     if endpoint_pattern:
         target_pattern = rf"{product_pattern}{separators}{endpoint_pattern}"
     else:
@@ -860,6 +860,12 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
     first_clause, sep, rest = text.partition("，")
     if sep and rest:
         if "。" in first_clause:
+            return text
+        # Extra ASCII tokens can qualify the affected edition/database or version.
+        # They are not redundant unless already present in the opening target.
+        known_tokens = set(re.findall(r"[A-Za-z0-9_.]+", f"{product} {endpoint} {vuln}".lower()))
+        clause_tokens = set(re.findall(r"[A-Za-z0-9_.]+", first_clause.lower()))
+        if clause_tokens - known_tokens - {"api", "rest"}:
             return text
         clause_paths = re.findall(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]{}@!$&'()*+,;=%-]+", first_clause)
         endpoint_text = clean_text(endpoint)
