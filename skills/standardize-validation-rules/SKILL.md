@@ -202,6 +202,7 @@ This skill is not for:
    A workbook is not final just because the script completed. Required gates:
    - do not visually mark all rewritten names or prefixes with yellow fill; keep standardized Excel deliverables clean unless the user explicitly asks for highlighted diffs
    - no `YYYY MM DD` date fragments anywhere
+   - no awkward literal translations of English technical terms in any Chinese delivery column; in particular `舞台` (theater stage) must not appear as a translation of `stage` (use `阶段` for malware stage labels and `暂存` for staging directories). The standardization script runs an automated post-pass audit (`awkward_literal_translations` in the report) that scans every cn_name / cn_desc / cn_notes cell for these known patterns; treat any non-empty finding as a script bug and patch before delivery.
    - no `披露时间:`; must be `披露时间：YYYY-MM-DD`
    - no malformed disclosure punctuation such as `披露时间：YYYY-MM-DD，。` or one-digit date fragments such as `披露时间：2026-01-3`
    - no loose CVE such as `CVE 2026 46364`

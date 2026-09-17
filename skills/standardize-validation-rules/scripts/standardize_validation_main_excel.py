@@ -3482,6 +3482,60 @@ def preferred_col(header_index: Dict[str, int], *headers: str, fallback: int) ->
     return fallback
 
 
+# Known awkward literal translations of English technical terms that should not
+# appear in Chinese validation columns. Each entry pairs a literal Chinese
+# rendering with the reason it is wrong and (where known) the correct term.
+# Extend this list as new awkward literal translations are reported.
+AWKWARD_LITERAL_TRANSLATIONS = [
+    (
+        "舞台",
+        "literal translation of English 'stage' as theater stage; should be '阶段' for malware stage labels and '暂存' for staging directories.",
+    ),
+]
+
+
+def audit_awkward_literal_translations(output_path: Path) -> List[Dict[str, str]]:
+    """Scan the standardized output for known awkward literal translations.
+
+    Returns a list of issues (sheet / row / header / pattern / description / text).
+    The check runs across every cell so cn_name / cn_notes / cn_desc and any other
+    Chinese delivery column are all covered.
+    """
+    issues: List[Dict[str, str]] = []
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError("openpyxl is required for awkward literal translation audit") from exc
+    wb = load_workbook(output_path, data_only=True)
+    for ws in wb.worksheets:
+        header_row = next(ws.iter_rows(min_row=1, max_row=1), None)
+        if header_row is None:
+            continue
+        headers = [
+            str(cell.value).strip() if cell.value is not None else ""
+            for cell in header_row
+        ]
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):
+            for cell in row:
+                v = cell.value
+                if not isinstance(v, str) or not v.strip():
+                    continue
+                for needle, description in AWKWARD_LITERAL_TRANSLATIONS:
+                    if needle in v:
+                        issues.append(
+                            {
+                                "sheet": ws.title,
+                                "row": row_idx,
+                                "header": headers[cell.column - 1] if cell.column - 1 < len(headers) else "",
+                                "pattern": needle,
+                                "description": description,
+                                "text": v[:200],
+                            }
+                        )
+    wb.close()
+    return issues
+
+
 def standardize_workbook(input_path: Path, output_path: Path, report_path: Path) -> Dict[str, object]:
     archive = XlsxArchive(input_path)
     shared_strings = load_shared_strings(archive.files)
@@ -3634,6 +3688,12 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
     archive.write(output_path)
     apply_added_prefix_highlights(output_path, summary["added_prefix_cells"])  # type: ignore[arg-type]
     rewrite_xlsx_for_excel_compatibility(output_path)
+    try:
+        awkward_issues = audit_awkward_literal_translations(output_path)
+        summary["awkward_literal_translations"] = awkward_issues
+        summary["awkward_literal_translations_count"] = len(awkward_issues)
+    except Exception as exc:  # pragma: no cover
+        summary["awkward_literal_translations_error"] = str(exc)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary
