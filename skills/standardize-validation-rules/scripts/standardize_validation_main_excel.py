@@ -957,7 +957,7 @@ def remove_redundant_os_suffix_for_vulnerability_title(title: str) -> str:
 
 
 def vulnerability_title_has_os_product(title: str) -> bool:
-    if not re.match(r"^(?:Web应用程序漏洞|AI应用程序漏洞|应用程序漏洞|工控安全|OT安全)\s*-\s*", title):
+    if not re.match(r"^(?:Web应用程序漏洞|AI应用程序漏洞|应用程序漏洞|工控安全|OT安全|主机命令行|受保护的沙盘|命令与控制|恶意文件传输)\s*-\s*", title):
         return False
     parts = [part.strip() for part in title.split(" - ", 1)[1].split("，") if part.strip()]
     product = parts[0] if parts else ""
