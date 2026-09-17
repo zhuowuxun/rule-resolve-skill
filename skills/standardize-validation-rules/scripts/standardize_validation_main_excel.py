@@ -1252,6 +1252,11 @@ POLITICAL_ATTRIBUTION_MARKERS = (
     "台湾及其周边地区",
     "极高的行动节奏",
     "技术研发能力",
+    "伊朗网络间谍",
+    "疑似伊朗",
+    "沙特阿拉伯",
+    "阿拉伯联合酋长国",
+    "阿联酋",
 )
 
 
@@ -3097,7 +3102,9 @@ def is_sequence_download_subject(subject: str) -> bool:
 def is_sequence_sample_download_subject(subject: str) -> bool:
     if any(token in subject for token in ("漏洞", "CVE-", "SQL 注入", "SSRF", "远程代码执行")):
         return False
-    return any(token in subject for token in ("恶意软件下载", "恶意软件", "勒索软件下载", "加载器下载", "加载器 下载", "后门下载", "后门 下载", "释放器下载", "释放器 下载", "Botnet 下载"))
+    if any(token in subject for token in ("恶意软件下载", "恶意软件", "勒索软件下载", "加载器下载", "加载器 下载", "后门下载", "后门 下载", "释放器下载", "释放器 下载", "Botnet 下载")):
+        return True
+    return subject.endswith("下载")
 
 
 def sequence_sample_download_intro(desc_subject: str) -> str:
@@ -3137,6 +3144,9 @@ def sequence_desc_intro(desc_subject: str) -> str:
 def sequence_vulnerability_desc_intro(desc_subject: str, clean: str) -> str:
     clean = clean.strip()
     clean = re.sub(r"^此验证场景包括了[^。]{1,120}?在攻击活动中使用过的相关攻击手法。", "", clean)
+    clean = re.sub(r"^此验证场景(?:包括|还原)了[^。]*(?:。|$)", "", clean)
+    clean = re.sub(r"^此验证场景(?:包括|还原)了.*?(?:相关攻击手法|各种攻击手法|相关的手法)$", "", clean)
+    clean = clean.lstrip("。！？ ")
     first_sentence = split_sentences(clean)[:1]
     if first_sentence and first_sentence[0].startswith("针对") and "利用尝试" in first_sentence[0]:
         sentence = first_sentence[0].rstrip("。！？")
@@ -3178,6 +3188,7 @@ def normalize_sequence_desc_text(text: str) -> str:
     )
     text = re.sub(r"此验证场景包括了\s+([\u4e00-\u9fff])", r"此验证场景包括了\1", text)
     text = text.replace("这种威胁包括", "该场景包括")
+    text = re.sub(r"在攻击活动(?=使用过|使用的)", "在攻击活动中", text)
     text = re.sub(r"该场景包括下载([^。]+?)的变种。", replace_single_variant, text)
     text = re.sub(r"该场景包括下载([^。]+?)的各种变种。", r"该场景包括下载\1各类变种的行为。", text)
     return text
@@ -3234,7 +3245,9 @@ def standardize_sequence_desc(name: str, desc: str, source_name: str = "") -> st
     elif clean.startswith("此验证场景包括了"):
         text = clean
     elif clean:
-        if should_drop_sequence_original_body(desc_subject, clean):
+        if clean.startswith("此验证场景"):
+            text = clean
+        elif should_drop_sequence_original_body(desc_subject, clean):
             text = sequence_desc_intro(desc_subject)
         else:
             text = f"{sequence_desc_intro(desc_subject)}{clean}"
