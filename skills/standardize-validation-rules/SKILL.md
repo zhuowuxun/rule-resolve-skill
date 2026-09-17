@@ -120,6 +120,11 @@ This skill is not for:
    - Normalize `电报` to `Telegram` in command-and-control names.
    - Collapse duplicated C2 wording such as `C&C 或 C&C` to a single `C&C`.
    - For phishing-email malicious-link rows, keep the existing Email subject and do not backfill long URL paths from the `Email` body into the action title; `恶意链接` is enough unless the title/description already contains a concise payload family or file type.
+   - For phishing email titles, segment the title (after the `钓鱼邮件 - ` prefix) on `，` and reorder the segments based on APT/威胁组织 presence:
+     - When the source contains an APT/威胁组织 marker (`APT-U####`, `APT-XXXX`, `威胁组织`, `威胁集团`, `敌对组织`, or `恶意软件组织`), put the APT segment first, push any `恶意附件` / `恶意链接` / `恶意文件` segment to the very end, and keep other content segments in their original order between them. `变种 #n` should remain at the title end. Example: `钓鱼邮件 - 恶意附件，Librarian Ghouls 威胁组织，SCR 变体描述，变种 #1` -> `钓鱼邮件 - Librarian Ghouls 威胁组织，SCR 变体描述，恶意附件，变种 #1`.
+     - When the source has no APT/威胁组织 marker, put the `恶意附件` / `恶意链接` / `恶意文件` segment first and keep other content segments in their original order after it. Example: `钓鱼邮件 - CROSSTRICK，恶意附件，变种 #1` stays as `钓鱼邮件 - 恶意附件，CROSSTRICK，变种 #1`.
+     - When both an APT segment and an attachment/link segment exist, do not split compound segments like `SCR 恶意附件` or `Lnk 恶意文件`; treat the segment that contains the attachment/link marker as the attachment/link segment and reorder as a whole.
+     - When the title already follows the convention, do not change its segment order; only reorder when the APT/attachment positions conflict with the rule.
 
 4. Apply validation-only description rules.
    - Prefer the opening `此验证动作还原了...`.

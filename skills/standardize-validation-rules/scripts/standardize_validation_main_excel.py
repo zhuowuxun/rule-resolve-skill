@@ -2743,7 +2743,31 @@ def titleize_c2_with_context(name: str, desc: str) -> str:
 
 
 def titleize_phishing_email(name: str) -> str:
-    return normalize_variant(normalize_cn_action_terms(name))
+    raw = normalize_variant(normalize_cn_action_terms(name))
+    if not raw.startswith("钓鱼邮件 - "):
+        return raw
+    prefix = "钓鱼邮件 - "
+    body = raw[len(prefix):]
+    segments = [s.strip() for s in body.split("，") if s.strip()]
+    if not segments:
+        return raw
+    apt_re = re.compile(
+        r"(?:APT-[A-Z]*U?\d+|APT-[A-Z]{2,}\d*|威胁组织|威胁集团|敌对组织|恶意软件组织)"
+    )
+    attachment_re = re.compile(r"恶意(?:附件|链接|文件)")
+    variant_re = re.compile(r"^变种\s*#\d+$")
+    apt_segs = [s for s in segments if apt_re.search(s)]
+    att_segs = [s for s in segments if attachment_re.search(s) and s not in apt_segs]
+    var_segs = [s for s in segments if variant_re.match(s)]
+    other_segs = [
+        s for s in segments
+        if s not in apt_segs and s not in att_segs and s not in var_segs
+    ]
+    if apt_segs:
+        reordered = apt_segs + other_segs + att_segs + var_segs
+    else:
+        reordered = att_segs + other_segs + var_segs
+    return prefix + "，".join(reordered)
 
 
 def titleize_host_cmd(name: str, desc: str = "") -> str:
