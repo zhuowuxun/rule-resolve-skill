@@ -133,6 +133,7 @@ This skill is not for:
    - Host command descriptions for tool-based actions should start with the concrete validation behavior and may keep the software/tool explanation after it. For example, WebBrowserPassView rows should start with `此验证动作还原了在 Windows 主机上使用 WebBrowserPassView 工具导出浏览器凭据的行为。`; Regsvr32 remote SCT rows should start with `此验证动作还原了在 Windows 主机上使用 Regsvr32 执行远程 SCT 脚本的行为。`
    - If `Actions.cn_desc` is still English, especially host-command text beginning with `In this action...`, translate it into the approved Chinese validation style during standardization; do not leave English in Chinese delivery columns for the later translation step to inherit.
    - Normalize `网络钓鱼电子邮件` to `钓鱼邮件` in descriptions as well as titles.
+   - Normalize `舞台 Sam Hive`-style malware stage labels to `<Name> 阶段` (e.g., `舞台 Sam Hive` -> `Sam Hive 阶段`), and replace `舞台目录` with `暂存目录`. The literal Chinese word `舞台` (theater stage) should not appear in validation titles as a translation of the English `stage`.
    - File-transfer descriptions should use `此验证动作还原了主机尝试下载...。` and should not append `的过程` at the end of the first sentence.
    - For vulnerability-related file-transfer rows, normalize openings like `此验证动作还原了执行一个利用 ... 漏洞的 .EXE 文件。` to `此验证动作还原了主机尝试下载一个利用 ... 漏洞的 .EXE 文件。` so the description matches the `恶意文件传输` title prefix.
    - Treat `此验证动作还原主机...` as an already-existing validation opening and normalize it to `此验证动作还原了主机...`; do not prepend a second generic download sentence.

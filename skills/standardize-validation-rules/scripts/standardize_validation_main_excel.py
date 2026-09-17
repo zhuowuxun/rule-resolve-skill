@@ -665,6 +665,8 @@ def normalize_cn_action_terms(text: str) -> str:
     ]
     for src, dst in replacements:
         value = value.replace(src, dst)
+    value = value.replace("舞台目录", "暂存目录")
+    value = re.sub(r"舞台\s+((?:[A-Z][A-Za-z0-9_.-]+\s+)*[A-Z][A-Za-z0-9_.-]+)", r"\1 阶段", value)
     return value
 
 
