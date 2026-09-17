@@ -1136,7 +1136,10 @@ def insert_title_part_before_action(title: str, part: str) -> str:
     parts = [item.strip() for item in rest.split("，") if item.strip()]
     action_markers = (
         "注册",
+        "登记",
         "签入",
+        "签到",
+        "任务分配",
         "通信",
         "连接",
         "信标",
