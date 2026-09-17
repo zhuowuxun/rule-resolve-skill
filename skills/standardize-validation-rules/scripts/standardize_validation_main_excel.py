@@ -2625,26 +2625,31 @@ def titleize_sandbox(name: str, desc: str) -> str:
             parts.insert(1 if parts and parts[0].startswith("APT-") else 0, releaser_name)
 
     if primary_malware_name:
-        for idx, part in enumerate(parts):
-            if re.fullmatch(r"[\u4e00-\u9fff]+", part) and not any(
-                marker in part
-                for marker in (
-                    "执行",
-                    "下载",
-                    "投放",
-                    "持久化",
-                    "释放",
-                    "通信",
-                    "连接",
-                    "数据",
-                    "聚合",
-                    "泄露",
-                    "渗透",
-                    "信标",
-                )
-            ):
-                parts[idx] = primary_malware_name
-                break
+        first_part_has_named_entity = bool(parts) and (
+            bool(re.search(r"[A-Za-z0-9]", parts[0]))
+            or parts[0].startswith("APT-")
+        )
+        if not first_part_has_named_entity:
+            for idx, part in enumerate(parts):
+                if re.fullmatch(r"[\u4e00-\u9fff]+", part) and not any(
+                    marker in part
+                    for marker in (
+                        "执行",
+                        "下载",
+                        "投放",
+                        "持久化",
+                        "释放",
+                        "通信",
+                        "连接",
+                        "数据",
+                        "聚合",
+                        "泄露",
+                        "渗透",
+                        "信标",
+                    )
+                ):
+                    parts[idx] = primary_malware_name
+                    break
 
     if named_object and named_object not in parts:
         insert_idx = 1 if parts and parts[0].startswith("APT-") else 0
