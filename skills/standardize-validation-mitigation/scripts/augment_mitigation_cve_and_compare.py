@@ -802,7 +802,13 @@ def normalize_host_command_product_scope(cn: str, en: str, inferred_os: str, rul
 
 
 def normalize_sandbox_product_scope(cn: str, en: str, inferred_os: str, rule_type: str) -> Tuple[str, str]:
-    if "受保护的沙盘" not in rule_type or inferred_os != "Windows":
+    if "受保护的沙盘" not in rule_type:
+        return cn, en
+    if inferred_os == "Linux":
+        cn = re.sub(r"终端(?:或主机|/主机)?安全产品", "主机安全产品", cn)
+        en = re.sub(r"\bendpoint(?: or server|/server)? security products?\b", "server security products", en, flags=re.IGNORECASE)
+        return cn, en
+    if inferred_os != "Windows":
         return cn, en
 
     cn = cn.replace("终端安全产品", "终端或主机安全产品")
