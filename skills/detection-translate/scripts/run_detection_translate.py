@@ -481,6 +481,19 @@ def postprocess_exported_workbook(output_path):
             urls = " ".join(URL_RE.findall(source_text)).lower()
             source_paths = sorted(set(SOURCE_PATH_RE.findall(source_text)), key=len, reverse=True)
             replacements = []
+            evidence_repairs = {
+                "PagePHP::load_content": [("Page PHP ::load_content", "PagePHP::load_content"), ("fully simulate the escaped content", "fully restore the escaped content")],
+                "keyword": [("Keyword parameters provided by the caller", "The keyword parameter provided by the caller")],
+                "GET /users": [("generated `/users` requests", "generated GET /users requests"), ("Drogon's `/users` database", "Drogon's /users endpoint")],
+                "/index/detail/{ID} {payload}.html": [("/index/detail/{ID}{payload}.html", "/index/detail/{ID} {payload}.html")],
+                "searhResult": [("searchResult", "searhResult")],
+                "质量赋值漏洞": [("quality assignment vulnerability", "mass assignment vulnerability")],
+                "paramiko.SSHClient.exec_command": [("` SSH execution it on the destination host", "paramiko.SSHClient.exec_command executes it on the target host")],
+                "/saleVersionUpdate.jsp": [("`saleVersionUpdate.jsp`", "`/saleVersionUpdate.jsp`"), ("adversary suggests this vulnerability could be used to obtain sensitive system information", "An adversary can exploit this vulnerability to obtain sensitive system information")],
+            }
+            for token, repairs in evidence_repairs.items():
+                if token in source_text:
+                    replacements.extend(repairs)
             variant_match = re.search(r"变种\s*#\s*(\d+)", source_text)
 
             for source_path in source_paths:
@@ -652,6 +665,18 @@ def postprocess_exported_workbook(output_path):
                         "via wp_localize_script, allowing an unauthenticated adversary to obtain",
                     ),
                     ("using the injection path traversal", "by injecting path traversal characters"),
+                    ("PHP -type", "PHP-type"),
+                    ("to remotely injection SQL", "to remotely inject SQL"),
+                    ("for remote injection SQL", "to remotely inject SQL"),
+                    ("construct Time-based Blind Injection payload", "construct a time-based blind SQL injection payload"),
+                    ("can use this injection and execute", "can exploit this flaw to inject and execute"),
+                    ("and execution `urldecode()`", "and executes `urldecode()`"),
+                    ("Its destructor (__destruct) execution", "Its destructor (__destruct) executes"),
+                    ("to injection malicious", "to inject malicious"),
+                    ("the malicious script execution", "the malicious script executes"),
+                    ("controlled by adversary", "controlled by the adversary"),
+                    ("provide Manageable file sharing", "provide controllable file sharing"),
+                    ("write trojan into the server", "write a Trojan to the server"),
                 ]
             )
             if "远程代码执行" in source_text:
@@ -662,6 +687,8 @@ def postprocess_exported_workbook(output_path):
                         ("remote command execution Exploitation", "remote code execution exploitation"),
                     ]
                 )
+                if "远程命令执行" not in source_text:
+                    replacements.append(("remote command execution", "remote code execution"))
 
             for header in english_headers:
                 cell = ws.cell(row, header_index[header])

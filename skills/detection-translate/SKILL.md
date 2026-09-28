@@ -113,6 +113,7 @@ Useful options:
 - Never overwrite source columns in the final Excel; export bilingually unless the user explicitly asks for single-language overwrite.
 - Keep URLs exact.
 - Keep URI paths and code identifiers exact, including case and vendor tokens. Do not translate path fragments.
+  Also verify function qualifiers such as `PagePHP::load_content` and `paramiko.SSHClient.exec_command`, source HTTP methods, and templated endpoint suffixes. A zero-issue platform report does not prove these identifiers survived translation; compare exported English directly with the Chinese source and record any export-side repairs.
   Preserve special path characters such as `@` exactly.
 - Keep parameterized paths and action entry names exact, including `:componentName` and `AJAX Action`.
 - Keep precise vulnerability qualifiers such as `ClickHouse` when present in the Chinese source columns.

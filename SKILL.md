@@ -150,6 +150,7 @@ Rules:
 - If the user has already explicitly answered yes in the current request, treat that as confirmation and configure the proxy immediately; do not ask the same question again.
 - Do not enable it for pure standardization work.
 - Do not assume AI Translation Studio's model `base_url` field affects `google_translate`; current Google Translate code uses Python `requests` and honors `HTTP_PROXY` / `HTTPS_PROXY`.
+- Newer platform versions also expose `/api/settings/proxy`; an active proxy profile can override the systemd environment. If errors name a subscription host rather than Google, inspect the active profile without printing subscription credentials. After the user authorizes proxy repair, preserve the existing profile and create or reuse a URL-mode profile for `http://127.0.0.1:18899`, then activate that profile and rerun the real smoke test. A successful CONNECT probe alone is insufficient.
 - Use `scripts/google_api_proxy.py` from this rule-resolve skill, not a child skill copy.
 - After enabling the proxy, rerun preflight with the same route-specific required dictionaries and `--google-smoke`.
 - Before production translation, compare local and remote dictionary counts when possible. If `software翻译` differs, synchronize dictionaries first or expect software/product names to differ.
