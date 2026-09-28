@@ -453,6 +453,8 @@ def endpoint_path_related(endpoint: str, desc_path: str) -> bool:
     desc_token = desc_key.lstrip("/")
     if endpoint_key == desc_key:
         return True
+    if re.fullmatch(re.escape(endpoint_key) + r"\s+\{[a-z_][a-z0-9_]*\}\.[a-z0-9]+", desc_key):
+        return True
     endpoint_prefix = endpoint_key.rstrip("/")
     if endpoint_prefix and desc_key.startswith(f"{endpoint_prefix}/"):
         return True
