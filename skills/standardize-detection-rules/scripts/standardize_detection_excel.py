@@ -48,6 +48,7 @@ HARDWARE_PRODUCT_KEYWORDS = (
     "电力运维平台",
 )
 AI_APPLICATION_PRODUCTS = (
+    "SxDevOps",
     "nuxt-ollama",
     "OmniRoute",
     "Knowns",
@@ -186,6 +187,7 @@ def is_software_description_sentence(sentence: str) -> bool:
     if "是国内领先" in text or ("服务商" in text and "攻击者" not in text):
         return True
     clear_description_markers = (
+        "演示项目",
         "是一款",
         "是一个",
         "是一套",
@@ -410,8 +412,12 @@ def build_desc_intro(target: str, vuln: str) -> str:
 
 def extract_paths(text: str) -> List[str]:
     paths: List[str] = []
-    for match in PATH_RE.finditer(clean_text(text)):
+    source = clean_text(text)
+    for match in PATH_RE.finditer(source):
         path = match.group(0).strip("`'\"()[]<>，,。；;：:、")
+        suffix = re.match(r"\s+\{[A-Za-z_][A-Za-z0-9_]*\}\.[A-Za-z0-9]+", source[match.end():])
+        if suffix:
+            path += suffix.group(0)
         if path and path not in paths:
             paths.append(path)
     return paths
@@ -433,6 +439,12 @@ def normalize_path_key(path: str) -> str:
 
 
 def endpoint_path_related(endpoint: str, desc_path: str) -> bool:
+    # Query routing parameters may carry the title's shortened endpoint.
+    if endpoint.startswith("/") and "?" in desc_path:
+        query = desc_path.split("?", 1)[1]
+        if any(value.rstrip("/").endswith(endpoint.rstrip("/"))
+               for value in re.findall(r"(?:^|[&])[^=]+=(.*?)(?=&|$)", query)):
+            return True
     endpoint_key = normalize_path_key(endpoint)
     desc_key = normalize_path_key(desc_path)
     if not endpoint_key or not desc_key:
@@ -476,7 +488,7 @@ def resolve_endpoint_from_desc(endpoint: str, desc: str) -> Tuple[str, bool, Lis
     if endpoint:
         related = [entry for entry in desc_entries if endpoint_path_related(endpoint, entry)]
         if related:
-            longer_related = [entry for entry in related if len(normalize_path_key(entry)) >= len(normalize_path_key(endpoint))]
+            longer_related = [entry for entry in related if len(entry) >= len(endpoint)]
             if longer_related:
                 return max(longer_related, key=len), False, desc_entries
             return endpoint, False, desc_entries
@@ -592,11 +604,7 @@ def load_historical_software_descriptions(path: Path | None) -> Dict[str, str]:
 def normalize_attack_text(text: str) -> str:
     normalized = clean_text(text)
     normalized = normalized.replace("（", "(").replace("）", ")")
-    normalized = normalized.replace("，", ",")
-    normalized = normalized.replace("。", ". ")
     normalized = re.sub(r"\s+", " ", normalized).strip()
-    normalized = normalized.replace(". ", "。")
-    normalized = normalized.replace(",", "，")
     normalized = normalized.replace("上海鸿翼软件", "鸿翼软件")
     normalized = normalized.replace("北京方向标信息", "方向标信息")
 
@@ -608,6 +616,8 @@ def normalize_attack_text(text: str) -> str:
         return marker
 
     normalized = re.sub(r"https?://[^\s，。；）)]+", protect, normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\b[A-Za-z_][A-Za-z0-9_.:]*\([^()。\n]*\)", protect, normalized)
+    normalized = re.sub(r"\b[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+\b", protect, normalized)
     normalized = re.sub(r"\b[A-Za-z_][A-Za-z0-9_]*(?:[/.][A-Za-z_][A-Za-z0-9_]*)+\(\)", protect, normalized)
     # Paths and identifiers are source evidence; do not title-case fragments inside them.
     normalized = re.sub(r"(?<![A-Za-z0-9_])/[A-Za-z0-9._~:/?#\[\]{}@!$&'()*+,;=%-]+", protect, normalized)
@@ -623,7 +633,9 @@ def normalize_attack_text(text: str) -> str:
     normalized = re.sub(r"(?<![A-Za-z])http(?![A-Za-z]|://)", "HTTP", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])url(?![A-Za-z])", "URL", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])json(?![A-Za-z])", "JSON", normalized, flags=re.IGNORECASE)
-    for marker, token in protected_tokens.items():
+    # Later patterns can wrap an earlier placeholder (e.g. a hyphenated filename).
+    # Unwrap in reverse insertion order so no placeholder survives in delivery.
+    for marker, token in reversed(list(protected_tokens.items())):
         normalized = normalized.replace(marker, token)
 
     normalized = normalized.strip(" ，,。")
@@ -691,6 +703,12 @@ def normalize_software_description(text: str) -> str:
     normalized = normalized.replace("，为企事业单位", "，为企业")
     normalized = normalized.replace(",为企事业单位", "，为企业")
     compact = normalized.replace(" ", "")
+    if "AJ-Report" in normalized:
+        return "AJ-Report 是一个开源 BI（商业智能）平台，用于构建数据可视化大屏。"
+    if "YonBIP" in normalized and "用友" in normalized:
+        return "用友 YonBIP 是面向企业的商业创新平台，提供业务与管理应用及服务。"
+    if "鼎游票务系统" in normalized:
+        return "鼎游票务系统是面向景区的云服务票务管理系统，提供线上分销、线下验证及第三方平台对接功能。"
     if "9Router" in normalized:
         return "9Router 是一个开源的 AI 路由与代理工具。"
     if "Budibase" in normalized:
@@ -828,7 +846,7 @@ def remove_redundant_attack_prefix(attack_text: str, product: str, endpoint: str
         return text
     # Authentication qualifiers in the clause are evidence, not duplicate wording.
     first_clause = re.split(r"[，。]", text, maxsplit=1)[0]
-    for qualifier in ("反序列化", "路径穿越", "路径遍历", "二阶", "代码注入", "模板包含"):
+    for qualifier in ("反序列化", "路径穿越", "路径遍历", "二阶", "代码注入", "模板包含", "任意文件上传"):
         if qualifier in first_clause and qualifier not in vuln:
             return text
     if re.search(r"未授权|未认证|未经|经过认证|身份认证|身份验证|经认证", first_clause):

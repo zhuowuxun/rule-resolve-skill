@@ -26,7 +26,7 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - keep the default prefix `Web应用程序漏洞 - `
    - use `AI应用程序漏洞 - ` for any application related to LLMs. This broad category includes model invocation, gateways, AI-assisted development, context management, RAG, agents, MCP/tool integrations, and supporting applications; it is not limited to chat interfaces or applications that host models themselves.
    - determine LLM relevance from the product name and source description, not only a fixed product allowlist. Keep the exact Chinese category name `AI应用程序漏洞`.
-   - currently confirmed AI application products include `9Router`, `AstrBot`, `Blinko`, `Crawl4AI`, `Flowise`, `Gradio`, `LangBot`, `Langflow`, `LMDeploy`, and `Scramble`
+   - currently confirmed AI application products include `9Router`, `AstrBot`, `Blinko`, `Crawl4AI`, `Flowise`, `Gradio`, `LangBot`, `Langflow`, `LMDeploy`, `Scramble`, and `SxDevOps` (its official repository describes LLM planning and MCP tools).
    - for hardware/security-appliance style products such as 上网行为管理, 防火墙, 安全网关, 路由器, 交换机, VPN, load-balancing devices, or PA/Palo Alto/PAN-OS/GlobalProtect security products, use `应用程序漏洞 - ` instead of the `Web应用程序漏洞 - ` prefix
    - for industry/operation platforms that merely expose web endpoints, such as `Acrel EEMS 电力运维平台`, use `应用程序漏洞 - ` rather than `Web应用程序漏洞 - `
    - do not infer `AI应用程序漏洞 - ` only from an `/api` path; the product or historical standard must indicate an AI/LLM application
@@ -50,6 +50,8 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - do not invent exploit details that are absent from the source
    - if the vulnerability phrase contains an extra technique detail such as `Ghost Bits 截断`, `Ghost Bits 复合`, `Ghost Bits 宽松归一化`, or `Ghost Bits 折叠`, do not include the technique or `变种 #n` in the description opening; the opening should be only `针对 产品/入口 核心漏洞的利用尝试`, while technique details stay in the following attack-method explanation if present in the source
    - preserve technical path and filename casing inside the attack-method text, such as `/api/...` and `ModuleGridSource.aspx`
+   - preserve literal `..`, function-call punctuation, and hyphenated Header names exactly; do not convert ASCII punctuation inside technical evidence to Chinese punctuation. Restore nested protected tokens completely before export.
+   - expand shortened title endpoints when the complete description endpoint includes a routing query parameter or a templated suffix such as `{payload}.html`.
    - preserve authentication semantics exactly: `经过身份认证/验证`, `经过认证`, `经身份认证/验证`, `经认证`, `认证用户`, `已获得登录权限`, `未授权`, `未认证`, `未经认证`, `未经身份认证/验证`, and `无需任何认证` must match the source row; do not guess or add/remove `未`
    - after the opening sentence already says `针对 产品/入口 存在的漏洞类型`, remove an immediately repeated attack-method prefix like `产品/入口 接口存在漏洞类型，` and keep the remaining attacker condition / impact
    - when a repeated attack-method prefix contains a more complete path than the original title endpoint, first synchronize the full path into `name.1` and the opening sentence, then remove the repeated `完整路径 存在漏洞类型，` prefix from the attack-method text
