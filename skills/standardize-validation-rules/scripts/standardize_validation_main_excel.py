@@ -1970,6 +1970,20 @@ def infer_file_type(name: str, desc: str) -> str:
     identity_text = extract_file_identity_text(desc)
     text = f"{name} {identity_text}" if identity_text else full_text
     upper_name = name.upper()
+    # Use the downloaded file's own identity, not the malware-family background.
+    if identity_text:
+        if re.search(r"Web\s*shell", identity_text, re.IGNORECASE):
+            return "Web Shell文件"
+        if re.search(r"PowerShell 下载(?:器)?脚本", identity_text):
+            return "恶意 PowerShell 下载脚本"
+        if re.search(r"恶意 HTML (?:文件|文档)", identity_text):
+            return "恶意 HTML 文件"
+        if "恶意文本文件" in identity_text:
+            return "恶意文本文件"
+        if "基于 Web 的组件" in identity_text:
+            return "Web 组件文件"
+        if re.search(r"(?:是|为)(?:一个)?网页", identity_text):
+            return "恶意网页文件"
     if ".PS" in upper_name:
         return "恶意 PowerShell 脚本"
     if ".PY" in upper_name:
