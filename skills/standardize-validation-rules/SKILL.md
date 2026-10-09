@@ -282,6 +282,10 @@ python3 ~/.codex/skills/standardize-validation-rules/scripts/run_validation_main
 ## Protected Token Rules
 These are hard constraints. Normalization rules must not alter them unless a narrow source-aligned correction explicitly targets the token.
 
+- Extract vulnerability entry paths from the raw description with reference boundaries intact; exclude complete reference URLs and OS fragments such as `Windows/Mac` from candidate paths.
+- Description deduplication must retain distinct vulnerability qualifiers (including second-order SQL injection), authentication conditions, query strings, and dotted method identifiers such as `Admins.add`.
+- Preserve multiword product names such as `WordPress Log in with Google`; do not treat their final ordinary word as an endpoint. Token Optimizer MCP and OpenChamber are LLM-related applications and use `AI应用程序漏洞`.
+
 - dates: `2026-05-16` must not become `2026 05 16`
 - disclosure dates: always `披露时间：YYYY-MM-DD`
 - CVE/CNVD/CWE/CAPEC IDs

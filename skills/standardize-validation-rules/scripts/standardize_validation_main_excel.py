@@ -88,6 +88,8 @@ HARDWARE_KEYWORDS = (
 )
 
 AI_APPLICATION_PRODUCTS = (
+    "token optimizer mcp",
+    "openchamber",
     "9router",
     "flowise",
     "langflow",
@@ -1381,6 +1383,7 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
     raw = re.sub(r"^AI应用程序漏洞\s*-\s*", "", raw).strip()
     raw = re.sub(r"^工控安全\s*-\s*", "", raw).strip()
     raw = re.sub(r"^OT安全\s*-\s*", "", raw).strip()
+    raw = re.sub(r"(?<=\w)-\s+(?=(?:SSRF|SQL|XSS)\s*.*漏洞)", " - ", raw)
     parts = [part.strip() for part in raw.split(" - ") if part.strip()]
     target = parts[0] if parts else raw
     vuln_type = parts[1] if len(parts) > 1 else ""
@@ -1392,6 +1395,9 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
         comma_parts = [part.strip() for part in target.split("，") if part.strip()]
         if comma_parts:
             product = comma_parts[0]
+            embedded = re.match(r"^(.*?)\s+(越界写入漏洞|越界读取漏洞|本地权限提升漏洞|远程代码执行漏洞)$", product)
+            if embedded:
+                product, vuln_type = embedded.groups()
             for part in comma_parts[1:]:
                 if not entry and is_web_entry_path(part):
                     entry = part
@@ -1407,7 +1413,7 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
         entry = "/" + entry.strip()
     else:
         tokens = target.split()
-        if len(tokens) >= 2 and re.fullmatch(r"[A-Za-z0-9_./%-]+", tokens[-1]):
+        if len(tokens) >= 2 and re.fullmatch(r"[A-Za-z0-9_./%-]+", tokens[-1]) and not target.endswith("with Google"):
             product = " ".join(tokens[:-1]).strip()
             entry = tokens[-1].strip()
     if entry and not vuln_type and "-" in entry and "漏洞" in entry:
@@ -1429,8 +1435,9 @@ def normalize_web_entry_path(path: str) -> str:
 
 def extract_web_entry_candidates(text: str) -> List[str]:
     body, _ = split_references(text)
+    body = URL_RE.sub(" ", body)
     candidates: List[str] = []
-    for match in re.finditer(r"(?<!:)/+[A-Za-z0-9._~/%:+{}-]+", body):
+    for match in re.finditer(r"(?<![A-Za-z0-9_:])/+[A-Za-z0-9._~/%:+{}?=&-]+", body):
         candidate = normalize_web_entry_path(match.group(0))
         if not candidate:
             continue
@@ -1693,6 +1700,10 @@ def is_software_description_sentence(sentence: str) -> bool:
     text = normalize_common_text(sentence)
     if not text:
         return False
+    if re.search(r"未校验|仅校验|未检查|鉴权|未覆盖|未经", text):
+        return False
+    if re.search(r"是一款|是一个|属于专家型|^Pods\s*是|^Juggle\s*是", text) and not re.search(r"漏洞|攻击者|未对|未经|未授权", text):
+        return True
     attack_keywords = (
         "漏洞",
         "攻击者",
@@ -1716,6 +1727,8 @@ def is_software_description_sentence(sentence: str) -> bool:
     if any(keyword in text for keyword in attack_keywords):
         return False
     description_markers = (
+        "平台意在",
+        "致力于",
         "是一款",
         "是一个",
         "是一套",
@@ -1761,6 +1774,16 @@ def dedupe_web_attack_sentences(
             continue
         if clean in seen:
             continue
+        # A different vulnerability family, authentication qualifier or endpoint
+        # is evidence, not a duplicate of the generated opening.
+        clause = re.split(r"[，,。]", clean, maxsplit=1)[0]
+        tokens = re.findall(r"/[A-Za-z0-9_./:{}?=&-]+|[A-Za-z_][A-Za-z0-9_:]*\(\)|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", clause)
+        if (any(t not in target for t in tokens)
+                or re.search(r"未授权|未认证|未经|身份验证|身份认证", clause)
+                or any(q in clause and q not in vuln_type for q in ("路径遍历", "路径穿越", "任意文件上传", "访问控制", "类型混淆", "二次", "二阶"))):
+            seen.add(clean)
+            deduped.append(clean)
+            continue
         # Preserve affected versions and endpoint/function context before deduplication.
         scope = re.match(r"^(.+?)存在[^。]*?漏洞", clean)
         if scope:
@@ -1782,7 +1805,7 @@ def dedupe_web_attack_sentences(
                 remainder = re.sub(rf"^.*?{re.escape(vuln_type)}[，,]\s*", "", clean).strip()
                 if remainder and remainder != clean:
                     clean = remainder
-                else:
+                elif re.fullmatch(r"[^。]*漏洞[。]?", clean):
                     continue
         elif "漏洞" in clean and ("存在" in clean or "接口" in clean or "端点" in clean):
             mentions_target = bool(
@@ -1805,6 +1828,14 @@ def dedupe_web_attack_sentences(
 
 def trim_promotional_product_copy(text: str) -> str:
     value = normalize_common_text(text)
+    value = value.replace("影响变种", "影响版本").replace("最新变种", "最新版本").replace("之前变种", "之前版本").replace("数据库变种", "数据库版本").replace("未来变种号", "未来版本号").replace("指令变种判断", "指令版本判断")
+    value = re.sub(r"(\d+(?:\.\d+)+)\s*变种中", r"\1 版本中", value)
+    value = re.sub(r"官方补丁下载地址[:：]\s*[。]?", "", value)
+    value = re.sub(r"Chrome 是一款由 Google 公司开发[^。]*。Google Chrome 基于[^。]*。支持多标签浏览[^。]*。", "Chrome 是 Google 开发的互联网浏览器，使用 JavaScript V8 引擎并支持多标签沙箱隔离。", value)
+    value = re.sub(r"，它深度融合了行业最佳实践[^。]*", "", value)
+    value = re.sub(r"平台意在[^。]*。|致力于以新一代云架构[^。]*。", "", value)
+    value = re.sub(r"，全球活跃安装量超过[^。]*", "", value)
+    value = value.replace("一个功能全面的", "一个").replace("最大的开源 AI", "开源 AI")
     value = value.replace(
         "泛微 E-Cology9 是一款针对中大型组织设计的高效协同办公 OA（Office Automation）系统，它融合了最新的技术理念和管理思想，旨在为用户提供智能化，平台化，全程数字化的办公体验。",
         "泛微 E-Cology9 是一款面向中大型组织的协同办公 OA（Office Automation）系统。",
@@ -1862,7 +1893,7 @@ def standardize_web_desc(name: str, desc: str) -> str:
     target = product
     if entry:
         target = f"{product} {entry}"
-    action_sentence = f"此验证动作还原了针对 {target} 存在的{vuln_type}的利用尝试。"
+    action_sentence = f"此验证动作还原了针对 {target} 存在的{vuln_type}的利用尝试。" if vuln_type else f"此验证动作还原了针对 {target} 的利用尝试。"
     software_desc = " ".join(
         sentence if sentence.endswith(("。", "！", "？")) else f"{sentence}。"
         for sentence in software_sentences
@@ -3374,7 +3405,7 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
 
     if re.match(r"(?i)^web\s*安全验证\s*-\s*", clean_name):
         return (
-            normalize_web_name(clean_name, clean_desc),
+            normalize_web_name(clean_name, raw_desc),
             standardize_web_desc(clean_name, raw_desc),
             clean_notes or WEB_NOTE_DEFAULT,
         )
@@ -3388,8 +3419,12 @@ def standardize_actions_row(name: str, desc: str, notes: str, context_text: str 
                 clean_notes,
             )
         if re.match(r"^(?:Web|AI)\s*应用程序漏洞\s*-\s*", clean_name) or is_web_entry_path(parse_web_name(clean_name)[1]):
-            clean_name = normalize_web_name(clean_name, clean_desc)
+            clean_name = normalize_web_name(clean_name, raw_desc)
         else:
+            product, entry, vuln, cve = parse_web_name(clean_name)
+            if vuln:
+                prefix = clean_name.split(" - ", 1)[0]
+                clean_name = prefix + " - " + "，".join(p for p in (product, cve, entry, vuln) if p)
             clean_name = finalize_vulnerability_title_order(clean_name)
         return clean_name, standardize_web_desc(clean_name, raw_desc), clean_notes or WEB_NOTE_DEFAULT
     if clean_name.startswith("恶意文件传输 - "):
