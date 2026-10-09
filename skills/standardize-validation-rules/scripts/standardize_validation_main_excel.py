@@ -1972,6 +1972,8 @@ def infer_file_type(name: str, desc: str) -> str:
     upper_name = name.upper()
     # Use the downloaded file's own identity, not the malware-family background.
     if identity_text:
+        if re.search(r"(?:基于\s*)?PowerShell(?:\s*的)?\s*释放器脚本", identity_text):
+            return "恶意 PowerShell 释放器脚本"
         if re.search(r"Web\s*shell", identity_text, re.IGNORECASE):
             return "Web Shell文件"
         if re.search(r"PowerShell 下载(?:器)?脚本", identity_text):
