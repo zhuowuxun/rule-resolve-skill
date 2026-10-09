@@ -6,6 +6,8 @@ description: Primary user-facing validation standardization workflow. Use when s
 # Standardize Validation Rules
 
 ## Positioning
+For title-only corrections, change only `cn_name` and the corresponding `en_name`. Keep both descriptions byte-for-byte unchanged, even when reference material provides useful extra detail. Verify this boundary against a pre-edit copy. If a missing entry path needs reference lookup, record the evidence in the report instead of adding it to descriptions; distinguish documented vulnerability entry points from a verified rule request path.
+
 Validation should feel like two user-facing workflows:
 
 - `standardize-validation-rules`: standardize the Chinese workbook
