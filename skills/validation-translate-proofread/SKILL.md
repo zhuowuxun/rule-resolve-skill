@@ -135,6 +135,10 @@ If the same source header appears at different column indexes across sheets, inc
     Mark the project done, then export by reading project chunks and writing `translated_text` back to the original standardized workbook using each chunk's `format_data.sheet`, `format_data.row`, and source header -> target header mapping (`cn_name` -> `en_name`, `cn_desc` -> `en_desc`, `cn_notes` -> `en_notes`, `cn_subject` -> `en_subject`, `cn_body` -> `en_body`). Do not rely on the platform's generic multi-column bilingual XLSX export for validation workbooks, because it can mis-map multi-sheet/multi-source-column output. Open the output with `openpyxl` and verify expected `en_*` fill counts.
 
 ## Repair Guidance
+- Never collapse repeated periods globally: `../`, `../../`, and technical literals must survive punctuation cleanup. For source-aligned repairs, compare complete endpoint/function names, not just their slash-separated prefixes.
+- Preserve second-order vulnerability qualifiers and the method that introduces the vulnerable value (for example, `Admins.add` and second-order SQL injection), as well as the later method that consumes it.
+- Explicitly inspect translation artifacts such as `can injection`, `user- Manageable`, `seeyon code execution`, and `JavaScript -based`; repair them narrowly outside URLs. Translate prose placeholder text inside example URLs separately from actual reference URLs, and document that intentional difference.
+- If the source title and description name different malware families, retain the source evidence and report the exact row for confirmation; do not silently choose a family.
 - Fold repeatable safe fixes back into `tools/validation/check_and_fix.py`; keep rules narrow and deterministic.
 - Protect URLs before substitutions and never rewrite inside URLs.
 - Prefer exact phrase fixes for Google Translate artifacts and validation replacement bleed.
