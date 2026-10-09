@@ -1988,6 +1988,12 @@ def infer_file_type(name: str, desc: str) -> str:
         return "恶意 macOS 可执行文件"
     if "恶意且经过混淆处理的 .NET 可执行文件" in text or ".NET 可执行文件" in text:
         return ".NET 可执行文件"
+    if "恶意图像文件" in text:
+        return "恶意图像文件"
+    if "恶意 .NET 动态链接库" in text:
+        return "恶意 .NET 动态链接库文件"
+    if "恶意 64 位动态链接库" in text:
+        return "恶意 64 位动态链接库文件"
     if "恶意 .NET DLL" in text or ".NET DLL" in text:
         return "恶意 .NET DLL文件"
     if ".NET 程序集" in text:
