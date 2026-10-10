@@ -592,6 +592,9 @@ def keep_remediation_only(text: str) -> str:
     text = text.strip()
     if not text:
         return ""
+    # Dictionary entries can start an old CVE/reference block inline or after a single
+    # newline; remove that block before rebuilding the current CVE appendix.
+    text = re.split(r"(?:请参考[:：]|\bPlease refer to[:：])", text, maxsplit=1, flags=re.IGNORECASE)[0]
     return text.split("\n\n", 1)[0].strip()
 
 

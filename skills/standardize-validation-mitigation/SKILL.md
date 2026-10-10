@@ -71,6 +71,7 @@ This skill is not for:
 
 3. For rows with CVE values, replace any old appended description/reference block.
    - Keep the remediation paragraph at the top.
+   - Strip dictionary/history reference blocks beginning with `请参考：` or `Please refer to:` even when separated by only one newline. Never carry another CVE's description or advisory links into a filled row.
    - Rebuild the trailing description/reference block from CVE sources.
    - Never preserve an existing CVE appendix just because a provided CVE cache is missing that CVE. The runner must fetch any missing CVE entries before augmentation, otherwise stale or cross-CVE descriptions can be retained.
    - Fetch and prioritize CVE sources in this order: `cve.org` / CVE Services first, `nvd.nist.gov` second, vendor/security advisory links next, and Tenable only as a third-party fallback when official sources do not expose a usable description or reference list.
