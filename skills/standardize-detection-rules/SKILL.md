@@ -24,10 +24,10 @@ It is designed for `.xlsx` files shaped like the usual delivery tables with colu
    - move `CVE-xxxx-xxxx` forward so it appears immediately after the product name
    - remove leftover wrapping parentheses after extracting the CVE
    - keep the default prefix `Web应用程序漏洞 - `
-   - use `AI应用程序漏洞 - ` for any application related to LLMs. This broad category includes model invocation, gateways, AI-assisted development, context management, RAG, agents, MCP/tool integrations, and supporting applications; it is not limited to chat interfaces or applications that host models themselves.
+   - use `AI应用程序漏洞 - ` for any application related to LLMs. This broad category includes model invocation, gateways, AI-assisted development, context management, RAG, agents, MCP/tool integrations, and personal AI assistants such as Khoj, and supporting applications; it is not limited to chat interfaces or applications that host models themselves.
    - determine LLM relevance from the product name and source description, not only a fixed product allowlist. Keep the exact Chinese category name `AI应用程序漏洞`.
    - currently confirmed AI application products include `9Router`, `AstrBot`, `Blinko`, `Crawl4AI`, `Flowise`, `Gradio`, `LangBot`, `Langflow`, `LMDeploy`, `Scramble`, and `SxDevOps` (its official repository describes LLM planning and MCP tools).
-   - for hardware/security-appliance style products such as 上网行为管理, 防火墙, 安全网关, 路由器, 交换机, VPN, load-balancing devices, or PA/Palo Alto/PAN-OS/GlobalProtect security products, use `应用程序漏洞 - ` instead of the `Web应用程序漏洞 - ` prefix
+   - for hardware/security-appliance style products such as 上网行为管理, 防火墙, 安全网关, 路由器, 交换机, VPN, load-balancing devices, or Citrix NetScaler and PA/Palo Alto/PAN-OS/GlobalProtect security products, use `应用程序漏洞 - ` instead of the `Web应用程序漏洞 - ` prefix
    - for industry/operation platforms that merely expose web endpoints, such as `Acrel EEMS 电力运维平台`, use `应用程序漏洞 - ` rather than `Web应用程序漏洞 - `
    - do not infer `AI应用程序漏洞 - ` only from an `/api` path; the product or historical standard must indicate an AI/LLM application
    - keep the application name before the first Chinese comma

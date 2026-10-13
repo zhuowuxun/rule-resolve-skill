@@ -43,6 +43,7 @@ HARDWARE_PRODUCT_KEYWORDS = (
     "PAN-OS",
     "GlobalProtect",
     "Palo Alto",
+    "NetScaler",
     # Industry/operation platforms with web endpoints should still use the generic application prefix.
     "Acrel EEMS",
     "电力运维平台",
@@ -144,6 +145,8 @@ def is_software_description_sentence(sentence: str) -> bool:
     if text.startswith(("它不仅仅是", "不仅仅是")):
         return True
     known_product_intro_prefixes = (
+        "spring-boot-forum 是 weiqingwen 在 GitHub 开源",
+        "Citrix NetScaler ADC 和 Citrix NetScaler Gateway 是",
         "Microsoft Exchange 是微软公司开发",
         "Microsoft Exchange是微软公司开发",
         "OpenStack Swift是开源对象存储系统",
@@ -527,7 +530,7 @@ def is_ai_application_product(product: str, desc: str = "") -> bool:
     # infrastructure and integrations, rather than only model/chat products.
     return bool(re.search(
         r"\bLLMs?\b|大语言模型|大型语言模型|大模型|\bRAG\b|\bOllama\b|\bLangChain\b|"
-        r"\bMCP\b|Model Context Protocol|AI\s*(?:网关|对话|辅助开发|智能体)|"
+        r"\bMCP\b|Model Context Protocol|AI\s*(?:网关|对话|辅助开发|智能体|助手)|"
         r"LLM[- ](?:gateway|agent|integration)|AI[- ]assisted development",
         f"{product} {desc}", re.IGNORECASE,
     ))
