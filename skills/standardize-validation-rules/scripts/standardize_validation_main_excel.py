@@ -88,6 +88,7 @@ HARDWARE_KEYWORDS = (
 )
 
 AI_APPLICATION_PRODUCTS = (
+    "qwed", "chainlit", "praisonai",
     "token optimizer mcp",
     "openchamber",
     "9router",
@@ -420,6 +421,8 @@ def normalize_common_text(text: str) -> str:
     value = value.replace("子集群", "威胁组织")
     value = value.replace("威胁威胁组织", "威胁组织")
     value = value.replace("攻击技巧", "攻击手法")
+    value = value.replace("勒索程序", "勒索软件")
+    value = re.sub(r"\bThreat Group\b", "威胁组织", value)
     value = value.replace("系统变种", "系统版本")
     value = value.replace("。攻击活动。创建用于跟踪", "。创建用于跟踪")
     value = value.replace("攻击活动。创建用于跟踪", "创建用于跟踪")
@@ -1416,6 +1419,8 @@ def parse_web_name(name: str) -> Tuple[str, str, str, str]:
         if len(tokens) >= 2 and re.fullmatch(r"[A-Za-z0-9_./%-]+", tokens[-1]) and not target.endswith("with Google"):
             product = " ".join(tokens[:-1]).strip()
             entry = tokens[-1].strip()
+    if target == "GitLab Package Registry":
+        product, entry = target, ""
     if entry and not vuln_type and "-" in entry and "漏洞" in entry:
         split_entry, split_vuln = re.split(r"\s*-\s*", entry, maxsplit=1)
         entry = split_entry.strip()
@@ -1643,7 +1648,8 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
         return ""
     if not re.search(r"源(?:验证机器人|AI攻防机器人).+目标(?:验证机器人|AI攻防机器人)", clean_notes):
         return ""
-    desc_file_type_match = re.search(r"\.([A-Za-z0-9]{2,8})\s*文件", clean_desc)
+    desc_file_type_match = re.search(r"\.([A-Za-z0-9]{2,8})\s*(?:文件|页面)", clean_desc)
+    browser_download = bool(re.search(r"下载一个包含.+?漏洞.+?(?:\.html\s*页面|JavaScript\s*文件)", clean_desc, re.I))
     vuln_related_download = bool(
         re.search(r"下载(?:一个)?与.+?漏洞.+?\.[A-Za-z0-9]{2,8}\s*文件", clean_desc)
         or re.search(r"尝试下载.+?\.[A-Za-z0-9]{2,8}\s*文件", clean_desc)
@@ -1658,6 +1664,7 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
         not any(marker in clean_desc for marker in ("可执行的漏洞利用程序", "可执行文件，该文件利用", "漏洞利用程序"))
         and not vuln_related_download
         and not vuln_related_file_action
+        and not browser_download
     ):
         return ""
     vuln_title = standardize_raw_vulnerability_name(name, desc, notes)
@@ -1666,6 +1673,11 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
     parts = [part.strip() for part in vuln_title.split(" - ", 1)[1].split("，") if part.strip()]
     if not parts:
         return ""
+    if browser_download and "Google Chrome V8" in normalize_common_text(name) and "越界写入漏洞" in name:
+        vm = re.search(r"变种\s*#\d+", normalize_variant(name))
+        parts = ["Google Chrome V8", "越界写入漏洞"] + ([vm.group(0)] if vm else [])
+        codes = [format_cve_match(m) for m in CVE_RE.finditer(name + " " + desc)]
+        parts[1:1] = list(dict.fromkeys(codes))
     variants = [part for part in parts if part.startswith("变种 #")]
     parts = [part for part in parts if not part.startswith("变种 #")]
     vuln_idx = len(parts) - 1
@@ -1673,6 +1685,8 @@ def standardize_raw_vulnerability_transfer_name(name: str, desc: str, notes: str
         file_type = f".{desc_file_type_match.group(1).upper()} 文件"
         if file_type not in parts:
             parts.append(file_type)
+    elif browser_download and "JavaScript 文件" in clean_desc:
+        parts.append("JavaScript 文件")
     elif not parts[vuln_idx].endswith("漏洞利用程序"):
         parts[vuln_idx] = f"{parts[vuln_idx]}利用程序"
     parts.append("下载")
@@ -2437,13 +2451,13 @@ def titleize_raw_malicious_download(name: str) -> str:
             item = normalize_malicious_transfer_item(match.group("item"))
             _, file_type = split_download_body(match.group("body"))
         else:
-            match = re.match(r"^(?P<item>.+?)\s*是\s*(?P<actor>.+?)\s*威胁组织使用的(?P<body>.+?)下载$", raw)
+            match = re.match(r"^(?P<item>.+?)\s*是\s*(?P<actor>.+?)\s*威胁组织\s*使用的(?P<body>.+?)下载$", raw)
             if match:
                 actor = normalize_actor_name(match.group("actor"))
                 body, file_type = split_download_body(match.group("body"))
                 item = f"{match.group('item').strip()} {body}".strip()
             else:
-                match = re.match(r"^(?P<actor>.+?)威胁组织使用的(?P<body>.+?)下载$", raw)
+                match = re.match(r"^(?P<actor>.+?)威胁组织\s*使用的(?P<body>.+?)下载$", raw)
                 if match:
                     actor = normalize_actor_name(match.group("actor"))
                     item, file_type = split_download_body(match.group("body"))
@@ -3149,6 +3163,8 @@ def standardize_sequence_name(name: str, source_name: str = "") -> str:
     subject = subject.replace("威胁活动 攻击活动", "攻击活动")
     subject = re.sub(r"(恶意文件下载)\s*$", r"\1攻击活动", subject)
     subject = re.sub(r"威胁活动\s*$", "攻击活动", subject).strip()
+    subject = re.sub(r"(?:恶意活动场景|执行威胁|执行活动)(?:\s*攻击活动)?$", lambda m: "执行攻击活动" if m.group(0).startswith("执行") else "攻击活动", subject).strip()
+    subject = re.sub(r"(漏洞)威胁$", r"\1", subject)
     scene_prefix = classify_sequence_scene_prefix(name, subject)
     if scene_prefix != "恶意活动场景":
         subject = re.sub(r"\s*攻击活动\s*$", "", subject).strip()
@@ -3321,6 +3337,8 @@ def standardize_sequence_desc(name: str, desc: str, source_name: str = "") -> st
     if source_subject and (re.search(r"(运动|地球龙治|威胁组织威胁组织)", subject) or not re.search(r"[A-Za-z]", subject)):
         subject = source_subject
     desc_subject = sequence_desc_subject(subject)
+    subject = re.sub(r"(?:恶意活动场景|执行威胁|执行活动)(?:\s*攻击活动)?$", lambda m: "执行攻击活动" if m.group(0).startswith("执行") else "攻击活动", subject).strip()
+    subject = re.sub(r"(漏洞)威胁$", r"\1", subject)
     scene_prefix = classify_sequence_scene_prefix(name, subject)
     body, urls = split_references(desc)
     clean = normalize_actor_spacing(

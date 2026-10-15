@@ -324,3 +324,11 @@ Read these only when needed:
 - The workbook is actually a mitigation sheet.
 - The user wants mitigation dictionary or CVE remediation logic.
 - The sheet structure differs materially from `Actions` / `Sequences` / `Email`.
+
+## Source-driven intake regressions
+
+- Normalize 勒索程序 to 勒索软件 and actor-context Threat Group to 威胁组织.
+- QWED/qwed-mcp, Chainlit and PraisonAI are AI application targets.
+- Preserve GitLab Package Registry as one product name, never treat Registry as an endpoint.
+- Source/target-validator rules downloading vulnerability-bearing .html pages or JavaScript files are malicious file transfers. Preserve all source CVEs and versions; add the explicit file type to the title.
+- Scene subjects ending in 执行威胁/执行活动 or 恶意活动场景 should have one coherent 攻击活动 suffix.
