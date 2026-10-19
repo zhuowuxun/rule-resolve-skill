@@ -443,9 +443,10 @@ def normalize_path_key(path: str) -> str:
 
 def endpoint_path_related(endpoint: str, desc_path: str) -> bool:
     # Query routing parameters may carry the title's shortened endpoint.
-    if endpoint.startswith("/") and "?" in desc_path:
+    if "?" in desc_path:
         query = desc_path.split("?", 1)[1]
-        if any(value.rstrip("/").endswith(endpoint.rstrip("/"))
+        if any(value.rstrip("/") == endpoint.rstrip("/") or
+               (endpoint.startswith("/") and value.rstrip("/").endswith(endpoint.rstrip("/")))
                for value in re.findall(r"(?:^|[&])[^=]+=(.*?)(?=&|$)", query)):
             return True
     endpoint_key = normalize_path_key(endpoint)
@@ -636,7 +637,8 @@ def normalize_attack_text(text: str) -> str:
     normalized = re.sub(r"(?<![A-Za-z])rce(?![A-Za-z])", "RCE", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])api(?![A-Za-z])", "API", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])http(?![A-Za-z]|://)", "HTTP", normalized, flags=re.IGNORECASE)
-    normalized = re.sub(r"(?<![A-Za-z])url(?![A-Za-z])", "URL", normalized, flags=re.IGNORECASE)
+    # A named request parameter is case-sensitive evidence, not prose terminology.
+    normalized = re.sub(r"(?<![A-Za-z])url(?![A-Za-z]|\s*参数)", "URL", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?<![A-Za-z])json(?![A-Za-z])", "JSON", normalized, flags=re.IGNORECASE)
     # Later patterns can wrap an earlier placeholder (e.g. a hyphenated filename).
     # Unwrap in reverse insertion order so no placeholder survives in delivery.
