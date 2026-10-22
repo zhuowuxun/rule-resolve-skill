@@ -113,6 +113,7 @@ If the same source header appears at different column indexes across sheets, inc
    If the user flags the note column, compare current `cn_notes` / `en_notes` against historical validation projects in `backend/instance/translator.db` before repairing. Use exact historical matches first; for near-identical note templates, adapt the historical wording narrowly instead of trusting a fresh machine translation.
 
 10. Run independent delivery QA.
+   - Mandatory geographic review: follow the router’s `Mandatory Full-Workbook Geographic Review` gate for every run. Scan all populated text cells across all sheets and both languages, review every distinct prose text for geographic names beyond the fixed dictionary, correct all removable matches, and re-scan the final workbook. Record coverage, corrections, protected-token exceptions, and zero unresolved candidates in `geographic_review`. Sampling alone does not satisfy this gate.
    Check at minimum:
    - every selected chunk has translation
    - no Chinese leftovers in `en_*`

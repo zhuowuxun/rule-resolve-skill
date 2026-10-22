@@ -202,6 +202,7 @@ This skill is not for:
    - Do not copy mitigation-specific wording into validation outputs.
 
 9. Run delivery QA and manual sampling before final response.
+   - Mandatory geographic review: follow the router’s `Mandatory Full-Workbook Geographic Review` gate for every run. Scan all populated text cells across all sheets and both languages, review every distinct prose text for geographic names beyond the fixed dictionary, correct all removable matches, and re-scan the final workbook. Record coverage, corrections, protected-token exceptions, and zero unresolved candidates in `geographic_review`. Sampling alone does not satisfy this gate.
    A workbook is not final just because the script completed. Required gates:
    - do not visually mark all rewritten names or prefixes with yellow fill; keep standardized Excel deliverables clean unless the user explicitly asks for highlighted diffs
    - no `YYYY MM DD` date fragments anywhere

@@ -240,6 +240,17 @@ If the shape is ambiguous, inspect headers and a few rows first. Do not guess ac
 - Prefer concise output filenames such as `_standardized.xlsx`, `_translated.xlsx`, or `_proofread.xlsx`. Do not add verbose delivery/final suffixes to any rule workflow output.
 - Validation translation must create exactly one AI Translation Studio project per input workbook. Do not split one workbook into separate `main` / `notes` projects; note-only replacement must be enforced by the validation translation child skill and backend replacement logic.
 
+## Mandatory Full-Workbook Geographic Review
+
+Every run must check geographic names before delivery, including standardization, translation, proofreading, and corrections to an existing workbook. This is a blocking delivery gate, not an optional sample check.
+
+- Inspect every populated textual cell in every delivered worksheet, including Chinese and English titles, descriptions, notes, and scenario/email fields. Existing English text must also be checked when no new translation was requested.
+- Check countries, provinces, cities, districts/counties, regions, geographic aliases, abbreviations, transliterations, and English adjectival forms. Include geographic qualifiers embedded in company introductions, actor attribution, victim locations, and targeting background. Company names are not automatically exempt; check forms such as `由上海…开发`, not only sentence starts or text after `是`.
+- Combine a programmatic candidate scan with a full review of distinct prose texts. A fixed place-name list, checking only the reported row, or a few sampled rows is insufficient. Review repeated texts once, but verify the correction reaches every occurrence.
+- Remove geographic prose qualifiers according to the user's rule and rewrite the surrounding sentence grammatically. Apply corresponding Chinese and English corrections. Preserve URLs, paths, CVEs, versions, dates, technical identifiers, and genuine product/malware names; a geographic-looking substring inside protected evidence must be reviewed rather than blindly deleted.
+- Re-scan the exact final exported workbook after all edits. Any unreviewed candidate or remaining removable geographic qualifier blocks delivery. Record reviewed protected-token matches with reasons; do not silently ignore them.
+- Include a `geographic_review` entry in the delivery report with checked sheets/columns, scanned cell count, candidate locations, corrections, reviewed exceptions, and remaining unresolved count. The unresolved count must be zero. Check the online project too when it is part of the workflow so a later export cannot restore removed wording.
+
 ## Post-Standardization Source Compare
 After every standardization run and before the final response, compare the exact output workbook against the exact source workbook.
 
