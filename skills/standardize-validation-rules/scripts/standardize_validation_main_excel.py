@@ -90,6 +90,8 @@ HARDWARE_KEYWORDS = (
 AI_APPLICATION_PRODUCTS = (
     "qwed", "chainlit", "praisonai",
     "token optimizer mcp",
+    "claude code templates",
+    "db-gpt",
     "openchamber",
     "9router",
     "flowise",
@@ -1295,6 +1297,8 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
     if not text:
         return ""
     text = normalize_attribution_noise_phrases(text)
+    # Remove an attribution clause without dropping malware identity/service/date evidence.
+    text = re.sub(r"，很可能由[^，。]*犯罪团伙开发", "", text)
     text = re.sub(
         r"疑似与中国有关联的[^。；，]*?(?:黑客组织|威胁组织|组织)?以微软\s*IIS\s*服务器为目标，部署\s*Web\s*Shell\s*并提升权限",
         "该攻击活动以微软 IIS 服务器为目标，部署 Web Shell 并提升权限",
@@ -1434,7 +1438,7 @@ def normalize_web_entry_path(path: str) -> str:
     value = normalize_common_text(path).strip().strip("，,。.;；:：)）]】")
     if not value:
         return ""
-    value = re.sub(r"^/+", "/", value)
+    # Leading repeated slashes can be the exploit-bearing path; preserve them.
     return value
 
 
@@ -1794,7 +1798,7 @@ def dedupe_web_attack_sentences(
         tokens = re.findall(r"/[A-Za-z0-9_./:{}?=&-]+|[A-Za-z_][A-Za-z0-9_:]*\(\)|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", clause)
         if (any(t not in target for t in tokens)
                 or re.search(r"未授权|未认证|未经|身份验证|身份认证", clause)
-                or any(q in clause and q not in vuln_type for q in ("路径遍历", "路径穿越", "任意文件上传", "访问控制", "类型混淆", "二次", "二阶"))):
+                or any(q in clause and q not in vuln_type for q in ("路径遍历", "路径穿越", "任意文件上传", "访问控制", "类型混淆", "操作系统命令注入", "命令注入", "代码注入", "二次", "二阶"))):
             seen.add(clean)
             deduped.append(clean)
             continue
@@ -3235,6 +3239,10 @@ def sequence_sample_download_intro(desc_subject: str) -> str:
 
 
 def sequence_desc_intro(desc_subject: str) -> str:
+    execution = re.fullmatch(r"(.+?)\s+(Linux|Windows|macOS)\s+执行", desc_subject)
+    if execution:
+        subject, os_name = execution.groups()
+        return f"此验证场景包括了在 {os_name} 主机上执行 {subject} 的相关攻击手法。"
     if is_sequence_sample_download_subject(desc_subject):
         return sequence_sample_download_intro(desc_subject)
     if is_sequence_download_subject(desc_subject):
