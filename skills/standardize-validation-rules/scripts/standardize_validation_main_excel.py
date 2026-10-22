@@ -547,6 +547,23 @@ def normalize_geo_company_text(text: str) -> str:
         normalized = re.sub(rf"(?<=[（(、，,\s]){place}(?=[^，。；;、]{{0,20}}{company_suffix})", "", normalized)
         normalized = re.sub(rf"(?<=是){place}(?=[\u4e00-\u9fffA-Za-z0-9]{{2,16}}(?:自主研发|推出|开发|一同推出))", "", normalized)
         normalized = re.sub(rf"(?<=与){place}(?=[\u4e00-\u9fffA-Za-z0-9]{{2,16}}(?:自主研发|推出|开发|一同推出))", "", normalized)
+    # Company introductions may put the city directly after 由/由其/由一家,
+    # not only at a sentence boundary or after 是.
+    for place in PROVINCE_NAMES + CITY_NAMES:
+        normalized = re.sub(
+            rf"(由(?:其|一家)?)\s*{place}(?:市|省)?(?=[^，。；;、]{{0,30}}{company_suffix})",
+            r"\1", normalized,
+        )
+    # Geographic background qualifiers are removed without erasing behavior.
+    for source, target in (
+        ("受朝鲜政府支持的", ""),
+        ("受朝鲜国家支持的，", ""),
+        ("位于印度的 ", ""),
+        ("位于印度的", ""),
+        ("，但刻意避开独联体和波罗的海国家的系统", ""),
+        ("俄语地下论坛", "地下论坛"),
+    ):
+        normalized = normalized.replace(source, target)
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized
 
