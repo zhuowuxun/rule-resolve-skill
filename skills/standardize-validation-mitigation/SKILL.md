@@ -135,7 +135,7 @@ This skill is not for:
      - Remove `做好应用程序隔离。`.
      - For vendor/cloud products without CVE values, prefer the historical vendor-contact wording such as `联络孚盟云告知漏洞`.
    - For well-known vendors or device/appliance products, also prefer the vendor-contact wording even when the row has a CVE value; keep the CVE description/reference block after the remediation paragraph.
-   - Preserve AI application security product wording for `AI应用程序漏洞`; do not treat `网络或主机或AI应用安全产品` as an old phrase.
+   - For every `AI应用程序漏洞` row (existing notes and dictionary/history fills alike), require the opening `如果网络或主机或AI应用安全产品对此攻击漏检` / `If the network or server or AI application security products miss this attack`. Add missing AI scope after vendor/cloud cleanup, preserve the remaining remediation body and CVE appendix, and highlight/log actual changes. Before delivery, check every AI row in both languages; preservation-only checks are insufficient.
    - Normalize the English brand casing to `digiDations`, not `Digidations`.
 
 5. Compare against a manual mitigation workbook only as evaluation.

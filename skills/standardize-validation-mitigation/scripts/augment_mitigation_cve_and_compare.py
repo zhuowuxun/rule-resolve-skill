@@ -1142,6 +1142,10 @@ def transform_base_notes(
     cn, en = cleanup_os_mismatch(cn, en, inferred_os, rule_type)
     cn, en = normalize_host_command_product_scope(cn, en, inferred_os, rule_type)
     cn, en = normalize_sandbox_product_scope(cn, en, inferred_os, rule_type)
+    # Apply after vendor/cloud cleanup so AI scope cannot be removed by it.
+    if "AI应用程序漏洞" in rule_type or name.startswith("AI应用程序漏洞"):
+        cn = re.sub(r"^如果[^，。\n]*?安全产品对此攻击漏检", "如果网络或主机或AI应用安全产品对此攻击漏检", cn)
+        en = re.sub(r"^If (?:the )?[^,\n]*?security products? miss(?:es)? this attack", "If the network or server or AI application security products miss this attack", en, flags=re.I)
     en = en.replace("Digidations", "digiDations")
     en = en.replace("theendpoint", "the endpoint")
     en = en.replace("Productsare", "Products are")
