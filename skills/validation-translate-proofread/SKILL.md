@@ -196,3 +196,10 @@ Place outputs under `output/validation_runs/` unless the user requests another d
 - `<input-stem>_translated_report.json`
 
 The report should include project id, chunk counts, translated counts, header counts, sampled rows, blocking issues, and ATT&CK bleed hits. Do not present the workbook as final unless both the validation script and independent QA pass.
+
+## Additional source-aligned verification
+- Preserve product name `The Grid` even though the generic title article check flags `The`; genuine product names are protected evidence.
+- `Download` in the file-type phrase `Malicious Download Script` is intentionally Title Case; the separate action field remains lowercase `download`. Record the generic checker warning as a false positive when this is the only match.
+- Check Chaskiq against the source; Google may mistranslate it as `Receiver`. Verify `SSRF Vulnerability` does not become `SSRF update`.
+- Verify Vite `/@fs/etc/passwd` keeps `@`, and ensure inline C2 URLs followed by Chinese punctuation do not swallow untranslated sentence tails.
+- English field repairs must check both the source header and semantic context, especially when the same worksheet row contains title, description and notes chunks. Export again from the corrected owning platform and check all notes against their original note sources.

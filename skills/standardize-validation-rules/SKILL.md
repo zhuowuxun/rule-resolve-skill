@@ -333,3 +333,11 @@ Read these only when needed:
 - Preserve GitLab Package Registry as one product name, never treat Registry as an endpoint.
 - Source/target-validator rules downloading vulnerability-bearing .html pages or JavaScript files are malicious file transfers. Preserve all source CVEs and versions; add the explicit file type to the title.
 - Scene subjects ending in 执行威胁/执行活动 or 恶意活动场景 should have one coherent 攻击活动 suffix.
+
+## Source-supported intake refinements
+- The bundled final refinement pass handles malicious AI model download titles, retaining the exact `.pt`, `.pth`, `.bin`, or `.ckpt` filename and putting the variant last. Keep the explicit reference in the description.
+- Infer download objects from concrete description evidence, including Java class files, DLL/trojan components, Shell scripts, mining programs, proxy/tunneling tools, and platform-specific executables. Never infer an extension that the source does not supply.
+- Loom for AWS is an AI agent platform and uses `AI应用程序漏洞`.
+- Trim closing quotation marks from extracted C2 title paths. Preserve quotation marks and complete URLs in description evidence.
+- When source title and description disagree about an endpoint, preserve both and report the discrepancy. A Chaskiq title `/api/graphql` must not silently overwrite a source description `/graphql`.
+- Remove regional attribution/targeting prose while retaining the technical behavior of region-aware kill switches. Do not remove product names, locale identifiers, or geolocation API behavior.

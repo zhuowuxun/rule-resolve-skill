@@ -3789,6 +3789,8 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
         summary["sheets"][sheet_name] = sheet_summary
 
     archive.write(output_path)
+    from intake_refinements import refine
+    summary["source_supported_refinements"] = refine(output_path, input_path)
     apply_added_prefix_highlights(output_path, summary["added_prefix_cells"])  # type: ignore[arg-type]
     rewrite_xlsx_for_excel_compatibility(output_path)
     try:
