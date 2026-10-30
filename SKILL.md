@@ -297,3 +297,7 @@ Stop and ask the user before continuing when:
 - The task is bound to a remote platform but SSH or remote script access needed for DB backup, `check_and_fix.py`, or export is unavailable.
 - The workbook shape does not clearly match detection, validation main, or validation mitigation.
 - The user provides a manual workbook but the generation source is unclear.
+
+## Chinese glossary final gate
+
+- 中文内容统一使用 `Dump`，将 `转储` 替换为 `Dump`。覆盖中文规则名称、描述、说明及场景字段，在所有标题改写之后执行；检查最终文件，不仅检查英文译文。保留 URL、路径及代码标识中的原始技术证据。线上英文 replacement 流程不回写中文源列，不能代替这道中文检查。

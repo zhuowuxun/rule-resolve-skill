@@ -19,7 +19,7 @@ def refine(path, source=None):
                 d=d.replace('Chaskiq /api/graphql 存在', 'Chaskiq /graphql 存在')
             if 'Loom for AWS' in n: n=n.replace('Web应用程序漏洞','AI应用程序漏洞')
             if n.startswith('主机命令行'):
-                replacements={'通过 wscript.exe 执行无文件 VBScript 有效载荷':'wscript.exe，无文件 VBScript 有效载荷执行','向 CurrentVersion 运行注册表项 添加恶意值':'CurrentVersion 运行注册表项，恶意值添加','通过 WebDAV 发现 Lateral Target 上的网络共享':'WebDAV，横向目标网络共享发现','通过 computerdefaults.exe 绕过用户访问控制':'computerdefaults.exe，用户账户控制绕过','使用 NtlmThief 工具导出凭据':'NtlmThief，凭据导出','使用命令提示符执行 icacls.exe':'命令提示符，icacls.exe 执行','发现系统和网络信息':'系统和网络信息发现','使用 Schtasks 创建计划任务':'Schtasks，计划任务创建','写入包含勒索信的文件并打开它':'勒索信文件写入并打开','使用 SharpKiller 工具绕过 AMSI':'SharpKiller，AMSI 绕过','通过嵌入式 Python 解释器执行 Shellcode':'嵌入式 Python 解释器，Shellcode 执行','使用 NanoDump 工具 Dump Lsass 进程内存':'NanoDump，LSASS 进程内存转储','通过 Masquerade Finger.exe 进程执行远程命令':'伪装 finger.exe 进程，远程命令执行','使用 WorkItemLoadLibrary 加载 DLL':'WorkItemLoadLibrary，DLL 加载','通过 DumpBrowserSecrets 工具收集浏览器数据':'DumpBrowserSecrets，浏览器数据收集','使用 AES 算法加密目录中的多个文件':'AES，目录文件加密','执行崩溃修复活动系统发现':'CrashFix，系统发现','通过 Minidump 从 LSASS 内存 Dump 中提取凭据':'Minidump，LSASS 内存转储凭据提取','通过编译后的 Python 二进制文件更改用户壁纸':'编译后的 Python 二进制文件，用户壁纸更改'}
+                replacements={'通过 wscript.exe 执行无文件 VBScript 有效载荷':'wscript.exe，无文件 VBScript 有效载荷执行','向 CurrentVersion 运行注册表项 添加恶意值':'CurrentVersion 运行注册表项，恶意值添加','通过 WebDAV 发现 Lateral Target 上的网络共享':'WebDAV，横向目标网络共享发现','通过 computerdefaults.exe 绕过用户访问控制':'computerdefaults.exe，用户账户控制绕过','使用 NtlmThief 工具导出凭据':'NtlmThief，凭据导出','使用命令提示符执行 icacls.exe':'命令提示符，icacls.exe 执行','发现系统和网络信息':'系统和网络信息发现','使用 Schtasks 创建计划任务':'Schtasks，计划任务创建','写入包含勒索信的文件并打开它':'勒索信文件写入并打开','使用 SharpKiller 工具绕过 AMSI':'SharpKiller，AMSI 绕过','通过嵌入式 Python 解释器执行 Shellcode':'嵌入式 Python 解释器，Shellcode 执行','使用 NanoDump 工具 Dump Lsass 进程内存':'NanoDump，LSASS 进程内存 Dump','通过 Masquerade Finger.exe 进程执行远程命令':'伪装 finger.exe 进程，远程命令执行','使用 WorkItemLoadLibrary 加载 DLL':'WorkItemLoadLibrary，DLL 加载','通过 DumpBrowserSecrets 工具收集浏览器数据':'DumpBrowserSecrets，浏览器数据收集','使用 AES 算法加密目录中的多个文件':'AES，目录文件加密','执行崩溃修复活动系统发现':'CrashFix，系统发现','通过 Minidump 从 LSASS 内存 Dump 中提取凭据':'Minidump，LSASS 内存 Dump 凭据提取','通过编译后的 Python 二进制文件更改用户壁纸':'编译后的 Python 二进制文件，用户壁纸更改'}
                 for a,b in replacements.items():n=n.replace(a,b)
             if n.startswith('命令与控制'):
                 n=n.replace('”','').replace('，泄漏，','，数据泄漏，')
@@ -47,4 +47,17 @@ def refine(path, source=None):
                     d='此验证场景包括了网络攻击中使用的恶意 AI 模型文件各种变种的下载。攻击者将恶意载荷隐藏在看似正常的 AI 模型中，通过人工智能组件植入后门，实施供应链攻击。'
             if (n,d)!=old:
                 changes.append({'sheet':ws.title,'row':row,'old':old,'new':[n,d]});nc.value=n;dc.value=d
+    # Chinese delivery glossary is applied after title rewrites, not just to English translations.
+    for ws in wb:
+        for col in ws.iter_cols():
+            if not str(col[0].value or '').startswith('cn_'): continue
+            for cell in col[1:]:
+                if not isinstance(cell.value,str) or '转储' not in cell.value: continue
+                before=cell.value
+                parts=re.split(r'(https?://[^\s]+|`[^`]+`)',before)
+                for i in range(0,len(parts),2):
+                    parts[i]=re.sub(r'\s*转储\s*',' Dump ',parts[i]).strip()
+                    parts[i]=re.sub(r' +([，。；：！？])',r'\1',parts[i])
+                cell.value=''.join(parts)
+                changes.append({'sheet':ws.title,'cell':cell.coordinate,'old':before,'new':cell.value,'reason':'中文术语字典：转储 → Dump'})
     wb.save(path);return changes
