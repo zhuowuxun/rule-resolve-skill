@@ -286,6 +286,11 @@ def translate_en_to_zh(text: str, product: str) -> str:
         merged = re.sub(r"^[A-Za-z0-9 ._/-]+", product, merged, count=1)
         if product not in merged:
             merged = f"{product}：{merged}"
+    # Block delivery when MT turns a version into a date or corrupts a technical path.
+    protected_tokens = re.findall(r"(?<![A-Za-z0-9])\d+(?:\.\d+){1,}|(?:[A-Za-z0-9_@.-]+/)+[A-Za-z0-9_@.*:{}()%-]+|\{\{[^}]+\}\}", text)
+    missing = sorted({token for token in protected_tokens if token not in merged})
+    if missing:
+        raise ValueError("CVE translation lost protected tokens; supply a reviewed bilingual CVE cache: " + repr(missing))
     return merged
 
 
