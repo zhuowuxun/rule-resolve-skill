@@ -622,6 +622,8 @@ def normalize_attack_text(text: str) -> str:
         return marker
 
     normalized = re.sub(r"https?://[^\s，。；）)]+", protect, normalized, flags=re.IGNORECASE)
+    # Relative paths can contain case-sensitive directory names such as api.
+    normalized = re.sub(r"(?<![A-Za-z0-9_/])(?:[A-Za-z0-9_.-]+/){2,}[A-Za-z0-9_.-]+", protect, normalized)
     # Preserve standalone query strings and their case-sensitive parameter values.
     normalized = re.sub(r"(?<![A-Za-z0-9_])\?[A-Za-z0-9_.~%-]+(?:=[A-Za-z0-9_.~%-]*)?(?:&[A-Za-z0-9_.~%-]+(?:=[A-Za-z0-9_.~%-]*)?)*", protect, normalized)
     normalized = re.sub(r"\b[A-Za-z_][A-Za-z0-9_.:]*\([^()。\n]*\)", protect, normalized)
