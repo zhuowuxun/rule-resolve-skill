@@ -120,6 +120,10 @@ Useful options:
 - Keep authentication state exact. English `authenticated` / `unauthenticated` / `unauthorized` wording must be checked against the Chinese source row.
 - Keep Chinese and English semantically aligned. Do not inject scope or platform qualifiers that are absent from the Chinese source.
 
+## Standalone single-letter review gate
+
+When a rule title contains a standalone single Latin letter that could be a parameter, endpoint, or part of a product name, preserve it exactly and highlight the affected Chinese and English title cells yellow. Record the row, original title, and relevant description or source evidence, then ask the user how to handle the letter before finalizing that row; do not silently join it to the product name, remove it, or add `参数` / `Parameter` on your own. This confirmation is required even when the description or CVE record suggests an interpretation. Ordinary English articles and letters inside a protected path or identifier are not standalone title candidates. For example, `WP Ticket s` requires confirmation whether `s` is a separate parameter or part of the name. Apply the user’s answer consistently to the exported workbook and the owning translation project.
+
 ## Manual Review Checklist
 - Check for leftover Chinese in English fields that is not an intentional path or product token.
 - Check for missing spaces after English commas.

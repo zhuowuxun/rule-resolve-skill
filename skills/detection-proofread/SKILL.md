@@ -116,6 +116,10 @@ description: Use when proofreading detection translation projects in the AI Tran
 - When adding a regex, test it on the current project and confirm it does not mutate unrelated fields.
 - If a rule starts changing user-approved wording, remove or narrow it immediately.
 
+## Standalone single-letter review gate
+
+When a rule title contains a standalone single Latin letter that could be a parameter, endpoint, or part of a product name, preserve it exactly and highlight the affected Chinese and English title cells yellow. Record the row, original title, and relevant description or source evidence, then ask the user how to handle the letter before finalizing that row; do not silently join it to the product name, remove it, or add `参数` / `Parameter` on your own. This confirmation is required even when the description or CVE record suggests an interpretation. Ordinary English articles and letters inside a protected path or identifier are not standalone title candidates. For example, `WP Ticket s` requires confirmation whether `s` is a separate parameter or part of the name. Apply the user’s answer consistently to the exported workbook and the owning translation project.
+
 ## Manual Review Checklist
 - Check whether titles still contain glued terms such as `CRLFinjection` or missing spaces after commas.
 - Check whether English added meaning that is absent from Chinese, especially injected qualifiers such as `Web`, `server-side`, `vendor`, platform names, or protocol labels.
