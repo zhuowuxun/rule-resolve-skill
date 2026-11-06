@@ -3796,6 +3796,8 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
     summary["source_supported_refinements"] = refine(output_path, input_path)
     from geography_refinements import refine_geography
     summary["geographic_refinements"] = refine_geography(output_path)
+    from title_evidence_refinements import refine_title_evidence
+    summary["title_evidence_refinements"] = refine_title_evidence(output_path)
     from action_variant_refinements import refine_action_variants
     summary["action_variant_refinements"] = refine_action_variants(output_path)
     apply_added_prefix_highlights(output_path, summary["added_prefix_cells"])  # type: ignore[arg-type]
