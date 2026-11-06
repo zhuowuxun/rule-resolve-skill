@@ -946,7 +946,9 @@ def insert_title_part_before_variant(title: str, part: str) -> str:
 
 def add_title_part_after_prefix(title: str, part: str) -> str:
     clean_title = normalize_common_text(title)
-    if part in [item.strip() for item in clean_title.split("，")]:
+    # The first segment includes the category prefix; compare its body as well.
+    body = clean_title.split(" - ", 1)[-1]
+    if re.sub(r"\s+", "", part) in [re.sub(r"\s+", "", item) for item in body.split("，")]:
         return clean_title
     match = re.match(r"^([^，]+? - )(.+)$", clean_title)
     if not match:
