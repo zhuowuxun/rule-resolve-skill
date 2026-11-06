@@ -222,6 +222,12 @@ def apply_builtin_validation_title_repairs(session, api_base, project_id):
             continue
 
         new_text = translated
+        source_title = chunk.get("source_text") or ""
+        if source_title.startswith("命令与控制 - "):
+            if "心跳通信" in source_title:
+                new_text = re.sub(r"\bHeartbeat\s+Communication(?:\s+Traffic)?\b", "Heartbeat Traffic", new_text, flags=re.IGNORECASE)
+            if "命令执行通信流量" in source_title:
+                new_text = re.sub(r"\bcommand\s+execution\s+communication\s+traffic\b", "Command Execution Traffic", new_text, flags=re.IGNORECASE)
         replacements = [
             ("敏感information exfiltration漏洞", "Sensitive Data Exposure"),
             ("sensitive information exfiltration漏洞", "Sensitive Data Exposure"),

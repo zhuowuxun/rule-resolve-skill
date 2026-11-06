@@ -168,6 +168,7 @@ If the same source header appears at different column indexes across sheets, inc
 - In vulnerability titles, translate `信息泄露漏洞` / `敏感信息泄露漏洞` as `Sensitive Data Exposure`; do not silently rewrite them to `Information Disclosure`.
 - In `Protected Sandbox` titles, translate bare `执行` as the noun `Execution`, not the verb `Execute`; keep `Execute` only for host-command-style imperative action titles.
 - In `Command and Control` titles, translate `数据泄漏` as `Data Exfiltration`. If an exported title says `Penetration`, `Penetration Testing`, or `Infiltration` while the Chinese title says `数据泄漏`, repair it to `Data Exfiltration`.
+- In `Command and Control` titles, render `C&C 心跳通信流量` as `C2 Heartbeat Traffic`, `心跳通信` as `Heartbeat Traffic`, and `命令执行通信流量` as `Command Execution Traffic`; do not duplicate `Communication Traffic`. Restrict the rule to titles and preserve any C2 qualifier and technical identifiers.
 
 ## Software Name Fallbacks
 Use the `software翻译` dictionary first. If a validation workbook contains a software/product name with no exact dictionary hit, check the row's `notes`/reference URL and apply user-confirmed fallbacks when applicable:
