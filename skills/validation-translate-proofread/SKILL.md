@@ -135,6 +135,10 @@ If the same source header appears at different column indexes across sheets, inc
 11. Export and verify the output.
     Mark the project done, then export by reading project chunks and writing `translated_text` back to the original standardized workbook using each chunk's `format_data.sheet`, `format_data.row`, and source header -> target header mapping (`cn_name` -> `en_name`, `cn_desc` -> `en_desc`, `cn_notes` -> `en_notes`, `cn_subject` -> `en_subject`, `cn_body` -> `en_body`). Do not rely on the platform's generic multi-column bilingual XLSX export for validation workbooks, because it can mis-map multi-sheet/multi-source-column output. Open the output with `openpyxl` and verify expected `en_*` fill counts.
 
+## Missing application name review
+
+- Preserve yellow highlights on both title cells for vulnerability rules whose application/product name is missing. Include their sheet, row and UUID in the review report; do not infer a product from a CVE or silently invent one. Also flag obvious missing application names discovered during proofreading, including existing projects.
+
 ## Repair Guidance
 - Never collapse repeated periods globally: `../`, `../../`, and technical literals must survive punctuation cleanup. For source-aligned repairs, compare complete endpoint/function names, not just their slash-separated prefixes.
 - Preserve second-order vulnerability qualifiers and the method that introduces the vulnerable value (for example, `Admins.add` and second-order SQL injection), as well as the later method that consumes it.

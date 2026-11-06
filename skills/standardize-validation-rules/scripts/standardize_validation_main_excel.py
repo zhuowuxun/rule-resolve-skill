@@ -3800,6 +3800,8 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
     summary["title_evidence_refinements"] = refine_title_evidence(output_path)
     from action_variant_refinements import refine_action_variants
     summary["action_variant_refinements"] = refine_action_variants(output_path)
+    from missing_application_review import flag_missing_applications
+    summary["missing_application_name"] = flag_missing_applications(output_path)
     apply_added_prefix_highlights(output_path, summary["added_prefix_cells"])  # type: ignore[arg-type]
     rewrite_xlsx_for_excel_compatibility(output_path)
     try:

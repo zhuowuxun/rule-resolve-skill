@@ -53,6 +53,7 @@ This skill is not for:
 
 3. Apply validation-only naming rules.
    - Web rules should use the approved vulnerability naming pattern.
+   - Flag vulnerability titles that lack an application/product name, such as `应用程序漏洞 - CVE-2026-104935，/path，变种 #1`: highlight both `cn_name` and `en_name` cells yellow and list the UUID and row in the report. Preserve the original title and evidence; do not infer a product from a CVE or silently invent one. Review other ambiguous titles manually.
    - Normalize `Web安全验证 -` / `web安全验证 -` to `Web应用程序漏洞 -`.
    - If a title contains an explicit Web endpoint path such as `/api/...`, `.ashx`, `.php`, `.jsp`, or another URL-path-like entry, keep/classify it as `Web应用程序漏洞` even when the product name contains application words such as `ERP` or `管理系统`.
    - AI product classification has higher priority than Web endpoint classification. If the product or description identifies the target as an AI application, LLM platform, AI coding agent, MCP/Model Context Protocol server/tool, or AI workflow product, use `AI应用程序漏洞` even when the vulnerability entry contains a Web path such as `/session/`.

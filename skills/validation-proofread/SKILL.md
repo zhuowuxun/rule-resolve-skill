@@ -141,6 +141,10 @@ Use `validation-proofread` only when a validation project already exists in the 
 - Prefer exact bad-phrase fixes for readability issues. Do not introduce broad "make Chinese prettier" rules that can alter technical evidence.
 - If the output required hand fixes, either fold the exact safe rule back into the script or label the file as a one-off; do not claim the reusable workflow is fixed.
 
+## Missing application name review
+
+- For vulnerability titles lacking an identifiable application/product name, highlight both Chinese and English title cells yellow and record the UUID and row in the report. Preserve CVEs and paths, and do not invent the product; review ambiguous cases manually.
+
 ## Manual Review Checklist
 - Check whether `cn_name` still contains Chinese leftovers such as `执行`, `利用`, or `通信`.
 - Check whether English introduced extra qualifiers absent from Chinese, especially words such as `Web`, `server-side`, `vendor`, platform names, or protocol labels.

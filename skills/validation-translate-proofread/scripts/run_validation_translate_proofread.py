@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -601,6 +602,17 @@ def normalize_exported_validation_text(text, target_header=""):
     return value
 
 
+def flag_missing_applications_for_review(path):
+    """Reuse the validation standardizer's missing-product review gate."""
+    module_path = Path(__file__).resolve().parents[2] / "standardize-validation-rules/scripts/missing_application_review.py"
+    spec = importlib.util.spec_from_file_location("missing_application_review", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Missing application-review helper: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.flag_missing_applications(path)
+
+
 def export_bilingual(session, api_base, project_id, input_path, output_path):
     project = get_json(session, f"{api_base}/api/project/{project_id}", "Fetch project chunks for export")
     chunks = project.get("chunks") or []
@@ -1060,9 +1072,11 @@ def main():
     if not args.skip_export:
         export_stats = export_bilingual(session, args.api_base, project_id, input_path, output_path)
         relocate_stats = relocate_reference_links_from_notes(output_path)
+        missing_application_names = flag_missing_applications_for_review(output_path)
         warnings = audit_workbook(output_path, args.manual_review_limit)
     else:
         relocate_stats = {"relocated_rows": 0, "normalized_rows": 0, "title_rows_normalized": 0}
+        missing_application_names = []
 
     report = {
         "project_name": project_name,
@@ -1099,6 +1113,7 @@ def main():
         },
         "backup": str(backup_path),
         "manual_review_warnings": warnings,
+        "missing_application_name": missing_application_names,
         "reference_rows_relocated": relocate_stats["relocated_rows"],
         "reference_rows_normalized": relocate_stats["normalized_rows"],
         "title_rows_normalized": relocate_stats["title_rows_normalized"],
