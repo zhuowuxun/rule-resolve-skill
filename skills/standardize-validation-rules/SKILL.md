@@ -45,6 +45,7 @@ This skill is not for:
    - Keep `APT-U####` identifiers with the hyphen.
    - Remove campaign identifiers such as `CAMP.26.029` from rule names; in descriptions, replace such identifiers with `攻击活动` if they need to remain semantically visible.
    - Standardize `变种 #n`.
+   - For Actions titles, move a single explicit `变种 #n` marker, or a standalone `#n` in a malicious-file download title, to the end as `，变种 #n`, after the action/file type. Do not alter hash signs inside paths, identifiers or references; do not apply this rule to Sequences scene numbering.
    - Standardize actor wording such as `行为体` / `威胁集群` / `恶意软件集群` to the approved wording.
    - Do not globally replace technical `集群` with `威胁组织`; only actor/threat contexts such as `威胁集群`, `恶意软件集群`, `活动集群`, or `敌对集群` should become `威胁组织`. Product/runtime phrases such as `Kafka 集群` must remain technical cluster wording.
    - Standardize `攻击技巧` to `攻击手法`.
