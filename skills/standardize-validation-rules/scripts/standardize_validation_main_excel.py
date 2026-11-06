@@ -1370,7 +1370,8 @@ def cleanup_unwanted_attribution(text: str, allow_fallback: bool = True) -> str:
         lambda match: f"披露时间：{match.group(1)}-{match.group(2).zfill(2)}-{match.group(3).zfill(2)}。",
         cleaned,
     )
-    cleaned = cleaned.replace("*", "")
+    # Strip paired Markdown emphasis without damaging wildcards in technical paths.
+    cleaned = re.sub(r"\*\*([^*\n]+)\*\*", r"\1", cleaned)
     cleaned = re.sub(r"框架生成\s*攻击活动[。.]?", "框架生成。", cleaned)
     cleaned = cleaned.replace("。攻击活动。创建用于跟踪", "。创建用于跟踪")
     cleaned = cleaned.replace("攻击活动。创建用于跟踪", "创建用于跟踪")
@@ -3791,6 +3792,8 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
     archive.write(output_path)
     from intake_refinements import refine
     summary["source_supported_refinements"] = refine(output_path, input_path)
+    from geography_refinements import refine_geography
+    summary["geographic_refinements"] = refine_geography(output_path)
     apply_added_prefix_highlights(output_path, summary["added_prefix_cells"])  # type: ignore[arg-type]
     rewrite_xlsx_for_excel_compatibility(output_path)
     try:
