@@ -1245,20 +1245,20 @@ def main() -> None:
                 history = history_by_uuid.get(uuid) or history_by_name.get(name)
                 if history:
                     if is_missing_note(base_cn) and history.get("cn"):
-                        base_cn = history["cn"]
+                        base_cn = keep_remediation_only(history["cn"])
                         filled_cn_reason = "历史标准化语料精确回填"
                     if is_missing_note(base_en) and history.get("en"):
-                        base_en = history["en"]
+                        base_en = keep_remediation_only(history["en"])
                         filled_en_reason = "历史标准化语料精确回填"
 
             if is_missing_note(base_cn) or is_missing_note(base_en):
                 dict_cn, dict_en, fill_reason = lookup_dictionary(dictionary, tag_cn)
                 if is_missing_note(base_cn):
-                    base_cn = dict_cn
+                    base_cn = keep_remediation_only(dict_cn)
                     if dict_cn:
                         filled_cn_reason = fill_reason
                 if is_missing_note(base_en):
-                    base_en = dict_en
+                    base_en = keep_remediation_only(dict_en)
                     if dict_en:
                         filled_en_reason = fill_reason
 
@@ -1267,7 +1267,7 @@ def main() -> None:
             should_contextualize_dictionary_fill = any(reason.startswith("字典") for reason in fill_reasons)
             if should_contextualize_dictionary_fill and base_cn and base_en:
                 fill_context_reason = "；".join(dict.fromkeys(fill_reasons))
-                base_cn, base_en, contextual_reason = apply_fill_context(
+                contextual_cn, contextual_en, contextual_reason = apply_fill_context(
                     dictionary,
                     tag_cn,
                     name,
@@ -1278,12 +1278,14 @@ def main() -> None:
                     fill_context_reason,
                 )
                 if filled_cn_reason:
+                    base_cn = keep_remediation_only(contextual_cn)
                     filled_cn_reason = contextual_reason
                 if filled_en_reason:
+                    base_en = keep_remediation_only(contextual_en)
                     filled_en_reason = contextual_reason
             forced_host_reason = ""
             forced_sandbox_reason = ""
-            if "受保护的沙盘" in rule_type and sandbox_notes_need_replacement(base_cn, base_en):
+            if (filled_cn_reason or filled_en_reason) and "受保护的沙盘" in rule_type and sandbox_notes_need_replacement(base_cn, base_en):
                 sandbox_cn, sandbox_en = select_dictionary_by_cn_phrase(
                     dictionary,
                     tag_cn,
@@ -1291,10 +1293,13 @@ def main() -> None:
                     "M1031M1050",
                 )
                 if sandbox_cn and sandbox_en:
-                    base_cn, base_en = sandbox_cn, sandbox_en
+                    if filled_cn_reason:
+                        base_cn = keep_remediation_only(sandbox_cn)
+                    if filled_en_reason:
+                        base_en = keep_remediation_only(sandbox_en)
                     forced_sandbox_reason = "规则类型二次判断：受保护的沙盘改用终端沙盘模板"
 
-            if rule_type == "主机命令行" and host_command_notes_need_replacement(base_cn, base_en):
+            if (filled_cn_reason or filled_en_reason) and rule_type == "主机命令行" and host_command_notes_need_replacement(base_cn, base_en):
                 host_cn, host_en = dictionary.get("M1018M1028", ("", ""))
                 if not host_cn or not host_en:
                     host_cn, host_en = select_dictionary_by_cn_phrase(
@@ -1304,7 +1309,10 @@ def main() -> None:
                         "M1018M1028",
                     )
                 if host_cn and host_en:
-                    base_cn, base_en = host_cn, host_en
+                    if filled_cn_reason:
+                        base_cn = keep_remediation_only(host_cn)
+                    if filled_en_reason:
+                        base_en = keep_remediation_only(host_en)
                     forced_host_reason = "规则类型二次判断：主机命令行改用主机命令模板"
 
             pre_transform_cn = base_cn
