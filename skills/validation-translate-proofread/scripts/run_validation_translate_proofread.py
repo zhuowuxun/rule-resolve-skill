@@ -207,6 +207,18 @@ def translate_all_with_retries(session, api_base, project_id, expected_chunks, m
     return last_result
 
 
+def move_host_os_after_method(title):
+    """Place a host-command OS marker after a trailing method, before a variant."""
+    match = re.fullmatch(
+        r"(Host Command Line - .+?)\s+\((Windows|Linux|macOS)\)\s+((?:via|using|with)\s+.+?)(,\s*variant\s*-\d+)?",
+        title,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return title
+    return f"{match.group(1)} {match.group(3)} ({match.group(2)}){match.group(4) or ''}"
+
+
 def apply_builtin_validation_title_repairs(session, api_base, project_id):
     """Narrow title repairs that should work even if the platform script lags."""
     project = get_json(session, f"{api_base}/api/project/{project_id}", "Fetch project for built-in title repairs")
@@ -242,6 +254,7 @@ def apply_builtin_validation_title_repairs(session, api_base, project_id):
             r'Host Command Line - Use Schtasks to Create Scheduled Task "\1" (\2)',
             new_text,
         )
+        new_text = move_host_os_after_method(new_text)
 
         if new_text != translated:
             put_json(
@@ -585,6 +598,8 @@ def normalize_exported_validation_text(text, target_header=""):
         if value.startswith("Host Command Line - "):
             value = value.replace(", Execution", ", Execute")
             value = value.replace(", execution", ", Execute")
+            if target_header == "en_name":
+                value = move_host_os_after_method(value)
         if value.startswith("Protected Sandbox - "):
             value = re.sub(r",\s*Execute(?=,|$)", ", Execution", value)
             value = re.sub(r",\s*execution(?=,|$)", ", Execution", value)
