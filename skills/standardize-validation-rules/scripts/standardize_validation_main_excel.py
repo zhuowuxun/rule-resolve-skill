@@ -1817,6 +1817,7 @@ def dedupe_web_attack_sentences(
         clause = re.split(r"[，,。]", clean, maxsplit=1)[0]
         tokens = re.findall(r"/[A-Za-z0-9_./:{}?=&-]+|[A-Za-z_][A-Za-z0-9_:]*\(\)|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", clause)
         if (any(t not in target for t in tokens)
+                or re.search(r"(?<![A-Za-z0-9_/])[A-Za-z_][A-Za-z0-9_]*(?:\[[A-Za-z0-9_]+\])*\s*参数", clause)
                 or re.search(r"未授权|未认证|未经|身份验证|身份认证", clause)
                 or any(q in clause and q not in vuln_type for q in ("路径遍历", "路径穿越", "任意文件上传", "访问控制", "类型混淆", "操作系统命令注入", "命令注入", "代码注入", "二次", "二阶"))):
             seen.add(clean)
@@ -3022,6 +3023,72 @@ def standardize_host_cmd_desc(name: str, desc: str) -> str:
     return standardize_generic_desc(clean_desc)
 
 
+def audit_source_identifiers(input_path: Path, output_path: Path) -> List[dict]:
+    """Detect dropped named parameters and exact executable/export commands by UUID."""
+    from openpyxl import load_workbook
+
+    source = load_workbook(input_path, read_only=True, data_only=True)
+    output = load_workbook(output_path, read_only=True, data_only=True)
+    parameter = re.compile(
+        r"(?<![A-Za-z0-9_/])([A-Za-z_][A-Za-z0-9_]*(?:\[[A-Za-z0-9_]+\])*)\s*参数"
+        r"|\b(?:GET|POST)\s*参数\s+([A-Za-z_][A-Za-z0-9_]*)"
+    )
+    command = re.compile(r"\b[A-Za-z0-9_.-]+\.exe\s+[A-Za-z0-9_.-]+\.dll,[A-Za-z_][A-Za-z0-9_]*\b", re.I)
+    path = re.compile(r"(?<![A-Za-z0-9_:/])/(?:[A-Za-z0-9._~:@{}?=&%+\-]+/)*[A-Za-z0-9._~:@{}?=&%+\-]+/?|(?<![A-Za-z0-9_])(?:\.\./)+")
+    issues = []
+    try:
+        if "Actions" not in source or "Actions" not in output:
+            return issues
+        src, dst = source["Actions"], output["Actions"]
+        src_rows, dst_rows = list(src.values), list(dst.values)
+        src_h = {v: i for i, v in enumerate(src_rows[0]) if v}
+        dst_h = {v: i for i, v in enumerate(dst_rows[0]) if v}
+        if not {"uuid", "cn_desc"} <= src_h.keys() or not {"uuid", "cn_desc", "cn_name"} <= dst_h.keys():
+            return issues
+        by_id = {str(row[dst_h["uuid"]]): row for row in dst_rows[1:] if row[dst_h["uuid"]]}
+        for row_number, row in enumerate(src_rows[1:], 2):
+            uid = str(row[src_h["uuid"]] or "")
+            if not uid or uid not in by_id:
+                continue
+            original = str(row[src_h["cn_desc"]] or "")
+            updated = by_id[uid]
+            target = str(updated[dst_h["cn_name"]] or "") + "\n" + str(updated[dst_h["cn_desc"]] or "")
+            original_row = "\n".join(str(value or "") for value in row)
+            source_cves = {f"CVE-{y}-{n}" for y, n in CVE_RE.findall(original_row)}
+            title_cves = {f"CVE-{y}-{n}" for y, n in CVE_RE.findall(str(updated[dst_h["cn_name"]] or ""))}
+            for cve in sorted(title_cves - source_cves):
+                issues.append({"sheet": "Actions", "row": row_number, "uuid": uid, "kind": "extra_title_cve", "value": cve})
+            identifiers = [("parameter", a or b) for a, b in parameter.findall(original)]
+            identifiers += [("command", value) for value in command.findall(original)]
+            without_urls = URL_RE.sub("", original)
+            identifiers += [("path", value) for value in path.findall(without_urls)]
+            for kind, value in dict.fromkeys(identifiers):
+                if kind == "parameter" and value.upper() in {"GET", "POST", "HTTP", "SQL"}:
+                    continue
+                present = value in target if kind in {"command", "path"} else bool(
+                    re.search(r"(?<![A-Za-z0-9_])" + re.escape(value) + r"(?![A-Za-z0-9_])", target)
+                )
+                if not present:
+                    issues.append({"sheet": "Actions", "row": row_number, "uuid": uid, "kind": kind, "value": value})
+    finally:
+        source.close()
+        output.close()
+    return issues
+
+
+def restore_source_export_commands(source_text: str, output_text: str) -> str:
+    """Restore the exact comma of a source exe/DLL export command, if normalized."""
+    command = re.compile(r"\b[A-Za-z0-9_.-]+\.exe\s+[A-Za-z0-9_.-]+\.dll,[A-Za-z_][A-Za-z0-9_]*\b", re.I)
+    for exact in dict.fromkeys(command.findall(source_text or "")):
+        if exact in output_text:
+            continue
+        for altered in (exact.replace(",", "，"), exact.replace(",", ", ")):
+            if altered in output_text:
+                output_text = output_text.replace(altered, exact)
+                break
+    return output_text
+
+
 def standardize_generic_desc(desc: str) -> str:
     # Remove an accidental whole-cell quotation, preserving all internal quotes.
     wrapped = re.fullmatch(r'\s*"(此验证动作[\s\S]*[。！？])\s*"[。]?\s*', desc or '')
@@ -3761,6 +3828,8 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
             for col_idx, new_value in updates.items():
                 if isinstance(new_value, str):
                     new_value = remove_nist_urls_from_chinese_text(new_value)
+                    if sheet_name == "Actions" and col_idx == desc_col:
+                        new_value = restore_source_export_commands(desc, new_value)
                     updates[col_idx] = new_value
                 current = read_cell_value(cell_map.get(col_idx), shared_strings).strip()
                 if normalize_text(current) == normalize_text(new_value):
@@ -3813,6 +3882,7 @@ def standardize_workbook(input_path: Path, output_path: Path, report_path: Path)
     summary["missing_application_name"] = flag_missing_applications(output_path)
     apply_added_prefix_highlights(output_path, summary["added_prefix_cells"])  # type: ignore[arg-type]
     rewrite_xlsx_for_excel_compatibility(output_path)
+    summary["source_identifier_issues"] = audit_source_identifiers(input_path, output_path)
     try:
         awkward_issues = audit_awkward_literal_translations(output_path)
         summary["awkward_literal_translations"] = awkward_issues
@@ -3836,6 +3906,8 @@ def main() -> None:
     args = parse_args()
     summary = standardize_workbook(args.input, args.output, args.report)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if summary["source_identifier_issues"]:
+        raise SystemExit("Source identifiers are missing; review the report before delivery.")
 
 
 if __name__ == "__main__":

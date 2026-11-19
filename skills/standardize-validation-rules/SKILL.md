@@ -267,6 +267,7 @@ This skill is not for:
    Fix any issue found and re-run QA.
 
 10. Compare the standardized workbook against the source workbook before final response.
+   - The bundled Actions source-identifier audit reports missing source-description paths or explicit named parameters, changed executable/DLL export commands, and title CVEs absent from that source row, matched by UUID. A finding blocks delivery until compared with the source and corrected or explicitly resolved; the diagnostic workbook is not a final deliverable. Reference titles are wording examples: never copy their CVEs to a different source row. This targeted check supplements rather than replaces full protected-token and semantic review across all sheets.
    - Align by `uuid` / `vid` when available and compare `cn_name`, `cn_desc`, `cn_notes`, `cn_subject`, `cn_body`, and any standardized `Sequences` fields.
    - Treat loss of `未` / `未经` before `授权` / `身份验证`, dropped CVE/path/URL/file/function/parameter/date/version tokens, dropped defanged indicators, and empty output descriptions from non-empty sources as failed runs.
    - For Web / AI / application vulnerability rows, if the source description contains a fuller endpoint path than the title, verify the final `cn_name` and opening sentence use the full path instead of only the short title path.

@@ -901,6 +901,44 @@ def audit_workbook(path, manual_review_limit):
             cn_notes_val = row_map.get("cn_notes")
             en_notes_val = row_map.get("en_notes")
             cn_names[(ws.title, row_idx)] = str(row_map.get("cn_name") or "")
+            if ws.title in {"Actions", "Sequences"}:
+                path_re = re.compile(r"(?<![A-Za-z0-9_:/])/(?:[A-Za-z0-9._~:@{}?=&%+\-]+/)*[A-Za-z0-9._~:@{}?=&%+\-]+/?|(?<![A-Za-z0-9_])(?:\.\./)+")
+                parameter_re = re.compile(r"(?<![A-Za-z0-9_/])([A-Za-z_][A-Za-z0-9_]*(?:\[[A-Za-z0-9_]+\])*)\s*参数|\b(?:GET|POST)\s*参数\s+([A-Za-z_][A-Za-z0-9_]*)")
+                camel_case_re = re.compile(r"\b[a-z]+[A-Z][A-Za-z0-9_]*\b")
+                for cn_header, en_header in (("cn_name", "en_name"), ("cn_desc", "en_desc"), ("cn_notes", "en_notes")):
+                    cn = str(row_map.get(cn_header) or "").strip()
+                    en = str(row_map.get(en_header) or "").strip()
+                    if cn and not en:
+                        warnings.append({"sheet": ws.title, "row": row_idx, "header": en_header, "issue": "missing_translation", "text": cn})
+                        continue
+                    if not cn or not en:
+                        continue
+                    plain_cn = URL_RE.sub("", cn)
+                    tokens = [("path", x) for x in path_re.findall(plain_cn)]
+                    tokens += [("cve", x.upper()) for x in re.findall(r"\bCVE-\d{4}-\d+\b", plain_cn, re.I)]
+                    if cn_header == "cn_desc":
+                        tokens += [("parameter", a or b) for a, b in parameter_re.findall(plain_cn) if (a or b).upper() not in {"GET", "POST", "HTTP", "SQL"}]
+                        tokens += [("identifier", x) for x in camel_case_re.findall(plain_cn)]
+                    tokens += [("url", x) for x in URL_RE.findall(cn)]
+                    for kind, token in dict.fromkeys(tokens):
+                        if token not in en:
+                            warnings.append({"sheet": ws.title, "row": row_idx, "header": en_header, "issue": "translation_technical_token_missing", "kind": kind, "value": token})
+            cn_desc_for_dates = str(row_map.get("cn_desc") or "")
+            date_order = re.search(
+                r"最早于\s*(\d{4})\s*年\s*(\d{1,2})\s*月被发现[^。]{0,100}?持续到\s*(\d{4})\s*年\s*(\d{1,2})\s*月",
+                cn_desc_for_dates,
+            )
+            if date_order:
+                start_year, start_month, end_year, end_month = map(int, date_order.groups())
+                if 1 <= start_month <= 12 and 1 <= end_month <= 12 and (start_year, start_month) > (end_year, end_month):
+                    warnings.append({"sheet": ws.title, "row": row_idx, "header": "cn_desc", "issue": "contradictory_discovery_and_activity_dates", "text": cn_desc_for_dates})
+            if ws.title == "Actions" and cn_names[(ws.title, row_idx)].startswith("主机命令行 - "):
+                cn_desc = str(row_map.get("cn_desc") or "").strip()
+                en_desc = str(row_map.get("en_desc") or "").strip()
+                if re.match(r"^(?:草稿(?:[.。…：:]|$)|通过这种方式|在此验证动作中[，,])", cn_desc):
+                    warnings.append({"sheet": ws.title, "row": row_idx, "header": "cn_desc", "issue": "incomplete_host_description_opening", "text": cn_desc})
+                if re.match(r"^(?:Draft(?:[.：:]|$)|In this way\b|In this rule\b)", en_desc, re.I):
+                    warnings.append({"sheet": ws.title, "row": row_idx, "header": "en_desc", "issue": "incomplete_host_description_opening", "text": en_desc})
             if (
                 isinstance(cn_notes_val, str)
                 and "参考链接" in cn_notes_val
@@ -915,9 +953,15 @@ def audit_workbook(path, manual_review_limit):
         for header, text in sorted(cells.items()):
             if CN_RE.search(text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "contains_chinese", "text": text})
-            if re.search(r",(?=[A-Za-z/])", text):
+            # Commas and ellipses inside commands, quoted code, URLs and ../ paths
+            # are evidence, not prose punctuation to be normalized.
+            punctuation_text = re.sub(
+                r"`[^`\n]*`|https?://\S+|\b[A-Za-z0-9_.-]+\.exe\s+[A-Za-z0-9_.-]+\.dll,[A-Za-z_][A-Za-z0-9_]*|(?:\.\./)+",
+                lambda match: " " * len(match.group()), text, flags=re.I,
+            )
+            if re.search(r",(?=[A-Za-z/])", punctuation_text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "comma_spacing", "text": text})
-            if re.search(r",,|\.\.(?!/)", text):
+            if re.search(r",,|\.\.(?!/)", punctuation_text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "double_punctuation", "text": text})
             if re.search(r"\bauthentication Scenario\b|\bAuthentication Scenario\b", text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "validation_scenario_mistranslation", "text": text})
@@ -937,7 +981,7 @@ def audit_workbook(path, manual_review_limit):
     for item in reference_note_rows:
         warnings.append({"sheet": item["sheet"], "row": item["row"], "header": "notes", "issue": "reference_link_left_in_notes"})
 
-    return warnings[:manual_review_limit]
+    return warnings if manual_review_limit is None else warnings[:manual_review_limit]
 
 
 def main():
@@ -1073,13 +1117,6 @@ def main():
     if not proofread_result["verify_clean"]:
         raise SystemExit("Validation proofreading did not return a clean result.")
 
-    put_json(
-        session,
-        f"{args.api_base}/api/project/{project_id}/status",
-        {"status": "done"},
-        "Set project status",
-    )
-
     project = get_json(session, f"{args.api_base}/api/project/{project_id}", "Fetch final project")
 
     warnings = []
@@ -1088,7 +1125,7 @@ def main():
         export_stats = export_bilingual(session, args.api_base, project_id, input_path, output_path)
         relocate_stats = relocate_reference_links_from_notes(output_path)
         missing_application_names = flag_missing_applications_for_review(output_path)
-        warnings = audit_workbook(output_path, args.manual_review_limit)
+        warnings = audit_workbook(output_path, None)
     else:
         relocate_stats = {"relocated_rows": 0, "normalized_rows": 0, "title_rows_normalized": 0}
         missing_application_names = []
@@ -1127,7 +1164,10 @@ def main():
             "export_stats": export_stats,
         },
         "backup": str(backup_path),
-        "manual_review_warnings": warnings,
+        "manual_review_warnings": warnings[:args.manual_review_limit],
+        "manual_review_warning_count": len(warnings),
+        "manual_review_warnings_truncated": len(warnings) > args.manual_review_limit,
+        "blocking_review_findings": [x for x in warnings if x["issue"] in {"incomplete_host_description_opening", "contradictory_discovery_and_activity_dates", "missing_translation", "translation_technical_token_missing"}],
         "missing_application_name": missing_application_names,
         "reference_rows_relocated": relocate_stats["relocated_rows"],
         "reference_rows_normalized": relocate_stats["normalized_rows"],
@@ -1136,6 +1176,16 @@ def main():
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2))
+
+    if report["blocking_review_findings"]:
+        raise SystemExit(f"Blocking description findings require review; see {report_path}.")
+
+    put_json(
+        session,
+        f"{args.api_base}/api/project/{project_id}/status",
+        {"status": "done"},
+        "Set project status",
+    )
 
     print(
         json.dumps(
