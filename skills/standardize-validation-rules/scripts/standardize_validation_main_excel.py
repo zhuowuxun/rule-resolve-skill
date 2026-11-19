@@ -2885,6 +2885,10 @@ def titleize_host_cmd(name: str, desc: str = "") -> str:
         raw = raw.replace("主机命令行 - ", "主机命令行 - Handala 威胁组织，", 1)
     patterns = [
         (
+            r"^主机命令行\s*-\s*草稿[：:]\s*使用\s+PsExec\s+执行命令(?:\s*\((Windows|Linux|macOS)\))?$",
+            lambda m: "主机命令行 - PsExec，命令执行" + (f" ({m.group(1)})" if m.group(1) else ""),
+        ),
+        (
             r"^主机命令行\s*-\s*使用\s+WebBrowserPassView\s+工具导出浏览器凭据(?:\s*\((Windows|Linux|macOS)\))?(?:，\s*变种\s*#(\d+))?$",
             lambda m: "主机命令行 - WebBrowserPassView，浏览器凭据导出"
             + (f" ({m.group(1)})" if m.group(1) else "")
@@ -2987,6 +2991,11 @@ def translate_known_english_host_cmd_desc(name: str, desc: str) -> str:
 def standardize_host_cmd_desc(name: str, desc: str) -> str:
     clean_name = normalize_common_text(name).replace("WebBroeserPassView", "WebBrowserPassView")
     clean_desc = normalize_common_text(desc)
+    clean_desc = re.sub(r"^草稿[.。…]+\s*(?=在此验证动作中[，,])", "", clean_desc)
+    keyword_search = re.search(r"查找文件名包含[“\"]([^”\"]+)[”\"]", clean_name)
+    if keyword_search and re.match(r"^通过这种方式[，,]攻击者可以侦察包含", clean_desc):
+        keyword = keyword_search.group(1)
+        return f"此验证动作还原了攻击者通过查找文件名中包含“{keyword}”的文件来侦察敏感文件。"
     lower_name = clean_name.lower()
     translated_desc = translate_known_english_host_cmd_desc(clean_name, clean_desc)
     if translated_desc:
