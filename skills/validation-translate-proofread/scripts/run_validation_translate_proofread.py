@@ -959,6 +959,8 @@ def audit_workbook(path, manual_review_limit):
                 r"`[^`\n]*`|https?://\S+|\b[A-Za-z0-9_.-]+\.exe\s+[A-Za-z0-9_.-]+\.dll,[A-Za-z_][A-Za-z0-9_]*|(?:\.\./)+",
                 lambda match: " " * len(match.group()), text, flags=re.I,
             )
+            if re.search(r"\bvaraint\b", punctuation_text, re.I):
+                warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "variant_spelling", "text": text})
             if re.search(r",(?=[A-Za-z/])", punctuation_text):
                 warnings.append({"sheet": sheet_name, "row": row_num, "header": header, "issue": "comma_spacing", "text": text})
             if re.search(r",,|\.\.(?!/)", punctuation_text):
@@ -1167,7 +1169,7 @@ def main():
         "manual_review_warnings": warnings[:args.manual_review_limit],
         "manual_review_warning_count": len(warnings),
         "manual_review_warnings_truncated": len(warnings) > args.manual_review_limit,
-        "blocking_review_findings": [x for x in warnings if x["issue"] in {"incomplete_host_description_opening", "contradictory_discovery_and_activity_dates", "missing_translation", "translation_technical_token_missing"}],
+        "blocking_review_findings": [x for x in warnings if x["issue"] in {"incomplete_host_description_opening", "contradictory_discovery_and_activity_dates", "missing_translation", "translation_technical_token_missing", "variant_spelling"}],
         "missing_application_name": missing_application_names,
         "reference_rows_relocated": relocate_stats["relocated_rows"],
         "reference_rows_normalized": relocate_stats["normalized_rows"],
